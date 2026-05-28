@@ -38,3 +38,9 @@
 *.blend3 filter=lfs diff=lfs merge=lfs -text
 *.tscn filter=lfs diff=lfs merge=lfs -text
 *.tres filter=lfs diff=lfs merge=lfs -text
+
+# README screenshots: stay as regular Git blobs so GitHub serves them via CDN
+# without consuming LFS bandwidth quota on every README view.
+Screenshots/*.png !filter !diff !merge
+Screenshots/*.jpg !filter !diff !merge
+Screenshots/*.jpeg !filter !diff !merge
