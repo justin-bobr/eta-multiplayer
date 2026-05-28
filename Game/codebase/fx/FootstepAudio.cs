@@ -36,13 +36,14 @@ public partial class FootstepAudio : Node3D
 	[ExportGroup("Clip Library")]
 	/// <summary>
 	/// Flat list of all footstep clips. Material is the folder name, action is the filename token
-	/// (walk/sprint/jump/land). Generated from codebase/audio/footsteps/&lt;material&gt;/&lt;material&gt;_&lt;action&gt;_NN.wav.
+	/// (walk/sprint/jump/land). Generated from audio/footsteps/&lt;material&gt;/&lt;material&gt;_&lt;action&gt;_NN.wav.
 	/// </summary>
 	[Export] public string[] ClipPaths = System.Array.Empty<string>();
 	/// <summary>Fallback material group when the floor collider has no recognized Godot group.</summary>
 	[Export] public StringName DefaultGroup = "dirt";
 	/// <summary>Materials preloaded on scene load so the first step on them is not silent.</summary>
-	[Export] public string[] PreloadGroups =
+	[Export]
+	public string[] PreloadGroups =
 	{
 		"dirt", "concrete", "metal", "sand", "wet_sand", "mud", "grass", "wood",
 		"gravel", "carpet_hard", "carpet_wood",
@@ -92,7 +93,8 @@ public partial class FootstepAudio : Node3D
 	{
 		BuildLibrary();
 		foreach (string mat in PreloadGroups)
-			if (!string.IsNullOrEmpty(mat)) EnsureMaterialLoaded(mat);
+			if (!string.IsNullOrEmpty(mat))
+				EnsureMaterialLoaded(mat);
 		SetProcess(_pending.Count > 0);
 	}
 
@@ -101,8 +103,10 @@ public partial class FootstepAudio : Node3D
 	{
 		foreach (string path in ClipPaths)
 		{
-			if (string.IsNullOrEmpty(path)) continue;
-			if (!TryParse(path, out string material, out FootstepAction action)) continue;
+			if (string.IsNullOrEmpty(path))
+				continue;
+			if (!TryParse(path, out string material, out FootstepAction action))
+				continue;
 
 			if (!_lib.TryGetValue(material, out var byAction))
 				_lib[material] = byAction = new Dictionary<FootstepAction, List<string>>();
@@ -119,25 +123,38 @@ public partial class FootstepAudio : Node3D
 		action = FootstepAction.Walk;
 
 		int lastSlash = path.LastIndexOf('/');
-		if (lastSlash <= 0) return false;
+		if (lastSlash <= 0)
+			return false;
 		int prevSlash = path.LastIndexOf('/', lastSlash - 1);
-		if (prevSlash < 0) return false;
+		if (prevSlash < 0)
+			return false;
 		material = path.Substring(prevSlash + 1, lastSlash - prevSlash - 1);
 
 		string file = path.Substring(lastSlash + 1);
 		int dot = file.LastIndexOf('.');
-		if (dot >= 0) file = file.Substring(0, dot);
+		if (dot >= 0)
+			file = file.Substring(0, dot);
 		string[] segs = file.Split('_');
-		if (segs.Length < 2) return false;
+		if (segs.Length < 2)
+			return false;
 
 		switch (segs[segs.Length - 2])
 		{
-			case "walk": action = FootstepAction.Walk; return true;
-			case "sprint": action = FootstepAction.Sprint; return true;
-			case "jump": action = FootstepAction.Jump; return true;
+			case "walk":
+				action = FootstepAction.Walk;
+				return true;
+			case "sprint":
+				action = FootstepAction.Sprint;
+				return true;
+			case "jump":
+				action = FootstepAction.Jump;
+				return true;
 			case "land":
-			case "landing": action = FootstepAction.Land; return true;
-			default: return false;
+			case "landing":
+				action = FootstepAction.Land;
+				return true;
+			default:
+				return false;
 		}
 	}
 
@@ -159,24 +176,31 @@ public partial class FootstepAudio : Node3D
 			else
 				GD.PushWarning($"[FootstepAudio] clip load failed: {path} ({status})");
 		}
-		if (_pending.Count == 0) SetProcess(false);
+		if (_pending.Count == 0)
+			SetProcess(false);
 	}
 
 	/// <summary>Kicks off threaded loads for all clips of a material — deduped per instance and process-wide.</summary>
 	private void EnsureMaterialLoaded(string material)
 	{
-		if (!_materialsTriggered.Add(material)) return;
-		if (!_lib.TryGetValue(material, out var byAction)) return;
+		if (!_materialsTriggered.Add(material))
+			return;
+		if (!_lib.TryGetValue(material, out var byAction))
+			return;
 
 		bool added = false;
 		foreach (var pool in byAction.Values)
 			foreach (string path in pool)
 			{
-				if (_clipCache.ContainsKey(path) || !_requested.Add(path)) continue;
-				if (ResourceLoader.LoadThreadedRequest(path) == Error.Ok) { _pending.Add(path); added = true; }
-				else GD.PushWarning($"[FootstepAudio] path not loadable: {path}");
+				if (_clipCache.ContainsKey(path) || !_requested.Add(path))
+					continue;
+				if (ResourceLoader.LoadThreadedRequest(path) == Error.Ok)
+				{ _pending.Add(path); added = true; }
+				else
+					GD.PushWarning($"[FootstepAudio] path not loadable: {path}");
 			}
-		if (added) SetProcess(true);
+		if (added)
+			SetProcess(true);
 	}
 
 	/// <summary>Plays a walking/running step. <paramref name="sprinting"/> chooses Walk vs. Sprint pool.</summary>
@@ -222,7 +246,8 @@ public partial class FootstepAudio : Node3D
 	private string ResolveMaterial(StringName material)
 	{
 		string m = material.ToString();
-		if (_lib.ContainsKey(m)) return m;
+		if (_lib.ContainsKey(m))
+			return m;
 		string d = DefaultGroup.ToString();
 		return _lib.ContainsKey(d) ? d : null;
 	}
@@ -231,7 +256,8 @@ public partial class FootstepAudio : Node3D
 	private string PlayClip(List<string> bank, Vector3 worldPos,
 		float loudness01, float volumeDbBoost, bool inTunnel)
 	{
-		if (bank == null || bank.Count == 0) return null;
+		if (bank == null || bank.Count == 0)
+			return null;
 
 		int start = _rng.RandiRange(0, bank.Count - 1);
 		AudioStream clip = null;
@@ -239,9 +265,11 @@ public partial class FootstepAudio : Node3D
 		for (int i = 0; i < bank.Count; i++)
 		{
 			string path = bank[(start + i) % bank.Count];
-			if (!string.IsNullOrEmpty(path) && _clipCache.TryGetValue(path, out var s)) { clip = s; chosenPath = path; break; }
+			if (!string.IsNullOrEmpty(path) && _clipCache.TryGetValue(path, out var s))
+			{ clip = s; chosenPath = path; break; }
 		}
-		if (clip == null) return null;
+		if (clip == null)
+			return null;
 
 		EnsurePool();
 
@@ -282,16 +310,20 @@ public partial class FootstepAudio : Node3D
 	private bool IsOccluded(Vector3 sourcePos)
 	{
 		Camera3D cam = GetViewport()?.GetCamera3D();
-		if (cam == null) return false;
+		if (cam == null)
+			return false;
 		Vector3 ear = cam.GlobalPosition;
 		float full = ear.DistanceTo(sourcePos);
-		if (full < 1.5f) return false;
+		if (full < 1.5f)
+			return false;
 
 		var space = GetWorld3D()?.DirectSpaceState;
-		if (space == null) return false;
+		if (space == null)
+			return false;
 		var query = PhysicsRayQueryParameters3D.Create(ear, sourcePos, OcclusionMask);
 		var hit = space.IntersectRay(query);
-		if (hit.Count == 0) return false;
+		if (hit.Count == 0)
+			return false;
 		float hitDist = ear.DistanceTo((Vector3)hit["position"]);
 		return hitDist < full - 1.0f;
 	}
@@ -302,7 +334,8 @@ public partial class FootstepAudio : Node3D
 	/// </summary>
 	private void EnsurePool()
 	{
-		if (_pool != null) return;
+		if (_pool != null)
+			return;
 		EnsureHelperBuses();
 
 		int n = Mathf.Max(1, PoolSize);
@@ -336,7 +369,8 @@ public partial class FootstepAudio : Node3D
 	/// </summary>
 	private void EnsureHelperBuses()
 	{
-		if (_busesReady) return;
+		if (_busesReady)
+			return;
 		_busesReady = true;
 
 		if (AudioServer.GetBusIndex(OccludedBusName) < 0)

@@ -37,7 +37,8 @@ public static class Hitscan
 
 		foreach (var (hb, xform, shape) in targets)
 		{
-			if (shape == null) continue;
+			if (shape == null)
+				continue;
 			float t = float.PositiveInfinity;
 			bool hit = false;
 			switch (shape)
@@ -60,7 +61,8 @@ public static class Hitscan
 			}
 		}
 
-		if (bestHb == null) return info;
+		if (bestHb == null)
+			return info;
 		info.Hit = true;
 		info.Distance = bestT;
 		info.Position = origin + direction * bestT;
@@ -81,7 +83,8 @@ public static class Hitscan
 		float b = oc.Dot(dir);
 		float c = oc.Dot(oc) - radius * radius;
 		float h = b * b - c;
-		if (h < 0) return false;
+		if (h < 0)
+			return false;
 		h = Mathf.Sqrt(h);
 		float t0 = -b - h;
 		float t1 = -b + h;
@@ -106,8 +109,10 @@ public static class Hitscan
 		// 1) Endsphären
 		float bestT = float.PositiveInfinity;
 		bool any = false;
-		if (RaySphere(origin, dir, a, worldRadius, out float ta)) { bestT = Mathf.Min(bestT, ta); any = true; }
-		if (RaySphere(origin, dir, b, worldRadius, out float tb)) { bestT = Mathf.Min(bestT, tb); any = true; }
+		if (RaySphere(origin, dir, a, worldRadius, out float ta))
+		{ bestT = Mathf.Min(bestT, ta); any = true; }
+		if (RaySphere(origin, dir, b, worldRadius, out float tb))
+		{ bestT = Mathf.Min(bestT, tb); any = true; }
 
 		// 2) Cylinder zwischen A und B mit worldRadius. Standard infinite-cylinder formula + clip auf Segment.
 		// Skip wenn degeneriert (worldHalfCyl == 0 = nur Sphere).
@@ -132,7 +137,8 @@ public static class Hitscan
 					float y = baoa + tc * bard;
 					if (y >= 0 && y <= baba)
 					{
-						if (tc < bestT) { bestT = tc; any = true; }
+						if (tc < bestT)
+						{ bestT = tc; any = true; }
 					}
 				}
 			}
@@ -157,15 +163,18 @@ public static class Hitscan
 			float d = ld[axis], o = lo[axis], h = half[axis];
 			if (Mathf.Abs(d) < 1e-6f)
 			{
-				if (o < -h || o > h) { t = 0; return false; }
+				if (o < -h || o > h)
+				{ t = 0; return false; }
 				continue;
 			}
 			float t1 = (-h - o) / d;
 			float t2 = (h - o) / d;
-			if (t1 > t2) (t1, t2) = (t2, t1);
+			if (t1 > t2)
+				(t1, t2) = (t2, t1);
 			tmin = Mathf.Max(tmin, t1);
 			tmax = Mathf.Min(tmax, t2);
-			if (tmin > tmax) { t = 0; return false; }
+			if (tmin > tmax)
+			{ t = 0; return false; }
 		}
 		t = tmin >= 0 ? tmin : tmax;
 		return t >= 0;
@@ -181,7 +190,8 @@ public static class Hitscan
 
 	private static PhysicsRayQueryParameters3D EnsureSharedQuery()
 	{
-		if (_sharedQuery != null) return _sharedQuery;
+		if (_sharedQuery != null)
+			return _sharedQuery;
 		_sharedQuery = PhysicsRayQueryParameters3D.Create(Vector3.Zero, Vector3.Right);
 		_sharedQuery.CollideWithAreas = false;
 		_sharedQuery.CollideWithBodies = true;
@@ -233,7 +243,8 @@ public static class Hitscan
 			Material = "default",
 		};
 		var result = space.IntersectRay(query);
-		if (result.Count == 0) return info;
+		if (result.Count == 0)
+			return info;
 		info.Hit = true;
 		info.Position = (Vector3)result["position"];
 		info.Normal = (Vector3)result["normal"];
@@ -256,10 +267,12 @@ public static class Hitscan
 	/// </summary>
 	private static StringName DetectMaterialPerFace(Node3D collider, int faceIndex)
 	{
-		if (collider == null || faceIndex < 0) return "default";
+		if (collider == null || faceIndex < 0)
+			return "default";
 
 		var meshInst = FindVisualMesh(collider);
-		if (meshInst?.Mesh is not ArrayMesh mesh) return "default";
+		if (meshInst?.Mesh is not ArrayMesh mesh)
+			return "default";
 
 		int[] triCounts = GetTriCounts(mesh);
 		int cumFaces = 0;
@@ -274,10 +287,12 @@ public static class Hitscan
 			}
 			cumFaces += triCount;
 		}
-		if (surfaceIdx < 0) return "default";
+		if (surfaceIdx < 0)
+			return "default";
 
 		var material = meshInst.GetActiveMaterial(surfaceIdx);
-		if (material == null) return "default";
+		if (material == null)
+			return "default";
 		if (material.HasMeta("impact_tag"))
 			return (StringName)material.GetMeta("impact_tag").AsString();
 		return "default";
@@ -288,7 +303,8 @@ public static class Hitscan
 	/// <summary>Returns the cached triangle counts per surface for the given mesh, populating the cache on first use.</summary>
 	private static int[] GetTriCounts(ArrayMesh mesh)
 	{
-		if (_triCountCache.TryGetValue(mesh, out var cached)) return cached;
+		if (_triCountCache.TryGetValue(mesh, out var cached))
+			return cached;
 		int surfaceCount = mesh.GetSurfaceCount();
 		var counts = new int[surfaceCount];
 		for (int s = 0; s < surfaceCount; s++)
@@ -304,7 +320,8 @@ public static class Hitscan
 	private static int TriangleCount(Godot.Collections.Array arrays)
 	{
 		var indices = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-		if (indices.Length > 0) return indices.Length / 3;
+		if (indices.Length > 0)
+			return indices.Length / 3;
 		var verts = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
 		return verts.Length / 3;
 	}
@@ -320,7 +337,8 @@ public static class Hitscan
 	{
 		if (_visualMeshCache.TryGetValue(collider, out var cached))
 		{
-			if (GodotObject.IsInstanceValid(cached)) return cached;
+			if (GodotObject.IsInstanceValid(cached))
+				return cached;
 			_visualMeshCache.Remove(collider);
 		}
 		MeshInstance3D found = null;
@@ -328,20 +346,23 @@ public static class Hitscan
 		if (parent != null)
 		{
 			foreach (var child in parent.GetChildren())
-				if (child is MeshInstance3D mi) { found = mi; break; }
+				if (child is MeshInstance3D mi)
+				{ found = mi; break; }
 		}
 		if (found == null)
 		{
 			foreach (var child in collider.GetChildren())
-				if (child is MeshInstance3D mi2) { found = mi2; break; }
+				if (child is MeshInstance3D mi2)
+				{ found = mi2; break; }
 		}
-		if (found != null) _visualMeshCache[collider] = found;
+		if (found != null)
+			_visualMeshCache[collider] = found;
 		return found;
 	}
 
 	/// <summary>
 	/// Recognized surface material groups. Names match the footstep folders under
-	/// codebase/audio/footsteps/ (FootstepAudio maps them 1:1) plus "flesh" (player hitbox).
+	/// audio/footsteps/ (FootstepAudio maps them 1:1) plus "flesh" (player hitbox).
 	/// To add a new ground type, add it here AND create an identically named folder.
 	/// </summary>
 	private static readonly System.Collections.Generic.HashSet<string> MaterialGroups = new()
@@ -366,16 +387,19 @@ public static class Hitscan
 	/// since group membership is static for the lifetime of the node.</summary>
 	private static StringName DetectMaterialPerGroup(Node3D collider)
 	{
-		if (collider == null) return _defaultMaterial;
+		if (collider == null)
+			return _defaultMaterial;
 		if (_groupMaterialCache.TryGetValue(collider, out var cached))
 		{
-			if (GodotObject.IsInstanceValid(collider)) return cached;
+			if (GodotObject.IsInstanceValid(collider))
+				return cached;
 			_groupMaterialCache.Remove(collider);
 		}
 		StringName resolved = _defaultMaterial;
 		foreach (StringName group in collider.GetGroups())
 		{
-			if (MaterialGroups.Contains(group.ToString())) { resolved = group; break; }
+			if (MaterialGroups.Contains(group.ToString()))
+			{ resolved = group; break; }
 		}
 		_groupMaterialCache[collider] = resolved;
 		return resolved;
