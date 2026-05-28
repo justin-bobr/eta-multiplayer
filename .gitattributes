@@ -1,6 +1,5 @@
 # Normalize EOL for all files that Git considers text files.
 * text=auto eol=lf
-
 # === Git LFS: binary asset formats ===
 # (Earlier brace-pattern was invalid Git syntax and silently did nothing.)
 # Godot binary resources
