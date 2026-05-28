@@ -1,0 +1,65 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "csharpier: install (local tool)",
+      "type": "shell",
+      "command": "dotnet tool restore",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "detail": "Installs csharpier into the local .config/dotnet-tools.json manifest."
+    },
+    {
+      "label": "Format: all C# files",
+      "type": "shell",
+      "command": "dotnet csharpier codebase",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "detail": "Formats every .cs file in the codebase directory using project settings (.csharpierrc.yaml)."
+    },
+    {
+      "label": "Format: check only (no writes)",
+      "type": "shell",
+      "command": "dotnet csharpier --check codebase",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "detail": "Reports any C# files that would be reformatted without modifying them. Useful in CI / pre-commit."
+    },
+    {
+      "label": "Format: current file",
+      "type": "shell",
+      "command": "dotnet csharpier \"${file}\"",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "detail": "Formats only the currently open .cs file."
+    }
+  ]
+}

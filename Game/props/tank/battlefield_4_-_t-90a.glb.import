@@ -1,0 +1,695 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://dpb1clx16b0t6"
+path="res://.godot/imported/battlefield_4_-_t-90a.glb-4ddcdccb512e2f899ff3ce78db1c999d.scn"
+
+[deps]
+
+source_file="res://props/tank/battlefield_4_-_t-90a.glb"
+dest_files=["res://.godot/imported/battlefield_4_-_t-90a.glb-4ddcdccb512e2f899ff3ce78db1c999d.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"ArmorCage": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/ArmorCage.tres",
+"use_external/path": "uid://duxvgrtk5uskk"
+},
+"ArmorCage.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/ArmorCage.001.tres",
+"use_external/path": "uid://ckyhtqb0pm3pv"
+},
+"ArmorCage.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/ArmorCage.002.tres",
+"use_external/path": "uid://d054hh7l88vj1"
+},
+"Gadget_IronFist": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Gadget_IronFist.tres",
+"use_external/path": "uid://cfy2l7plhrkkr"
+},
+"Gadget_IronFist.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Gadget_IronFist.002.tres",
+"use_external/path": "uid://b58tus5a4ohtl"
+},
+"Gadget_IronFist.003": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Gadget_IronFist.003.tres",
+"use_external/path": "uid://bjqa4tpvinsyc"
+},
+"HEMTT_M977_A2_Truck_glass": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HEMTT_M977_A2_Truck_glass.tres",
+"use_external/path": "uid://cyr4vj2br3ul0"
+},
+"HEMTT_M977_A2_Truck_glass.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HEMTT_M977_A2_Truck_glass.001.tres",
+"use_external/path": "uid://c5wyl24sw6hrg"
+},
+"HEMTT_M977_A2_Truck_glass.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HEMTT_M977_A2_Truck_glass.002.tres",
+"use_external/path": "uid://ctitmfe0j2n1u"
+},
+"KitAtlas_Russian": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/KitAtlas_Russian.tres",
+"use_external/path": "uid://clbli2obgigit"
+},
+"KitAtlas_Russian.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/KitAtlas_Russian.001.tres",
+"use_external/path": "uid://bmg3r8vaxj0fl"
+},
+"KitAtlas_Russian.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/KitAtlas_Russian.002.tres",
+"use_external/path": "uid://csj2h1vd6unlm"
+},
+"Lights": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Lights.tres",
+"use_external/path": "uid://bik554rwe55j7"
+},
+"Lights.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Lights.001.tres",
+"use_external/path": "uid://bhlm2gmvtdogv"
+},
+"Lights.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Lights.002.tres",
+"use_external/path": "uid://p17e6csusqae"
+},
+"RU_Remotegun": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/RU_Remotegun.tres",
+"use_external/path": "uid://c0p4s20kd6oaa"
+},
+"RU_Remotegun.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/RU_Remotegun.001.tres",
+"use_external/path": "uid://1liewcu6nqmr"
+},
+"RU_Remotegun.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/RU_Remotegun.002.tres",
+"use_external/path": "uid://bjl82st5cba6k"
+},
+"T90Tracks": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/T90Tracks.tres",
+"use_external/path": "uid://2o2fffjbcvxg"
+},
+"T90Tracks.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/T90Tracks.001.tres",
+"use_external/path": "uid://do23u45miubbr"
+},
+"T90Tracks.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/T90Tracks.002.tres",
+"use_external/path": "uid://do5itk4jf5yuf"
+},
+"T90_Infra": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/T90_Infra.tres",
+"use_external/path": "uid://bt3tt6o8sxcjt"
+},
+"T90_Infra.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/T90_Infra.001.tres",
+"use_external/path": "uid://281l52n0o04d"
+},
+"T90_Infra.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/T90_Infra.002.tres",
+"use_external/path": "uid://c62j3t7c6q8kh"
+},
+"material": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/material.tres",
+"use_external/path": "uid://cjbrv143tymdw"
+},
+"t90.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/t90.001.tres",
+"use_external/path": "uid://cmvsoqxnygxkv"
+},
+"t90.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/t90.002.tres",
+"use_external/path": "uid://smjgj8s3kiwb"
+}
+},
+"meshes": {
+"Sketchfab_Scene_t90_aps_radar_smd_001_Gadget_IronFist_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_aps_radar_smd_001_Gadget_IronFist_002_0.res",
+"save_to_file/path": "uid://cpva2sphi7k2b"
+},
+"Sketchfab_Scene_t90_aps_radar_smd_002_Gadget_IronFist_003_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_aps_radar_smd_002_Gadget_IronFist_003_0.res",
+"save_to_file/path": "uid://dy0q2n5jmrwfi"
+},
+"Sketchfab_Scene_t90_aps_radar_smd_Gadget_IronFist_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_aps_radar_smd_Gadget_IronFist_0.res",
+"save_to_file/path": "uid://bk5nkuipgd4vn"
+},
+"Sketchfab_Scene_t90_bag_front_smd_001_KitAtlas_Russian_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_front_smd_001_KitAtlas_Russian_001_0.res",
+"save_to_file/path": "uid://dwlsl65fsn2q6"
+},
+"Sketchfab_Scene_t90_bag_front_smd_002_KitAtlas_Russian_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_front_smd_002_KitAtlas_Russian_002_0.res",
+"save_to_file/path": "uid://dti5b5khrdp1x"
+},
+"Sketchfab_Scene_t90_bag_front_smd_KitAtlas_Russian_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_front_smd_KitAtlas_Russian_0.res",
+"save_to_file/path": "uid://buc0x1p6qgm7o"
+},
+"Sketchfab_Scene_t90_bag_left_smd_001_KitAtlas_Russian_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_left_smd_001_KitAtlas_Russian_001_0.res",
+"save_to_file/path": "uid://x68dp8ynbits"
+},
+"Sketchfab_Scene_t90_bag_left_smd_002_KitAtlas_Russian_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_left_smd_002_KitAtlas_Russian_002_0.res",
+"save_to_file/path": "uid://ca1c4234a5xlb"
+},
+"Sketchfab_Scene_t90_bag_left_smd_KitAtlas_Russian_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_left_smd_KitAtlas_Russian_0.res",
+"save_to_file/path": "uid://s85uswwwnrj6"
+},
+"Sketchfab_Scene_t90_bag_right_smd_001_KitAtlas_Russian_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_right_smd_001_KitAtlas_Russian_001_0.res",
+"save_to_file/path": "uid://dgscv7q88r8kn"
+},
+"Sketchfab_Scene_t90_bag_right_smd_002_KitAtlas_Russian_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_right_smd_002_KitAtlas_Russian_002_0.res",
+"save_to_file/path": "uid://dstbk25o4yx0n"
+},
+"Sketchfab_Scene_t90_bag_right_smd_KitAtlas_Russian_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_right_smd_KitAtlas_Russian_0.res",
+"save_to_file/path": "uid://cdvlk5vasxq1c"
+},
+"Sketchfab_Scene_t90_bag_turret_left_smd_001_KitAtlas_Russian_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_turret_left_smd_001_KitAtlas_Russian_001_0.res",
+"save_to_file/path": "uid://i3sp6xquv4yi"
+},
+"Sketchfab_Scene_t90_bag_turret_left_smd_002_KitAtlas_Russian_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_turret_left_smd_002_KitAtlas_Russian_002_0.res",
+"save_to_file/path": "uid://b6fbl0cy5kkre"
+},
+"Sketchfab_Scene_t90_bag_turret_left_smd_KitAtlas_Russian_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_turret_left_smd_KitAtlas_Russian_0.res",
+"save_to_file/path": "uid://blvgq13i1n565"
+},
+"Sketchfab_Scene_t90_bag_turret_rear_smd_001_KitAtlas_Russian_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_turret_rear_smd_001_KitAtlas_Russian_001_0.res",
+"save_to_file/path": "uid://bq3o3i52n1bus"
+},
+"Sketchfab_Scene_t90_bag_turret_rear_smd_002_KitAtlas_Russian_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_turret_rear_smd_002_KitAtlas_Russian_002_0.res",
+"save_to_file/path": "uid://3utoa0s2ubd7"
+},
+"Sketchfab_Scene_t90_bag_turret_rear_smd_KitAtlas_Russian_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_turret_rear_smd_KitAtlas_Russian_0.res",
+"save_to_file/path": "uid://b26p5jmhvmoe2"
+},
+"Sketchfab_Scene_t90_bag_turret_right_smd_001_KitAtlas_Russian_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_turret_right_smd_001_KitAtlas_Russian_001_0.res",
+"save_to_file/path": "uid://bafwccy7hai8t"
+},
+"Sketchfab_Scene_t90_bag_turret_right_smd_002_KitAtlas_Russian_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_turret_right_smd_002_KitAtlas_Russian_002_0.res",
+"save_to_file/path": "uid://cuptfi4wwu1ot"
+},
+"Sketchfab_Scene_t90_bag_turret_right_smd_KitAtlas_Russian_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_bag_turret_right_smd_KitAtlas_Russian_0.res",
+"save_to_file/path": "uid://dco2x0kkxpty4"
+},
+"Sketchfab_Scene_t90_base_smd_001_Lights_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_001_Lights_001_0.res",
+"save_to_file/path": "uid://dgf5f8iewgd21"
+},
+"Sketchfab_Scene_t90_base_smd_001_RU_Remotegun_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_001_RU_Remotegun_001_0.res",
+"save_to_file/path": "uid://cibuit8g2agia"
+},
+"Sketchfab_Scene_t90_base_smd_001_T90Tracks_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_001_T90Tracks_001_0.res",
+"save_to_file/path": "uid://b8g6nppc02m4s"
+},
+"Sketchfab_Scene_t90_base_smd_001_T90_Infra_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_001_T90_Infra_001_0.res",
+"save_to_file/path": "uid://ovb5uj1avqvb"
+},
+"Sketchfab_Scene_t90_base_smd_001_t90_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_001_t90_001_0.res",
+"save_to_file/path": "uid://dwfjweudy4m3f"
+},
+"Sketchfab_Scene_t90_base_smd_002_Lights_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_002_Lights_002_0.res",
+"save_to_file/path": "uid://dr8hergx65kh6"
+},
+"Sketchfab_Scene_t90_base_smd_002_RU_Remotegun_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_002_RU_Remotegun_002_0.res",
+"save_to_file/path": "uid://15k8t8ompilg"
+},
+"Sketchfab_Scene_t90_base_smd_002_T90Tracks_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_002_T90Tracks_002_0.res",
+"save_to_file/path": "uid://cesmuhya31ijr"
+},
+"Sketchfab_Scene_t90_base_smd_002_T90_Infra_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_002_T90_Infra_002_0.res",
+"save_to_file/path": "uid://60w5u5gqu0wv"
+},
+"Sketchfab_Scene_t90_base_smd_002_t90_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_002_t90_002_0.res",
+"save_to_file/path": "uid://b7i77vh50buax"
+},
+"Sketchfab_Scene_t90_base_smd_Lights_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_Lights_0.res",
+"save_to_file/path": "uid://cectcws8y3lcr"
+},
+"Sketchfab_Scene_t90_base_smd_RU_Remotegun_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_RU_Remotegun_0.res",
+"save_to_file/path": "uid://cf0rd1cpl57p3"
+},
+"Sketchfab_Scene_t90_base_smd_T90Tracks_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_T90Tracks_0.res",
+"save_to_file/path": "uid://dde6vvsn1i456"
+},
+"Sketchfab_Scene_t90_base_smd_T90_Infra_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_T90_Infra_0.res",
+"save_to_file/path": "uid://p1bn8f8fenl4"
+},
+"Sketchfab_Scene_t90_base_smd_t90_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_base_smd_t90_0.res",
+"save_to_file/path": "uid://dhyjk8ro3uusj"
+},
+"Sketchfab_Scene_t90_nsvt_coaxial_smd_001_RU_Remotegun_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_nsvt_coaxial_smd_001_RU_Remotegun_001_0.res",
+"save_to_file/path": "uid://c87wwxi8j58mi"
+},
+"Sketchfab_Scene_t90_nsvt_coaxial_smd_002_RU_Remotegun_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_nsvt_coaxial_smd_002_RU_Remotegun_002_0.res",
+"save_to_file/path": "uid://fc5eiqvvu4m6"
+},
+"Sketchfab_Scene_t90_nsvt_coaxial_smd_RU_Remotegun_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_nsvt_coaxial_smd_RU_Remotegun_0.res",
+"save_to_file/path": "uid://cr71ubiprfp6h"
+},
+"Sketchfab_Scene_t90_nsvt_remote_smd_001_HEMTT_M977_A2_Truck_glass_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_nsvt_remote_smd_001_HEMTT_M977_A2_Truck_glass_001_0.res",
+"save_to_file/path": "uid://dvrcqb2hu2lqy"
+},
+"Sketchfab_Scene_t90_nsvt_remote_smd_001_RU_Remotegun_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_nsvt_remote_smd_001_RU_Remotegun_001_0.res",
+"save_to_file/path": "uid://c7n4n3b6chp4v"
+},
+"Sketchfab_Scene_t90_nsvt_remote_smd_002_HEMTT_M977_A2_Truck_glass_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_nsvt_remote_smd_002_HEMTT_M977_A2_Truck_glass_002_0.res",
+"save_to_file/path": "uid://pi63vrdbhc0m"
+},
+"Sketchfab_Scene_t90_nsvt_remote_smd_002_RU_Remotegun_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_nsvt_remote_smd_002_RU_Remotegun_002_0.res",
+"save_to_file/path": "uid://610xaw6yypse"
+},
+"Sketchfab_Scene_t90_nsvt_remote_smd_HEMTT_M977_A2_Truck_glass_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_nsvt_remote_smd_HEMTT_M977_A2_Truck_glass_0.res",
+"save_to_file/path": "uid://bqllfreisgj5t"
+},
+"Sketchfab_Scene_t90_nsvt_remote_smd_RU_Remotegun_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_nsvt_remote_smd_RU_Remotegun_0.res",
+"save_to_file/path": "uid://dmgwqaepua7hd"
+},
+"Sketchfab_Scene_t90_reactive_armour_smd_001_t90_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_reactive_armour_smd_001_t90_001_0.res",
+"save_to_file/path": "uid://dekavadyjer37"
+},
+"Sketchfab_Scene_t90_reactive_armour_smd_002_t90_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_reactive_armour_smd_002_t90_002_0.res",
+"save_to_file/path": "uid://bni458ajkdvj0"
+},
+"Sketchfab_Scene_t90_reactive_armour_smd_t90_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_reactive_armour_smd_t90_0.res",
+"save_to_file/path": "uid://dyfav67ohlwh7"
+},
+"Sketchfab_Scene_t90_slat_armour_rear_smd_001_ArmorCage_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_slat_armour_rear_smd_001_ArmorCage_001_0.res",
+"save_to_file/path": "uid://d0lghc7f7nlyq"
+},
+"Sketchfab_Scene_t90_slat_armour_rear_smd_002_ArmorCage_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_slat_armour_rear_smd_002_ArmorCage_002_0.res",
+"save_to_file/path": "uid://ej8qprwuuxmi"
+},
+"Sketchfab_Scene_t90_slat_armour_rear_smd_ArmorCage_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_slat_armour_rear_smd_ArmorCage_0.res",
+"save_to_file/path": "uid://b62dmsuv6fdtq"
+},
+"Sketchfab_Scene_t90_smoke_launchers_smd_001_t90_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_smoke_launchers_smd_001_t90_001_0.res",
+"save_to_file/path": "uid://cnehrjmmtmihd"
+},
+"Sketchfab_Scene_t90_smoke_launchers_smd_002_t90_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_smoke_launchers_smd_002_t90_002_0.res",
+"save_to_file/path": "uid://de4nhe71muc0p"
+},
+"Sketchfab_Scene_t90_smoke_launchers_smd_t90_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_smoke_launchers_smd_t90_0.res",
+"save_to_file/path": "uid://dadtwm3230f6m"
+},
+"Sketchfab_Scene_t90_spare_road_wheel_smd_001_t90_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_spare_road_wheel_smd_001_t90_001_0.res",
+"save_to_file/path": "uid://cb6couj1yiysm"
+},
+"Sketchfab_Scene_t90_spare_road_wheel_smd_002_t90_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_spare_road_wheel_smd_002_t90_002_0.res",
+"save_to_file/path": "uid://c52ih7dffep84"
+},
+"Sketchfab_Scene_t90_spare_road_wheel_smd_t90_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_t90_spare_road_wheel_smd_t90_0.res",
+"save_to_file/path": "uid://bafvfnmiequgd"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1

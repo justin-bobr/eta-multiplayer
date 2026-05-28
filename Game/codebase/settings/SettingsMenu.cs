@@ -1,0 +1,1002 @@
+using System.Collections.Generic;
+using Godot;
+
+/// <summary>
+/// Settings menu — opened via <see cref="ToggleKey"/> (ESC by default).
+/// Build-in-code approach: no .tscn needed, just drop a Node with this script
+/// into a scene. Live-applies on change (visual feedback) plus explicit Save
+/// button to persist.
+///
+/// Graphics section: quality preset (Low/Medium/High/Custom) + individual
+/// sliders. A preset sets every individual value; if the user tweaks an
+/// individual value the preset switches to Custom.
+/// </summary>
+public partial class SettingsMenu : CanvasLayer
+{
+	/// <summary>Static flag: other systems (PlayerCore etc.) consult this to block input while the menu is open.</summary>
+	public static bool IsAnyOpen { get; private set; }
+
+	[Export]
+	public Key ToggleKey = Key.Escape;
+
+	[Export]
+	public int LayerOrder = 200;
+
+	private Control _root;
+	private bool _isOpen;
+
+	private OptionButton _presetOpt;
+	private HSlider _renderScaleSlider;
+	private Label _renderScaleValue;
+	private OptionButton _aaOpt;
+	private OptionButton _upscalerOpt;
+	private OptionButton _shadowsOpt;
+	private OptionButton _aoOpt;
+	private OptionButton _reflectionsOpt;
+	private OptionButton _reflectionProbesOpt;
+	private OptionButton _volumetricFogOpt;
+	private OptionButton _skyOpt;
+	private OptionButton _cloudShadowsOpt;
+	private OptionButton _cloudShadowDistOpt;
+	private OptionButton _godRaysOpt;
+	private OptionButton _lensFlareOpt;
+	private OptionButton _dustMotesOpt;
+	private OptionButton _motionBlurOpt;
+	private OptionButton _filmGrainOpt;
+	private OptionButton _vignetteOpt;
+	private OptionButton _adsDofOpt;
+	private OptionButton _adsFovZoomOpt;
+	private OptionButton _autoExposureOpt;
+	private OptionButton _viewBobOpt;
+	private OptionButton _sprintSwayOpt;
+	private OptionButton _mouseInertiaOpt;
+	private OptionButton _directionLeanOpt;
+	private OptionButton _cameraShakeOpt;
+	private OptionButton _showDebugBarOpt;
+	private OptionButton _showNetGraphOpt;
+	private OptionButton _windowModeOpt;
+	private OptionButton _resolutionOpt;
+	private OptionButton _vsyncOpt;
+	private OptionButton _fpsCapOpt;
+	private OptionButton _menuFpsCapOpt;
+	private HSlider _brightnessSlider;
+	private Label _brightnessValue;
+	private HSlider _hudMarginHSlider;
+	private Label _hudMarginHValue;
+	private HSlider _hudMarginVSlider;
+	private Label _hudMarginVValue;
+	private HSlider _sensSlider;
+	private Label _sensValue;
+	private HSlider _fovSlider;
+	private Label _fovValue;
+	private Label _saveStatus;
+
+	/// <summary>Suppresses event handlers while the UI is being filled programmatically
+	/// (otherwise e.g. setting the render-scale slider would flip the preset to Custom).</summary>
+	private bool _suppressEvents;
+
+	private Vector2I[] _resolutions;
+	private int[] _fpsCaps;
+	private static readonly int[] MenuCaps = { 30, 60, 90, 120, 144 };
+
+	/// <summary>Builds the menu, hides it, and seeds the controls from current Settings.</summary>
+	public override void _Ready()
+	{
+		if (NetMain.Instance?.Cli?.Mode == NetMode.Server) { QueueFree(); return; }
+		Layer = LayerOrder;
+		BuildDynamicLists();
+		BuildUI();
+		SetOpen(false);
+		PullStateFromSettings();
+	}
+
+	/// <summary>Generates the resolution list (filtered by monitor) and the FPS-cap list (based on refresh rate).</summary>
+	private void BuildDynamicLists()
+	{
+		Vector2I native = DisplayServer.ScreenGetSize();
+		int maxW = native.X,
+			maxH = native.Y;
+
+		var candidates = new List<Vector2I>
+		{
+			new(1280, 720),
+			new(1366, 768),
+			new(1600, 900),
+			new(1920, 1080),
+			new(2560, 1440),
+			new(3840, 2160),
+			new(1280, 800),
+			new(1440, 900),
+			new(1680, 1050),
+			new(1920, 1200),
+			new(2560, 1600),
+			new(2560, 1080),
+			new(3440, 1440),
+			new(3840, 1600),
+			new(5120, 2160),
+		};
+		var resList = new List<Vector2I>();
+		foreach (var r in candidates)
+			if (r.X <= maxW && r.Y <= maxH)
+				resList.Add(r);
+		if (!resList.Contains(native))
+			resList.Add(native);
+		resList.Sort((a, b) => (a.X * a.Y).CompareTo(b.X * b.Y));
+		_resolutions = resList.ToArray();
+
+		int hz = (int)Mathf.Round(DisplayServer.ScreenGetRefreshRate());
+		if (hz <= 0)
+			hz = 60;
+		var capsSet = new HashSet<int> { 30, 60, hz, hz * 2 };
+		var capsList = new List<int>(capsSet);
+		capsList.Sort();
+		capsList.Insert(0, 0);
+		_fpsCaps = capsList.ToArray();
+	}
+
+	/// <summary>Handles the toggle key to open/close the menu.</summary>
+	public override void _UnhandledInput(InputEvent @event)
+	{
+		if (@event is InputEventKey k && k.Pressed && !k.Echo && k.Keycode == ToggleKey)
+		{
+			SetOpen(!_isOpen);
+			GetViewport().SetInputAsHandled();
+		}
+	}
+
+	/// <summary>Opens the menu programmatically (used by the main menu Settings button).</summary>
+	public void Open() => SetOpen(true);
+
+	/// <summary>Closes the menu programmatically.</summary>
+	public void Close() => SetOpen(false);
+
+	/// <summary>Opens or closes the menu, manages mouse mode and the menu/game FPS cap swap.</summary>
+	private void SetOpen(bool open)
+	{
+		_isOpen = open;
+		IsAnyOpen = open;
+		_root.Visible = open;
+		Input.MouseMode = open ? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
+		if (open)
+			Engine.MaxFps = Settings.MenuFpsCap;
+		else
+			Engine.MaxFps = Settings.FpsCap;
+	}
+
+	/// <summary>Constructs the full menu layout (panel, tabs, save/close row).</summary>
+	private void BuildUI()
+	{
+		_root = new Control
+		{
+			AnchorLeft = 0f,
+			AnchorTop = 0f,
+			AnchorRight = 1f,
+			AnchorBottom = 1f,
+			MouseFilter = Control.MouseFilterEnum.Stop,
+		};
+		AddChild(_root);
+
+		var bg = new ColorRect
+		{
+			AnchorLeft = 0f,
+			AnchorTop = 0f,
+			AnchorRight = 1f,
+			AnchorBottom = 1f,
+			Color = new Color(0f, 0f, 0f, 0f),
+			MouseFilter = Control.MouseFilterEnum.Stop,
+		};
+		_root.AddChild(bg);
+
+		var panel = new PanelContainer
+		{
+			AnchorLeft = 0.5f,
+			AnchorTop = 0.5f,
+			AnchorRight = 0.5f,
+			AnchorBottom = 0.5f,
+			OffsetLeft = -280f,
+			OffsetRight = 280f,
+			OffsetTop = -330f,
+			OffsetBottom = 330f,
+		};
+		var style = new StyleBoxFlat
+		{
+			BgColor = new Color(0.08f, 0.1f, 0.12f, 0.95f),
+			BorderColor = new Color(0.4f, 0.7f, 0.4f, 0.8f),
+			BorderWidthLeft = 1,
+			BorderWidthRight = 1,
+			BorderWidthTop = 1,
+			BorderWidthBottom = 1,
+		};
+		style.ContentMarginLeft = 24f;
+		style.ContentMarginRight = 24f;
+		style.ContentMarginTop = 18f;
+		style.ContentMarginBottom = 18f;
+		panel.AddThemeStyleboxOverride("panel", style);
+		_root.AddChild(panel);
+
+		var outer = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+		outer.AddThemeConstantOverride("separation", 10);
+		panel.AddChild(outer);
+
+		var title = new Label { Text = "SETTINGS  (ESC schließen)" };
+		title.AddThemeFontSizeOverride("font_size", 18);
+		title.AddThemeColorOverride("font_color", new Color(0.85f, 1f, 0.85f));
+		outer.AddChild(title);
+
+		var tabs = new TabContainer
+		{
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+		};
+		outer.AddChild(tabs);
+		tabs.AddChild(BuildGraphicsTab());
+		tabs.AddChild(BuildDisplayTab());
+		tabs.AddChild(BuildControlsTab());
+
+		outer.AddChild(new HSeparator());
+		var btnRow = new HBoxContainer();
+		btnRow.AddThemeConstantOverride("separation", 12);
+		outer.AddChild(btnRow);
+
+		var saveBtn = new Button { Text = "  Save  ", CustomMinimumSize = new Vector2(120, 36) };
+		saveBtn.Pressed += OnSavePressed;
+		btnRow.AddChild(saveBtn);
+
+		var closeBtn = new Button { Text = "  Close  ", CustomMinimumSize = new Vector2(120, 36) };
+		closeBtn.Pressed += () => SetOpen(false);
+		btnRow.AddChild(closeBtn);
+
+		_saveStatus = new Label { Text = "" };
+		_saveStatus.AddThemeColorOverride("font_color", new Color(0.7f, 1f, 0.7f));
+		btnRow.AddChild(_saveStatus);
+	}
+
+	/// <summary>Creates a tab page (ScrollContainer + VBox). The node name becomes the tab title.</summary>
+	private static (ScrollContainer page, VBoxContainer vbox) NewTabPage(string name)
+	{
+		var scroll = new ScrollContainer
+		{
+			Name = name,
+			HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+		};
+		var vbox = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+		vbox.AddThemeConstantOverride("separation", 9);
+		scroll.AddChild(vbox);
+		return (scroll, vbox);
+	}
+
+	/// <summary>Builds the Graphics tab (quality, world effects, post-processing, camera effects, debug overlays).</summary>
+	private Control BuildGraphicsTab()
+	{
+		var (page, vbox) = NewTabPage("Grafik");
+
+		AddSectionHeader(vbox, "QUALITÄT");
+		_presetOpt = AddDropdown(vbox, "Quality-Preset", new[] { "Low", "Medium", "High", "Ultra", "Custom" });
+		_presetOpt.ItemSelected += OnPresetChanged;
+
+		(_renderScaleSlider, _renderScaleValue) = AddSlider(vbox, "Render Scale", 0.5f, 1.0f, 0.05f);
+		_renderScaleSlider.ValueChanged += OnRenderScaleChanged;
+
+		_aaOpt = AddDropdown(vbox, "Anti-Aliasing", new[] { "Off", "FXAA", "SMAA", "TAA" });
+		_aaOpt.ItemSelected += OnAaChanged;
+
+		_upscalerOpt = AddDropdown(vbox, "Upscaler", new[] { "Bilinear", "FSR 1.0", "FSR 2.0" });
+		_upscalerOpt.ItemSelected += OnUpscalerChanged;
+
+		_shadowsOpt = AddDropdown(vbox, "Shadows", new[] { "Off", "Low", "Medium", "High" });
+		_shadowsOpt.ItemSelected += OnShadowsChanged;
+
+		AddSectionHeader(vbox, "WELT-EFFEKTE");
+		_aoOpt = AddDropdown(vbox, "Ambient Occlusion", new[] { "Off", "On" });
+		_aoOpt.ItemSelected += OnAoChanged;
+
+		_reflectionsOpt = AddDropdown(vbox, "Reflections", new[] { "Off", "On" });
+		_reflectionsOpt.ItemSelected += OnReflectionsChanged;
+
+		// Reflection-probe atlas quality. Per-probe pixel size; higher = sharper local
+		// reflections on glossy floors/decals. Change requires level reload (atlas RID
+		// is created at viewport init from ProjectSettings).
+		_reflectionProbesOpt = AddDropdown(
+			vbox,
+			"Reflection Probes",
+			new[] { "Low (128)", "Medium (256)", "High (512)", "Ultra (1024)" }
+		);
+		_reflectionProbesOpt.ItemSelected += OnReflectionProbesChanged;
+
+		// "Off" intentionally NOT exposed — VolumetricFog is the substrate the smoke-
+		// grenade rendering writes into, disabling it would make smokes invisible. UI
+		// indices 0/1/2 map directly to Low/Medium/High; the underlying enum still has
+		// VolumetricFogQuality.Off at index 0 for legacy compat, so we offset by 1.
+		_volumetricFogOpt = AddDropdown(vbox, "Volumetric Fog", new[] { "Low (64³)", "Medium (96³)", "High (160³)" });
+		_volumetricFogOpt.ItemSelected += OnVolumetricFogChanged;
+
+		_skyOpt = AddDropdown(vbox, "Sky", new[] { "Off", "On" });
+		_skyOpt.ItemSelected += OnSkyChanged;
+
+		_cloudShadowsOpt = AddDropdown(vbox, "Cloud Shadows", new[] { "Off", "On" });
+		_cloudShadowsOpt.ItemSelected += OnCloudShadowsChanged;
+
+		_cloudShadowDistOpt = AddDropdown(
+			vbox,
+			"Cloud Shadow Distance",
+			new[] { "Near (60m)", "Medium (120m)", "Far (200m)" }
+		);
+		_cloudShadowDistOpt.ItemSelected += OnCloudShadowDistChanged;
+
+		_godRaysOpt = AddDropdown(vbox, "God Rays", new[] { "Off", "On" });
+		_godRaysOpt.ItemSelected += OnGodRaysChanged;
+
+		_lensFlareOpt = AddDropdown(vbox, "Lens Flare", new[] { "Off", "On" });
+		_lensFlareOpt.ItemSelected += OnLensFlareChanged;
+
+		_dustMotesOpt = AddDropdown(vbox, "Dust Motes", new[] { "Off", "On" });
+		_dustMotesOpt.ItemSelected += OnDustMotesChanged;
+
+		AddSectionHeader(vbox, "POST-PROCESSING");
+
+		_motionBlurOpt = AddDropdown(vbox, "Motion Blur", new[] { "Off", "On" });
+		_motionBlurOpt.ItemSelected += OnMotionBlurChanged;
+
+		_filmGrainOpt = AddDropdown(vbox, "Film Grain", new[] { "Off", "On" });
+		_filmGrainOpt.ItemSelected += OnFilmGrainChanged;
+
+		_vignetteOpt = AddDropdown(vbox, "Vignette", new[] { "Off", "On" });
+		_vignetteOpt.ItemSelected += OnVignetteChanged;
+
+		_adsDofOpt = AddDropdown(vbox, "Depth of Field (ADS)", new[] { "Off", "On" });
+		_adsDofOpt.ItemSelected += OnAdsDofChanged;
+
+		_adsFovZoomOpt = AddDropdown(vbox, "ADS FOV Zoom", new[] { "Off", "On" });
+		_adsFovZoomOpt.ItemSelected += OnAdsFovZoomChanged;
+
+		_autoExposureOpt = AddDropdown(vbox, "Auto Exposure", new[] { "Off", "On" });
+		_autoExposureOpt.ItemSelected += OnAutoExposureChanged;
+
+		AddSectionHeader(vbox, "KAMERA-EFFEKTE");
+		_viewBobOpt = AddDropdown(vbox, "View Bob (Lauf-Bobbing)", new[] { "Off", "On" });
+		_viewBobOpt.ItemSelected += OnViewBobChanged;
+
+		_sprintSwayOpt = AddDropdown(vbox, "Sprint Sway", new[] { "Off", "On" });
+		_sprintSwayOpt.ItemSelected += OnSprintSwayChanged;
+
+		_mouseInertiaOpt = AddDropdown(vbox, "Mouse Inertia (Weapon-Lag)", new[] { "Off", "On" });
+		_mouseInertiaOpt.ItemSelected += OnMouseInertiaChanged;
+
+		_directionLeanOpt = AddDropdown(vbox, "Direction Lean (Strafe-Tilt)", new[] { "Off", "On" });
+		_directionLeanOpt.ItemSelected += OnDirectionLeanChanged;
+
+		_cameraShakeOpt = AddDropdown(vbox, "Camera Shake (Schuss)", new[] { "Off", "On" });
+		_cameraShakeOpt.ItemSelected += OnCameraShakeChanged;
+
+		AddSectionHeader(vbox, "DEBUG-OVERLAYS");
+		_showDebugBarOpt = AddDropdown(vbox, "Debug Bar (F3)", new[] { "Off", "On" });
+		_showDebugBarOpt.ItemSelected += OnShowDebugBarChanged;
+
+		_showNetGraphOpt = AddDropdown(vbox, "Net Graph (F4)", new[] { "Off", "On" });
+		_showNetGraphOpt.ItemSelected += OnShowNetGraphChanged;
+
+		return page;
+	}
+
+	/// <summary>Builds the Display tab (window mode, resolution, vsync, FPS caps, brightness, HUD margins).</summary>
+	private Control BuildDisplayTab()
+	{
+		var (page, vbox) = NewTabPage("Anzeige");
+
+		_windowModeOpt = AddDropdown(
+			vbox,
+			"Window Mode",
+			new[] { "Windowed", "Borderless Fullscreen", "Exclusive Fullscreen" }
+		);
+		_windowModeOpt.ItemSelected += OnWindowModeChanged;
+
+		string[] resStrings = new string[_resolutions.Length];
+		for (int i = 0; i < _resolutions.Length; i++)
+			resStrings[i] = $"{_resolutions[i].X}×{_resolutions[i].Y}";
+		_resolutionOpt = AddDropdown(vbox, "Resolution", resStrings);
+		_resolutionOpt.ItemSelected += OnResolutionChanged;
+
+		_vsyncOpt = AddDropdown(vbox, "VSync", new[] { "Disabled", "Enabled", "Adaptive", "Mailbox" });
+		_vsyncOpt.ItemSelected += OnVSyncChanged;
+
+		string[] fpsStrings = new string[_fpsCaps.Length];
+		for (int i = 0; i < _fpsCaps.Length; i++)
+			fpsStrings[i] = _fpsCaps[i] == 0 ? "Unlimited" : _fpsCaps[i].ToString();
+		_fpsCapOpt = AddDropdown(vbox, "FPS Cap", fpsStrings);
+		_fpsCapOpt.ItemSelected += OnFpsCapChanged;
+
+		string[] menuCapStr = new string[MenuCaps.Length];
+		for (int i = 0; i < MenuCaps.Length; i++)
+			menuCapStr[i] = MenuCaps[i].ToString();
+		_menuFpsCapOpt = AddDropdown(vbox, "Menu FPS Cap", menuCapStr);
+		_menuFpsCapOpt.ItemSelected += OnMenuFpsCapChanged;
+
+		(_brightnessSlider, _brightnessValue) = AddSlider(vbox, "Brightness", 0.6f, 1.4f, 0.05f);
+		_brightnessSlider.ValueChanged += OnBrightnessChanged;
+
+		AddSectionHeader(vbox, "HUD");
+		(_hudMarginHSlider, _hudMarginHValue) = AddSlider(vbox, "HUD-Rand Horizontal", 0f, 140f, 2f);
+		_hudMarginHSlider.ValueChanged += OnHudMarginHChanged;
+		(_hudMarginVSlider, _hudMarginVValue) = AddSlider(vbox, "HUD-Rand Vertikal", 0f, 140f, 2f);
+		_hudMarginVSlider.ValueChanged += OnHudMarginVChanged;
+
+		return page;
+	}
+
+	/// <summary>Builds the Controls tab (mouse sensitivity, FOV).</summary>
+	private Control BuildControlsTab()
+	{
+		var (page, vbox) = NewTabPage("Steuerung");
+
+		(_sensSlider, _sensValue) = AddSlider(vbox, "Mouse Sens", 0.01f, 10.0f, 0.01f);
+		_sensSlider.ValueChanged += OnSensChanged;
+
+		(_fovSlider, _fovValue) = AddSlider(vbox, "FOV", 80f, 100f, 1f);
+		_fovSlider.ValueChanged += OnFovChanged;
+
+		return page;
+	}
+
+	/// <summary>Adds a styled section header (separator + label) into the given VBox.</summary>
+	private void AddSectionHeader(VBoxContainer parent, string text)
+	{
+		parent.AddChild(new HSeparator());
+		var lbl = new Label { Text = text };
+		lbl.AddThemeFontSizeOverride("font_size", 13);
+		lbl.AddThemeColorOverride("font_color", new Color(0.55f, 0.85f, 0.55f));
+		parent.AddChild(lbl);
+	}
+
+	/// <summary>Adds a labelled dropdown (OptionButton) row and returns the button.</summary>
+	private OptionButton AddDropdown(VBoxContainer parent, string label, string[] items)
+	{
+		var row = new HBoxContainer();
+		row.AddThemeConstantOverride("separation", 16);
+		parent.AddChild(row);
+
+		row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(170, 0) });
+
+		var opt = new OptionButton { CustomMinimumSize = new Vector2(250, 0) };
+		foreach (var it in items)
+			opt.AddItem(it);
+		row.AddChild(opt);
+		return opt;
+	}
+
+	/// <summary>Adds a labelled horizontal slider row with a value label, returns both.</summary>
+	private (HSlider, Label) AddSlider(VBoxContainer parent, string label, float min, float max, float step)
+	{
+		var row = new HBoxContainer();
+		row.AddThemeConstantOverride("separation", 16);
+		parent.AddChild(row);
+
+		row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(170, 0) });
+
+		var slider = new HSlider
+		{
+			MinValue = min,
+			MaxValue = max,
+			Step = step,
+			CustomMinimumSize = new Vector2(190, 0),
+			SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+		};
+		row.AddChild(slider);
+
+		var val = new Label { Text = "", CustomMinimumSize = new Vector2(54, 0) };
+		row.AddChild(val);
+		return (slider, val);
+	}
+
+	/// <summary>Seeds every UI control with the current Settings values without firing change events.</summary>
+	private void PullStateFromSettings()
+	{
+		_suppressEvents = true;
+
+		_windowModeOpt.Selected = WindowModeToIndex(Settings.WindowMode);
+		_resolutionOpt.Selected = ResolutionToIndex(Settings.Resolution);
+		_vsyncOpt.Selected = VSyncToIndex(Settings.VSync);
+		_fpsCapOpt.Selected = FpsCapToIndex(Settings.FpsCap);
+
+		int menuIdx = 1;
+		for (int i = 0; i < MenuCaps.Length; i++)
+			if (MenuCaps[i] == Settings.MenuFpsCap)
+			{
+				menuIdx = i;
+				break;
+			}
+		_menuFpsCapOpt.Selected = menuIdx;
+
+		_sensSlider.Value = Settings.MouseSensitivity;
+		_sensValue.Text = Settings.MouseSensitivity.ToString("F2");
+		_fovSlider.Value = Settings.Fov;
+		_fovValue.Text = Settings.Fov.ToString("F0") + "°";
+		_brightnessSlider.Value = Settings.Brightness;
+		_brightnessValue.Text = Mathf.RoundToInt(Settings.Brightness * 100f) + "%";
+		_hudMarginHSlider.Value = Settings.HudMarginH;
+		_hudMarginHValue.Text = Mathf.RoundToInt(Settings.HudMarginH) + " px";
+		_hudMarginVSlider.Value = Settings.HudMarginV;
+		_hudMarginVValue.Text = Mathf.RoundToInt(Settings.HudMarginV) + " px";
+
+		RefreshGraphicsControls();
+
+		_suppressEvents = false;
+	}
+
+	/// <summary>Sets all graphics controls to the current Settings values (including preset).</summary>
+	private void RefreshGraphicsControls()
+	{
+		bool prev = _suppressEvents;
+		_suppressEvents = true;
+
+		_presetOpt.Selected = (int)Settings.Preset;
+		_renderScaleSlider.Value = Settings.RenderScale;
+		_renderScaleValue.Text = Mathf.RoundToInt(Settings.RenderScale * 100f) + "%";
+		_aaOpt.Selected = (int)Settings.AntiAliasing;
+		_upscalerOpt.Selected = (int)Settings.Upscaler;
+		_shadowsOpt.Selected = (int)Settings.Shadows;
+		_aoOpt.Selected = Settings.AmbientOcclusion ? 1 : 0;
+		_reflectionsOpt.Selected = Settings.Reflections ? 1 : 0;
+		_reflectionProbesOpt.Selected = (int)Settings.ReflectionProbes;
+		// UI shows Low/Medium/High at indices 0..2; enum Off (legacy) maps to Low.
+		_volumetricFogOpt.Selected = System.Math.Max(0, (int)Settings.VolumetricFog - 1);
+		_skyOpt.Selected = Settings.Sky ? 1 : 0;
+		_cloudShadowsOpt.Selected = Settings.CloudShadows ? 1 : 0;
+		_cloudShadowDistOpt.Selected =
+			Settings.CloudShadowDistance <= 90f ? 0
+			: Settings.CloudShadowDistance <= 160f ? 1
+			: 2;
+		_godRaysOpt.Selected = Settings.GodRays ? 1 : 0;
+		_lensFlareOpt.Selected = Settings.LensFlare ? 1 : 0;
+		_dustMotesOpt.Selected = Settings.DustMotes ? 1 : 0;
+		_motionBlurOpt.Selected = Settings.MotionBlur ? 1 : 0;
+		_filmGrainOpt.Selected = Settings.FilmGrain ? 1 : 0;
+		_vignetteOpt.Selected = Settings.Vignette ? 1 : 0;
+		_adsDofOpt.Selected = Settings.AdsDepthOfField ? 1 : 0;
+		_adsFovZoomOpt.Selected = Settings.AdsFovZoom ? 1 : 0;
+		_autoExposureOpt.Selected = Settings.AutoExposure ? 1 : 0;
+		_viewBobOpt.Selected = Settings.ViewBob ? 1 : 0;
+		_sprintSwayOpt.Selected = Settings.SprintSway ? 1 : 0;
+		_mouseInertiaOpt.Selected = Settings.MouseInertia ? 1 : 0;
+		_directionLeanOpt.Selected = Settings.DirectionLean ? 1 : 0;
+		_cameraShakeOpt.Selected = Settings.CameraShake ? 1 : 0;
+		_showDebugBarOpt.Selected = Settings.ShowDebugBar ? 1 : 0;
+		_showNetGraphOpt.Selected = Settings.ShowNetGraph ? 1 : 0;
+
+		_suppressEvents = prev;
+	}
+
+	/// <summary>A single control was tweaked → preset switches to Custom.</summary>
+	private void MarkCustomPreset()
+	{
+		Settings.Preset = QualityPreset.Custom;
+		_presetOpt.Selected = (int)QualityPreset.Custom;
+	}
+
+	/// <summary>Preset dropdown changed: applies preset values, refreshes controls and re-applies settings.</summary>
+	private void OnPresetChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.ApplyPreset((QualityPreset)(int)idx);
+		RefreshGraphicsControls();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Render-scale slider changed: updates value label and applies.</summary>
+	private void OnRenderScaleChanged(double v)
+	{
+		_renderScaleValue.Text = Mathf.RoundToInt((float)v * 100f) + "%";
+		if (_suppressEvents)
+			return;
+		Settings.RenderScale = (float)v;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Anti-aliasing mode changed.</summary>
+	private void OnAaChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.AntiAliasing = (AntiAliasingMode)(int)idx;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Upscaler (Bilinear/FSR1/FSR2) changed.</summary>
+	private void OnUpscalerChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.Upscaler = (UpscalingMode)(int)idx;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Volumetric fog quality changed. UI is Low/Medium/High (no Off) so dropdown index 0/1/2 maps to enum Low/Medium/High via +1 offset.</summary>
+	private void OnVolumetricFogChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.VolumetricFog = (VolumetricFogQuality)((int)idx + 1);
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Shadow quality changed.</summary>
+	private void OnShadowsChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.Shadows = (ShadowQuality)(int)idx;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Ambient occlusion toggle changed.</summary>
+	private void OnAoChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.AmbientOcclusion = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Reflections toggle changed.</summary>
+	private void OnReflectionsChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.Reflections = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Reflection-probe atlas quality changed. Writes ProjectSettings for the
+	/// next viewport init; takes effect on next level reload.</summary>
+	private void OnReflectionProbesChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.ReflectionProbes = (ReflectionProbeQuality)(int)idx;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Sky toggle changed.</summary>
+	private void OnSkyChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.Sky = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Cloud shadows toggle changed.</summary>
+	private void OnCloudShadowsChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.CloudShadows = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Cloud-shadow distance preset changed (Near/Medium/Far).</summary>
+	private void OnCloudShadowDistChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.CloudShadowDistance =
+			idx == 0 ? 60f
+			: idx == 1 ? 120f
+			: 200f;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>God rays toggle changed.</summary>
+	private void OnGodRaysChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.GodRays = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Lens flare toggle changed.</summary>
+	private void OnLensFlareChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.LensFlare = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Dust motes toggle changed.</summary>
+	private void OnDustMotesChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.DustMotes = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Motion blur toggle changed.</summary>
+	private void OnMotionBlurChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.MotionBlur = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Film grain toggle changed.</summary>
+	private void OnFilmGrainChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.FilmGrain = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Vignette toggle changed.</summary>
+	private void OnVignetteChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.Vignette = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>ADS FOV zoom toggle changed.</summary>
+	private void OnAdsFovZoomChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.AdsFovZoom = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Auto-exposure toggle changed. Live-applies to every Camera3D with a CameraAttributesPractical resource.</summary>
+	private void OnAutoExposureChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.AutoExposure = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>ADS depth-of-field toggle changed.</summary>
+	private void OnAdsDofChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.AdsDepthOfField = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>View bob toggle changed.</summary>
+	private void OnViewBobChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.ViewBob = idx == 1;
+		MarkCustomPreset();
+	}
+
+	/// <summary>Sprint sway toggle changed.</summary>
+	private void OnSprintSwayChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.SprintSway = idx == 1;
+		MarkCustomPreset();
+	}
+
+	/// <summary>Mouse inertia toggle changed.</summary>
+	private void OnMouseInertiaChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.MouseInertia = idx == 1;
+		MarkCustomPreset();
+	}
+
+	/// <summary>Direction lean toggle changed.</summary>
+	private void OnDirectionLeanChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.DirectionLean = idx == 1;
+		MarkCustomPreset();
+	}
+
+	/// <summary>Camera shake toggle changed.</summary>
+	private void OnCameraShakeChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.CameraShake = idx == 1;
+		MarkCustomPreset();
+	}
+
+	/// <summary>Debug bar visibility toggle changed.</summary>
+	private void OnShowDebugBarChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.ShowDebugBar = idx == 1;
+	}
+
+	/// <summary>Net graph visibility toggle changed.</summary>
+	private void OnShowNetGraphChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.ShowNetGraph = idx == 1;
+	}
+
+	/// <summary>Window mode dropdown changed.</summary>
+	private void OnWindowModeChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.WindowMode = IndexToWindowMode((int)idx);
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Resolution dropdown changed.</summary>
+	private void OnResolutionChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.Resolution = _resolutions[(int)idx];
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>VSync mode dropdown changed.</summary>
+	private void OnVSyncChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.VSync = IndexToVSync((int)idx);
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>FPS cap dropdown changed; defers apply while menu is open (MenuFpsCap stays in effect).</summary>
+	private void OnFpsCapChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.FpsCap = _fpsCaps[(int)idx];
+		if (!_isOpen)
+			Settings.Apply(GetTree());
+	}
+
+	/// <summary>Menu FPS cap dropdown changed; takes effect immediately if the menu is open.</summary>
+	private void OnMenuFpsCapChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.MenuFpsCap = MenuCaps[(int)idx];
+		if (_isOpen)
+			Engine.MaxFps = Settings.MenuFpsCap;
+	}
+
+	/// <summary>Sensitivity slider changed.</summary>
+	private void OnSensChanged(double v)
+	{
+		_sensValue.Text = v.ToString("F2");
+		if (_suppressEvents)
+			return;
+		Settings.MouseSensitivity = (float)v;
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>FOV slider changed.</summary>
+	private void OnFovChanged(double v)
+	{
+		_fovValue.Text = v.ToString("F0") + "°";
+		if (_suppressEvents)
+			return;
+		Settings.Fov = (float)v;
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Brightness slider changed.</summary>
+	private void OnBrightnessChanged(double v)
+	{
+		_brightnessValue.Text = Mathf.RoundToInt((float)v * 100f) + "%";
+		if (_suppressEvents)
+			return;
+		Settings.Brightness = (float)v;
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>HUD horizontal margin slider changed (HudCs2 reads per frame → applies immediately).</summary>
+	private void OnHudMarginHChanged(double v)
+	{
+		_hudMarginHValue.Text = Mathf.RoundToInt((float)v) + " px";
+		if (_suppressEvents)
+			return;
+		Settings.HudMarginH = (float)v;
+	}
+
+	/// <summary>HUD vertical margin slider changed.</summary>
+	private void OnHudMarginVChanged(double v)
+	{
+		_hudMarginVValue.Text = Mathf.RoundToInt((float)v) + " px";
+		if (_suppressEvents)
+			return;
+		Settings.HudMarginV = (float)v;
+	}
+
+	/// <summary>Save button: persists settings and flashes a "Saved" indicator for 2s.</summary>
+	private void OnSavePressed()
+	{
+		Settings.Save();
+		_saveStatus.Text = "✓ Saved";
+		GetTree().CreateTimer(2.0).Timeout += () =>
+		{
+			if (_saveStatus != null)
+				_saveStatus.Text = "";
+		};
+	}
+
+	/// <summary>Maps a Godot WindowMode to a dropdown index (Windowed/Fullscreen/Exclusive).</summary>
+	private static int WindowModeToIndex(DisplayServer.WindowMode m) =>
+		m switch
+		{
+			DisplayServer.WindowMode.Windowed => 0,
+			DisplayServer.WindowMode.Fullscreen => 1,
+			DisplayServer.WindowMode.ExclusiveFullscreen => 2,
+			_ => 0,
+		};
+
+	/// <summary>Maps a dropdown index back to a Godot WindowMode.</summary>
+	private static DisplayServer.WindowMode IndexToWindowMode(int i) =>
+		i switch
+		{
+			0 => DisplayServer.WindowMode.Windowed,
+			1 => DisplayServer.WindowMode.Fullscreen,
+			2 => DisplayServer.WindowMode.ExclusiveFullscreen,
+			_ => DisplayServer.WindowMode.Windowed,
+		};
+
+	/// <summary>Finds the index of the given resolution in the dynamic resolutions list.</summary>
+	private int ResolutionToIndex(Vector2I res)
+	{
+		for (int i = 0; i < _resolutions.Length; i++)
+			if (_resolutions[i] == res)
+				return i;
+		return _resolutions.Length - 1;
+	}
+
+	/// <summary>Maps a Godot VSyncMode to a dropdown index.</summary>
+	private static int VSyncToIndex(DisplayServer.VSyncMode v) => (int)v;
+
+	/// <summary>Maps a dropdown index back to a Godot VSyncMode.</summary>
+	private static DisplayServer.VSyncMode IndexToVSync(int i) => (DisplayServer.VSyncMode)i;
+
+	/// <summary>Finds the index of the given FPS cap in the dynamic FPS-cap list.</summary>
+	private int FpsCapToIndex(int cap)
+	{
+		for (int i = 0; i < _fpsCaps.Length; i++)
+			if (_fpsCaps[i] == cap)
+				return i;
+		return 0;
+	}
+}
