@@ -1,7 +1,11 @@
 shader_type spatial;
+// Lighting is ON (no `unshaded`, no `ambient_light_disabled`) so the smoke picks up the scene's
+// ambient + directional light — bright in sunlight, darker in shadow, tinted by colored lights.
+// Shadows are off because shadow-mapping a transparent billboard produces visible square edges.
+// Fog left on so distant smoke blends with the atmospheric haze like the rest of the scene.
 render_mode blend_mix,depth_draw_never,cull_disabled,
-diffuse_toon,specular_disabled,unshaded,shadows_disabled,
-ambient_light_disabled,fog_disabled;
+specular_disabled,shadows_disabled;
+
 uniform sampler2D texture_albedo : source_color,filter_linear_mipmap,repeat_enable;
 
 uniform int particles_anim_h_frames;
@@ -18,6 +22,11 @@ uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 // cut-off line where the billboard quad intersects walls/floors. 0.5m matches the typical
 // muzzle-smoke puff size; raise for larger smoke clouds.
 uniform float soft_fade_distance : hint_range(0.05, 2.0) = 0.5;
+
+// Baseline-brightness via EMISSION — guarantees the smoke is visible even when no light hits it
+// (e.g. indoor shadow with no ambient probe). 0 = pure lighting (can go fully black), 1 = always
+// at full albedo regardless of light. 0.4 is a good "lit but never invisible" default.
+uniform float emission_baseline : hint_range(0.0, 1.0) = 0.4;
 
 void vertex() {
 	mat4 mat_world = mat4(normalize(INV_VIEW_MATRIX[0]), normalize(INV_VIEW_MATRIX[1]) ,normalize(INV_VIEW_MATRIX[2]), MODEL_MATRIX[3]);
@@ -50,6 +59,10 @@ void fragment() {
 	// look like semi-opaque gray puffs that OCCLUDE the wall instead of additively brightening it.
 	ALBEDO = albedo_tex.rgb * COLOR.rgb;
 	float base_alpha = albedo_tex.a * COLOR.a;
+
+	// Baseline brightness so the smoke is visible even in unlit interior shadow. Full lighting
+	// adds on top of this, so muzzle smoke in direct sunlight is brighter than smoke in a basement.
+	EMISSION = ALBEDO * emission_baseline;
 
 	// Soft-particle fade: sample the scene's depth at this pixel, convert to view-space metres,
 	// and fade the billboard out as it approaches the scene surface. VERTEX is view-space in
