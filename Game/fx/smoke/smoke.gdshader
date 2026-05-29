@@ -8,6 +8,11 @@ uniform int particles_anim_h_frames;
 uniform int particles_anim_v_frames;
 //uniform bool particles_anim_loop;
 
+// Godot 4.6 removed the DEPTH_TEXTURE builtin — must be declared as a hint_depth_texture uniform.
+// Sampler is auto-wired by the engine; no manual binding needed. Nearest filter because depth
+// textures have no mipmaps in the Forward+ pipeline.
+uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
+
 // Soft-particle fade distance (metres). When the billboard's view-space depth is closer than
 // this much to the scene's depth at the same pixel, alpha fades to zero — eliminates the hard
 // cut-off line where the billboard quad intersects walls/floors. 0.5m matches the typical
@@ -46,7 +51,7 @@ void fragment() {
 	// Soft-particle fade: sample the scene's depth at this pixel, convert to view-space metres,
 	// and fade the billboard out as it approaches the scene surface. VERTEX is view-space in
 	// fragment for shader_type spatial, so -VERTEX.z is the particle's own view-space depth (m).
-	float scene_z_raw = textureLod(DEPTH_TEXTURE, SCREEN_UV, 0.0).r;
+	float scene_z_raw = texture(depth_tex, SCREEN_UV).r;
 	vec4 ndc = vec4(SCREEN_UV * 2.0 - 1.0, scene_z_raw, 1.0);
 	vec4 scene_view = INV_PROJECTION_MATRIX * ndc;
 	float scene_depth_linear = -scene_view.z / scene_view.w;
