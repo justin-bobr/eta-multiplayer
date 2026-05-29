@@ -23,10 +23,17 @@ uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 // muzzle-smoke puff size; raise for larger smoke clouds.
 uniform float soft_fade_distance : hint_range(0.05, 2.0) = 0.5;
 
-// Baseline-brightness via EMISSION — guarantees the smoke is visible even when no light hits it
-// (e.g. indoor shadow with no ambient probe). 0 = pure lighting (can go fully black), 1 = always
-// at full albedo regardless of light. 0.4 is a good "lit but never invisible" default.
-uniform float emission_baseline : hint_range(0.0, 1.0) = 0.4;
+// Baseline brightness via EMISSION. Higher = more self-lit (less dependent on the surrounding
+// scene lighting). The viewmodel viewport has its own WorldEnvironment without the main scene's
+// directional sun, so muzzle smoke effectively only gets ambient + emission there. 0.85 keeps
+// the smoke clearly visible in that viewport while still leaving headroom for scene lighting to
+// brighten further in the main-world case (e.g. puppet muzzle smoke seen from third person).
+uniform float emission_baseline : hint_range(0.0, 1.0) = 0.85;
+
+// Overall RGB tint applied to the final albedo. Default 1.5× white = mild overbright so the
+// puffs read as bright grey-white instead of flat mid-grey, even before lighting/emission.
+// Lower for darker smoke (cordite / oil), raise for hot bright cordite flash.
+uniform vec3 albedo_tint : source_color = vec3(1.5, 1.5, 1.5);
 
 void vertex() {
 	mat4 mat_world = mat4(normalize(INV_VIEW_MATRIX[0]), normalize(INV_VIEW_MATRIX[1]) ,normalize(INV_VIEW_MATRIX[2]), MODEL_MATRIX[3]);
@@ -57,11 +64,12 @@ void fragment() {
 	// blend_mix = standard alpha-blend: pixel = ALBEDO * ALPHA + scene * (1 - ALPHA). ALBEDO is the
 	// straight color (no premultiplied-alpha math), ALPHA controls opacity. This makes the smoke
 	// look like semi-opaque gray puffs that OCCLUDE the wall instead of additively brightening it.
-	ALBEDO = albedo_tex.rgb * COLOR.rgb;
+	ALBEDO = albedo_tex.rgb * COLOR.rgb * albedo_tint;
 	float base_alpha = albedo_tex.a * COLOR.a;
 
-	// Baseline brightness so the smoke is visible even in unlit interior shadow. Full lighting
-	// adds on top of this, so muzzle smoke in direct sunlight is brighter than smoke in a basement.
+	// Baseline brightness so the smoke is visible even with no light (viewmodel viewport has its
+	// own WorldEnvironment without the main scene's directional sun — so without this floor the
+	// muzzle smoke effectively only sees ambient and looks dark grey).
 	EMISSION = ALBEDO * emission_baseline;
 
 	// Soft-particle fade: sample the scene's depth at this pixel, convert to view-space metres,
