@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_add,depth_draw_never,cull_disabled,
+render_mode blend_mix,depth_draw_never,cull_disabled,
 diffuse_toon,specular_disabled,unshaded,shadows_disabled,
 ambient_light_disabled,fog_disabled;
 uniform sampler2D texture_albedo : source_color,filter_linear_mipmap,repeat_enable;
@@ -45,7 +45,10 @@ void vertex() {
 
 void fragment() {
 	vec4 albedo_tex = texture(texture_albedo,UV);
-	ALBEDO = albedo_tex.rgb * COLOR.rgb * albedo_tex.a;
+	// blend_mix = standard alpha-blend: pixel = ALBEDO * ALPHA + scene * (1 - ALPHA). ALBEDO is the
+	// straight color (no premultiplied-alpha math), ALPHA controls opacity. This makes the smoke
+	// look like semi-opaque gray puffs that OCCLUDE the wall instead of additively brightening it.
+	ALBEDO = albedo_tex.rgb * COLOR.rgb;
 	float base_alpha = albedo_tex.a * COLOR.a;
 
 	// Soft-particle fade: sample the scene's depth at this pixel, convert to view-space metres,
