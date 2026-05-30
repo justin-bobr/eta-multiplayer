@@ -8,7 +8,7 @@ using Godot;
 public partial class DisconnectScreen : Control
 {
 	private static readonly Color EtaRed = new(0.7529412f, 0.007843138f, 0.003921569f);
-	public string Reason = "Verbindung verloren";
+	public string Reason = "Connection lost";
 
 	/// <summary>Builds the overlay UI, frees the mouse, and grabs focus so the user can interact with the buttons.</summary>
 	public override void _Ready()
@@ -31,7 +31,7 @@ public partial class DisconnectScreen : Control
 
 		var title = new Label
 		{
-			Text = "VERBINDUNG VERLOREN",
+			Text = "DISCONNECTED",
 			HorizontalAlignment = HorizontalAlignment.Center,
 		};
 		title.AddThemeColorOverride("font_color", Colors.White);
@@ -51,13 +51,13 @@ public partial class DisconnectScreen : Control
 
 		col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 12) });
 
-		var reconnectBtn = new Button { Text = "Erneut verbinden", CustomMinimumSize = new Vector2(220, 40) };
+		var reconnectBtn = new Button { Text = "Reconnect", CustomMinimumSize = new Vector2(220, 40) };
 		reconnectBtn.Pressed += OnReconnectPressed;
 		var btnRow = new CenterContainer();
 		btnRow.AddChild(reconnectBtn);
 		col.AddChild(btnRow);
 
-		var quitBtn = new Button { Text = "Beenden", CustomMinimumSize = new Vector2(220, 32) };
+		var quitBtn = new Button { Text = "Quit", CustomMinimumSize = new Vector2(220, 32) };
 		quitBtn.Pressed += () => GetTree().Quit();
 		var quitRow = new CenterContainer();
 		quitRow.AddChild(quitBtn);

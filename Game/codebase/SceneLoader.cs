@@ -56,6 +56,18 @@ public partial class SceneLoader : Control
 	public override void _Ready()
 	{
 		BuildUi();
+		// Post-disconnect re-entry: the DisconnectScreen overlay is up on top, we just want a
+		// clean red background underneath — DO NOT fire a fresh connect. Setting _failed disables
+		// _Process and hides the bar; the status text would be covered by the overlay anyway.
+		if (NetMain.PostDisconnectIdle)
+		{
+			_failed = true;
+			_bar.Visible = false;
+			_percent.Visible = false;
+			_statusLabel.Text = "";
+			SetProcess(false);
+			return;
+		}
 		var mode = NetMain.Instance?.Cli?.Mode ?? NetMode.Listen;
 		if (mode == NetMode.Client)
 		{

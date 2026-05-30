@@ -217,6 +217,9 @@ public partial class LocalPlayer : PlayerCore
 		HandleViewModeToggle(@event);
 		if (@event.IsActionPressed(InputActions.Fire))
 			_lastFirePressUsec = Time.GetTicksUsec();
+
+		if (@event is InputEventKey || @event is InputEventMouseButton || @event is InputEventJoypadButton)
+			RecordSubtickInputEvent();
 	}
 
 	/// <summary>Applies mouse motion to body yaw and head pitch. Reads <c>InputEventMouseMotion.Relative</c>

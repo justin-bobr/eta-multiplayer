@@ -61,8 +61,8 @@ uniform float emission_strength = 0.9;
 uniform vec3 grid_min;
 uniform vec3 grid_size = vec3(1.0);
 uniform float noise_scale = 0.55;
-uniform float noise_rise = 0.18;
-uniform float noise_amount = 0.85;
+uniform float noise_rise = 0.08;
+uniform float noise_amount = 0.5;
 
 float hash(vec3 p) {
 	p = fract(p * 0.3183099 + 0.1);
@@ -315,7 +315,7 @@ void fog() {
 		if (!env.VolumetricFogEnabled) env.VolumetricFogEnabled = true;
 		if (env.VolumetricFogAmbientInject < 1f) env.VolumetricFogAmbientInject = 1f;
 		env.VolumetricFogTemporalReprojectionEnabled = true;
-		env.VolumetricFogTemporalReprojectionAmount = 0.4f;
+		env.VolumetricFogTemporalReprojectionAmount = 0.9f;
 	}
 
 	/// <summary>Runs one deterministic advection + diffusion + dissipation step on the density grid.</summary>
@@ -418,7 +418,7 @@ void fog() {
 		float hx = _nx * 0.5f, hz = _nz * 0.5f;
 		const float cy = 0.44f;
 		const float halfH = 0.66f;
-		const float halfXZ = 0.95f;
+		const float halfXZ = 0.65f;
 		for (int z = 0; z < _nz; z++)
 			for (int y = 0; y < _ny; y++)
 				for (int x = 0; x < _nx; x++)
@@ -428,7 +428,7 @@ void fog() {
 					float fy = y / Mathf.Max(1f, _ny - 1f);
 					float ey = (fy - cy) / halfH;
 					float r = Mathf.Sqrt(ex * ex + ey * ey + ez * ez);
-					r += noise.GetNoise3D(x, y, z) * 0.34f;
+					r += noise.GetNoise3D(x, y, z) * 0.20f;
 					_shapeMask[Idx(x, y, z)] = 1f - Mathf.SmoothStep(SmokeCore, 1f, r);
 				}
 	}

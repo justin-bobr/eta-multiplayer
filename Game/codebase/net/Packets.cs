@@ -30,8 +30,17 @@ public static class Packets
 	/// killt. Server dedupliziert per tickIndex.
 	/// v5: Subtick fire-timing — Input body trägt zusätzlich 1 Byte FireSubTick (Quantisierung
 	/// 1/256-Tick = ~30µs bei 128Hz), das den Sub-Tick-Zeitpunkt des Fire-Press-Edges encoded.
-	/// Server-Hitscan rewindt Lag-Comp auf fraktionalen Tick → eliminiert tick-aliasing bei Duellen.</summary>
-	public const ushort ProtocolVersion = 5;
+	/// Server-Hitscan rewindt Lag-Comp auf fraktionalen Tick → eliminiert tick-aliasing bei Duellen.
+	/// v6: Subtick movement — Input body trägt zusätzlich InitialBits (ushort) + Q-InitialYaw/Pitch
+	/// (2× ushort) + EventCount (byte) + N × 7-Byte SubtickEvent (TQ-Byte + StateAfter-ushort +
+	/// QYaw-ushort + QPitch-ushort). Server replays Tick als Sub-Segmente durch MovementController.Step.
+	/// Counter-strafe, Jump-Edges, Crouch-Timing landen auf 1/256-Tick statt 60Hz-quantisiert.</summary>
+	public const ushort ProtocolVersion = 6;
+
+	/// <summary>Hard wire-cap auf Subtick-Events pro Input-Body. Muss synchron sein mit
+	/// <c>PlayerCore.MaxSubtickEventsPerTick</c>; server lehnt höhere Counts ab (Cheat-Schutz +
+	/// Bandbreiten-Schutz: 16 × 7B = 112B max pro Body).</summary>
+	public const int MaxSubtickEventsWire = 16;
 
 	/// <summary>Maximale Anzahl Inputs die in einem Input-Packet redundant gebündelt sind. 3 deckt
 	/// 2 aufeinanderfolgende Packet-Drops ab. Mehr bringt diminishing returns + frisst MTU.</summary>
@@ -267,6 +276,17 @@ public static class Packets
 	/// <summary>Restores a pitch angle in radians from its ushort quantisation.</summary>
 	public static float DequantizePitch(ushort q) => (q / 65535f) * Mathf.Pi - HalfPi;
 
+	/// <summary>Pre-quantisierte Form eines einzelnen Subtick-Events. 7 Bytes auf der Wire.
+	/// TQ = TFraction × 256 (clamp 0..255), StateAfter = InputBits-Bitmask AFTER this event,
+	/// QYaw/QPitch = view at this event quantised same as the top-level fields.</summary>
+	public struct SubtickEventEncoded
+	{
+		public byte TQ;
+		public ushort StateAfter;
+		public ushort QYaw;
+		public ushort QPitch;
+	}
+
 	/// <summary>Pre-quantisierte Form eines client-erzeugten Input-Frames für den Redundancy-Ring auf
 	/// NetClient. Quantisierung passiert beim Pushen (einmal), nicht beim Senden (3x bei voller
 	/// Redundancy). Spart pro Tick ~5 µs CPU.</summary>
@@ -284,9 +304,24 @@ public static class Packets
 		/// at which the fire-press edge occurred within the client's current tick, so the server can
 		/// rewind lag-comp to a fractional tick instead of snapping to a tick boundary.</summary>
 		public byte FireSubTick;
+		/// <summary>InputBits at the start of the tick (= state at t=0). Used by server replay to seed the
+		/// subtick driver before the first event. 0 on legacy non-subtick paths.</summary>
+		public ushort InitialBits;
+		public ushort QInitialYaw;
+		public ushort QInitialPitch;
+		/// <summary>Number of valid entries in <see cref="Events"/>. 0 = no subtick events on this tick →
+		/// server takes the legacy single-segment path (no behavioural diff). Capped at <see cref="MaxSubtickEventsWire"/>.</summary>
+		public byte EventCount;
+		/// <summary>Subtick event array, length == EventCount. Null when EventCount = 0 (most ticks).</summary>
+		public SubtickEventEncoded[] Events;
 	}
 
-	/// <summary>Quantisiert + verpackt einen frisch gesampelten Input in eine wire-ready Form.</summary>
+	/// <summary>Quantisiert + verpackt einen frisch gesampelten Input in eine wire-ready Form. Inkludiert
+	/// die Subtick-Events aus <see cref="MovementInput.Events"/> falls vorhanden — diese werden 1:1
+	/// quantisiert (TQ = TFraction×256, yaw/pitch über die Standard-Quantisierer) und in
+	/// <see cref="EncodedInput.Events"/> kopiert. EventCount wird auf <see cref="MaxSubtickEventsWire"/>
+	/// gecappt; überzählige Events werden droppt (held-state via <see cref="MovementInput.WishDir"/> /
+	/// Flags bleibt korrekt, nur die in-Tick-Reihenfolge der gedroppten ist verloren).</summary>
 	public static EncodedInput EncodeInput(uint tickIndex, in MovementInput mi,
 		bool firePressed, bool reloadPressed, bool inspectPressed, bool slotIsGrenade,
 		byte fireSubTick)
@@ -304,6 +339,26 @@ public static class Packets
 		if (reloadPressed)     f2 |= 1 << 0;
 		if (inspectPressed)    f2 |= 1 << 1;
 		if (slotIsGrenade)     f2 |= 1 << 2;
+
+		int eventCount = mi.Events != null ? mi.Events.Length : 0;
+		if (eventCount > MaxSubtickEventsWire) eventCount = MaxSubtickEventsWire;
+		SubtickEventEncoded[] events = null;
+		if (eventCount > 0)
+		{
+			events = new SubtickEventEncoded[eventCount];
+			for (int i = 0; i < eventCount; i++)
+			{
+				SubtickEvent e = mi.Events[i];
+				events[i] = new SubtickEventEncoded
+				{
+					TQ = (byte)Mathf.Clamp(Mathf.RoundToInt(e.TFraction * 256f), 0, 255),
+					StateAfter = (ushort)e.StateAfter,
+					QYaw = QuantizeYaw(e.ViewYaw),
+					QPitch = QuantizePitch(e.ViewPitch),
+				};
+			}
+		}
+
 		return new EncodedInput
 		{
 			TickIndex = tickIndex,
@@ -314,6 +369,11 @@ public static class Packets
 			Flags1 = f1,
 			Flags2 = f2,
 			FireSubTick = firePressed ? fireSubTick : (byte)0,
+			InitialBits = (ushort)mi.InitialBits,
+			QInitialYaw = QuantizeYaw(mi.InitialViewYaw),
+			QInitialPitch = QuantizePitch(mi.InitialViewPitch),
+			EventCount = (byte)eventCount,
+			Events = events,
 		};
 	}
 
@@ -343,6 +403,19 @@ public static class Packets
 		w.Put(e.Flags1);
 		w.Put(e.Flags2);
 		w.Put(e.FireSubTick);
+		// v6 subtick payload
+		w.Put(e.InitialBits);
+		w.Put(e.QInitialYaw);
+		w.Put(e.QInitialPitch);
+		w.Put(e.EventCount);
+		for (int i = 0; i < e.EventCount; i++)
+		{
+			SubtickEventEncoded ev = e.Events[i];
+			w.Put(ev.TQ);
+			w.Put(ev.StateAfter);
+			w.Put(ev.QYaw);
+			w.Put(ev.QPitch);
+		}
 	}
 
 	/// <summary>Reads the input-packet header (count + ackedSnapshotTick). Caller iteriert dann
@@ -353,7 +426,9 @@ public static class Packets
 		ackedSnapshotTick = r.GetUInt();
 	}
 
-	/// <summary>Reads one input body (single client tick) into a fresh <see cref="InputPacket"/>.</summary>
+	/// <summary>Reads one input body (single client tick) into a fresh <see cref="InputPacket"/>. The v6
+	/// subtick block is read after the legacy flags — EventCount &gt; <see cref="MaxSubtickEventsWire"/> is
+	/// clamped (defensive cheat-protection: malicious client could otherwise inflate a body to MTU).</summary>
 	public static void ReadInputBody(NetPacketReader r, out InputPacket pkt)
 	{
 		pkt = default;
@@ -376,6 +451,43 @@ public static class Packets
 		pkt.InspectPressed = (f2 & (1 << 1)) != 0;
 		pkt.SlotIsGrenade  = (f2 & (1 << 2)) != 0;
 		pkt.FireSubTick    = r.GetByte();
+
+		pkt.InitialBits = r.GetUShort();
+		pkt.InitialViewYaw = DequantizeYaw(r.GetUShort());
+		pkt.InitialViewPitch = DequantizePitch(r.GetUShort());
+		int wireCount = r.GetByte();
+		int eventCount = wireCount > MaxSubtickEventsWire ? MaxSubtickEventsWire : wireCount;
+		if (eventCount > 0)
+		{
+			pkt.Events = new SubtickEvent[eventCount];
+			byte lastTQ = 0;
+			bool monotonicViolation = false;
+			for (int i = 0; i < eventCount; i++)
+			{
+				byte tq = r.GetByte();
+				ushort state = r.GetUShort();
+				ushort qYaw = r.GetUShort();
+				ushort qPitch = r.GetUShort();
+				if (i > 0 && tq < lastTQ) monotonicViolation = true;
+				lastTQ = tq;
+				pkt.Events[i] = new SubtickEvent
+				{
+					TFraction = tq / 256f,
+					StateAfter = (InputBits)state,
+					ViewYaw = DequantizeYaw(qYaw),
+					ViewPitch = DequantizePitch(qPitch),
+				};
+			}
+			// Skip the leftover bytes from a wire-capped overflow so the cursor lines up with the next body.
+			for (int skip = eventCount; skip < wireCount; skip++)
+			{
+				r.GetByte(); r.GetUShort(); r.GetUShort(); r.GetUShort();
+			}
+			// Drop the whole event list on monotonic violation — a malicious client could otherwise rewind
+			// the substep state by sending events out of order. Held-state at end-of-tick (legacy fields)
+			// is still consumed via the fast path, so the player still moves correctly that tick.
+			if (monotonicViolation) pkt.Events = null;
+		}
 	}
 
 	/// <summary>Schreibt ein Snapshot-Packet mit Delta-Baseline-Compression in einen pre-allokierten
@@ -1046,6 +1158,13 @@ public enum SnapshotFieldFlags : ushort
 public struct InputPacket
 {
 	public uint TickIndex;
+	/// <summary>Subtick events from the client, ordered by TFraction ascending. Null/empty for
+	/// tick-quantised inputs; non-empty when the client recorded held-state transitions inside the tick.
+	/// Server-side <c>BuildMovementInputFromNet</c> copies this directly into <see cref="MovementInput.Events"/>.</summary>
+	public SubtickEvent[] Events;
+	public ushort InitialBits;
+	public float InitialViewYaw;
+	public float InitialViewPitch;
 	public float ViewYaw;
 	public float ViewPitch;
 	public float WishX;

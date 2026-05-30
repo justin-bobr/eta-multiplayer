@@ -1,13 +1,67 @@
 using Godot;
 
 /// <summary>
+/// Held-input bitfield for subtick movement. Each bit is set while the corresponding key is down. Press-edges
+/// (Jump/Crouch/Fire/Reload/Inspect) are detected by the driver from the 0→1 transition between consecutive
+/// <see cref="SubtickEvent.StateAfter"/> masks, so there is no separate "pressed" bit.
+/// </summary>
+[System.Flags]
+public enum InputBits : ushort
+{
+	None = 0,
+	Forward = 1 << 0,
+	Back = 1 << 1,
+	Left = 1 << 2,
+	Right = 1 << 3,
+	Jump = 1 << 4,
+	Crouch = 1 << 5,
+	Sprint = 1 << 6,
+	ShiftWalk = 1 << 7,
+	Fire = 1 << 8,
+	Ads = 1 << 9,
+	Reload = 1 << 10,
+	Inspect = 1 << 11,
+	BreathHold = 1 << 12,
+}
+
+/// <summary>
+/// Single subtick input change inside one physics tick. <see cref="MovementController.Step"/> walks an ordered
+/// array of these and runs the movement step in segments between them, so press-edges and key-state changes
+/// land on sub-tick boundaries instead of being quantised to the 60 Hz physics rate. View yaw/pitch are
+/// snapshotted at every event so the body basis (and any fire that lands on this substep) uses the correct
+/// aim direction. Constant 12-byte struct, no allocations beyond the surrounding array.
+/// </summary>
+public struct SubtickEvent
+{
+	/// <summary>Position inside the tick, 0..1 = tick-start..tick-end. Events must be sorted ascending.</summary>
+	public float TFraction;
+	/// <summary>Full held-state bitmask AFTER this event applies (the bits the player is holding from this
+	/// instant onward until the next event).</summary>
+	public InputBits StateAfter;
+	/// <summary>View yaw at this event, used for the substep starting here.</summary>
+	public float ViewYaw;
+	/// <summary>View pitch at this event.</summary>
+	public float ViewPitch;
+}
+
+/// <summary>
 /// Per-tick input for the movement logic. Server-replayable.
+///
+/// Subtick path: when <see cref="Events"/> is non-empty, the driver decomposes the tick into segments at each
+/// event's <see cref="SubtickEvent.TFraction"/> and runs the movement step for each segment with the correct
+/// held-state + WishDir + ViewYaw/Pitch and press-edges. <see cref="InitialBits"/>, <see cref="InitialViewYaw"/>,
+/// <see cref="InitialViewPitch"/> define the state at t=0; the WishDir/*Held/*Pressed fields on this struct are
+/// ignored in this path.
+///
+/// Legacy / fast path: when <see cref="Events"/> is null or empty, the driver runs a single step over the full
+/// tick using the WishDir/*Held/*Pressed fields directly — bit-identical to pre-subtick behaviour, so existing
+/// callers (bots, tests, fallback) keep working unchanged.
 ///
 /// NETCODE-SECURITY: <see cref="OnFloor"/>, <see cref="TouchingWall"/> and <see cref="WallNormal"/> are
 /// physics-derived. They must NEVER be accepted from the client over the network or a cheat vector opens
 /// (the client could claim OnFloor=true mid-air for infinite jumps, or TouchingWall=true in free space for
 /// free wall jumps). The server must derive them from its own physics simulation. The client only sends
-/// the user-intent fields (WishDir, *Held, *Pressed, View*).
+/// the user-intent fields (WishDir / Events / *Held / *Pressed / View*).
 /// </summary>
 public struct MovementInput
 {
@@ -41,6 +95,17 @@ public struct MovementInput
 	public bool TouchingWall;
 	/// <summary>World-space wall normal. Server-derived physics truth.</summary>
 	public Vector3 WallNormal;
+
+	/// <summary>Subtick events ordered by <see cref="SubtickEvent.TFraction"/> ascending, or null/empty for
+	/// the legacy single-segment path. See struct header for routing.</summary>
+	public SubtickEvent[] Events;
+	/// <summary>Held-input bitmask at the START of the tick (t=0). Used by the subtick path for the first
+	/// segment before any event applies. Ignored on the legacy path.</summary>
+	public InputBits InitialBits;
+	/// <summary>View yaw at the start of the tick. Ignored on the legacy path.</summary>
+	public float InitialViewYaw;
+	/// <summary>View pitch at the start of the tick. Ignored on the legacy path.</summary>
+	public float InitialViewPitch;
 
 	/// <summary>Body basis derived from ViewYaw, used to transform WishDir into world space.</summary>
 	public readonly Basis BodyBasis => Basis.FromEuler(new Vector3(0f, ViewYaw, 0f));
@@ -559,13 +624,81 @@ public class MovementController
 		DidFireThisFrame = true;
 	}
 
-	/// <summary>Server-replayable movement step. Updates velocity from the input including jump, gravity,
-	/// slide, crouch blend, stamina, ADS blend, breath hold and horizontal acceleration.</summary>
+	/// <summary>Server-replayable movement step. When <see cref="MovementInput.Events"/> is non-empty the
+	/// tick is decomposed into segments at each event's <see cref="SubtickEvent.TFraction"/> and the inner
+	/// physics step runs once per segment with the correct held-state + WishDir + view + press-edges.
+	/// Tick-level once-per-step flags (<see cref="DidJumpThisFrame"/>, <see cref="DidWallJumpThisFrame"/>,
+	/// <see cref="LastWishDir"/>) are written here, not in the inner step, so they retain the per-tick
+	/// semantics callers expect. Empty <see cref="MovementInput.Events"/> → single segment over the full
+	/// <see cref="MovementInput.Dt"/> using the struct's legacy WishDir/*Held/*Pressed fields → bit-identical
+	/// to pre-subtick behaviour.</summary>
 	public void Step(MovementInput input)
 	{
 		DidJumpThisFrame = false;
 		DidWallJumpThisFrame = false;
-		LastWishDir = input.WishDir;
+
+		if (input.Events == null || input.Events.Length == 0)
+		{
+			LastWishDir = input.WishDir;
+			RunSubStep(input);
+			return;
+		}
+
+		InputBits state = input.InitialBits;
+		Vector3 wishDir = WishDirFromBits(state);
+		float yaw = input.InitialViewYaw;
+		float pitch = input.InitialViewPitch;
+		bool pendingJump = false;
+		bool pendingCrouch = false;
+
+		float tPrev = 0f;
+		int n = input.Events.Length;
+		for (int i = 0; i <= n; i++)
+		{
+			float tCur = (i == n) ? 1f : input.Events[i].TFraction;
+			float dtPart = (tCur - tPrev) * input.Dt;
+			if (dtPart > 0f)
+			{
+				MovementInput sub = input;
+				sub.Dt = dtPart;
+				sub.WishDir = wishDir;
+				sub.ViewYaw = yaw;
+				sub.ViewPitch = pitch;
+				sub.SprintHeld = (state & InputBits.Sprint) != 0;
+				sub.ShiftHeld = (state & InputBits.ShiftWalk) != 0;
+				sub.CrouchHeld = (state & InputBits.Crouch) != 0;
+				sub.AdsHeld = (state & InputBits.Ads) != 0;
+				sub.BreathHoldHeld = (state & InputBits.BreathHold) != 0;
+				sub.JumpPressed = pendingJump;
+				sub.CrouchPressed = pendingCrouch;
+				RunSubStep(sub);
+				pendingJump = false;
+				pendingCrouch = false;
+			}
+			if (i < n)
+			{
+				SubtickEvent ev = input.Events[i];
+				InputBits prev = state;
+				state = ev.StateAfter;
+				InputBits rising = state & ~prev;
+				if ((rising & InputBits.Jump) != 0) pendingJump = true;
+				if ((rising & InputBits.Crouch) != 0) pendingCrouch = true;
+				wishDir = WishDirFromBits(state);
+				yaw = ev.ViewYaw;
+				pitch = ev.ViewPitch;
+			}
+			tPrev = tCur;
+		}
+
+		LastWishDir = wishDir;
+	}
+
+	/// <summary>One inner physics segment over <see cref="MovementInput.Dt"/> (which is a fraction of the
+	/// full tick for subtick callers, or the full tick for the legacy path). Reads WishDir/*Held/*Pressed
+	/// from <paramref name="input"/> as set by the driver. Does NOT reset DidJumpThisFrame /
+	/// DidWallJumpThisFrame — those are once-per-tick flags managed by <see cref="Step"/>.</summary>
+	private void RunSubStep(MovementInput input)
+	{
 		float dt = input.Dt;
 		Vector3 velocity = Velocity;
 
@@ -590,6 +723,20 @@ public class MovementController
 		ApplyHorizontalMovement(ref velocity, input, targetSpeed, dt);
 
 		Velocity = velocity;
+	}
+
+	/// <summary>WASD bitmask → unit local-space wish direction. X = strafe right positive, Z = back positive
+	/// (matches <see cref="MovementInput.WishDir"/> convention). Returns Vector3.Zero if no movement bits.</summary>
+	public static Vector3 WishDirFromBits(InputBits state)
+	{
+		int x = 0;
+		int z = 0;
+		if ((state & InputBits.Right) != 0) x++;
+		if ((state & InputBits.Left) != 0) x--;
+		if ((state & InputBits.Back) != 0) z++;
+		if ((state & InputBits.Forward) != 0) z--;
+		if (x == 0 && z == 0) return Vector3.Zero;
+		return new Vector3(x, 0f, z).Normalized();
 	}
 
 	/// <summary>Applies gravity to vertical velocity. Includes an apex-hang reduction for floaty jumps.</summary>
@@ -946,8 +1093,11 @@ public class MovementController
 		return speed;
 	}
 
-	/// <summary>Applies horizontal velocity changes: counter-strafe, ground acceleration, friction, and
-	/// air strafing.</summary>
+	/// <summary>Source-engine / CS-style horizontal movement: friction is applied every ground tick
+	/// (with a stopspeed floor for snappy lows), then acceleration is added only in the wish-direction
+	/// up to wishspeed. Counter-strafe falls out of the addspeed formula — opposing velocity yields a
+	/// negative currentInWishDir, so addSpeed grows past wishspeed and the new direction overtakes the
+	/// old. Air branch keeps the existing Quake-style strafe (independent of ground tuning).</summary>
 	private void ApplyHorizontalMovement(ref Vector3 velocity, MovementInput input, float targetSpeed, float dt)
 	{
 		if (IsSliding) return;
@@ -961,19 +1111,27 @@ public class MovementController
 
 		if (input.OnFloor)
 		{
-			Vector3 targetHoriz = hasInput ? worldDir * targetSpeed : Vector3.Zero;
+			float speed = horizVel.Length();
+			if (speed > 0.0001f)
+			{
+				float control = Mathf.Max(speed, Sv.StopSpeed);
+				float drop = control * Sv.GroundFriction * dt;
+				float newSpeed = Mathf.Max(0f, speed - drop);
+				horizVel *= newSpeed / speed;
+			}
+			if (horizVel.LengthSquared() < 0.0001f) horizVel = Vector3.Zero;
+
 			if (hasInput)
 			{
-				float opposingDot = horizVel.Dot(worldDir);
-				if (opposingDot < 0f)
-					horizVel -= worldDir * opposingDot;
-				horizVel = horizVel.MoveToward(targetHoriz, Sv.GroundAcceleration * dt);
-			}
-			else
-			{
-				float decay = Mathf.Exp(-Sv.GroundFriction * dt);
-				horizVel *= decay;
-				if (horizVel.LengthSquared() < 0.01f) horizVel = Vector3.Zero;
+				float wishSpeed = targetSpeed;
+				float currentInWishDir = horizVel.Dot(worldDir);
+				float addSpeed = wishSpeed - currentInWishDir;
+				if (addSpeed > 0f)
+				{
+					float accelSpeed = Sv.GroundAcceleration * wishSpeed * dt;
+					if (accelSpeed > addSpeed) accelSpeed = addSpeed;
+					horizVel += worldDir * accelSpeed;
+				}
 			}
 		}
 		else if (hasInput)

@@ -165,7 +165,14 @@ public partial class SettingsMenu : CanvasLayer
 		_root.Visible = open;
 		Input.MouseMode = open ? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
 		if (open)
+		{
 			Engine.MaxFps = Settings.MenuFpsCap;
+			// Disconnect button is only meaningful while connected to a server. The DisconnectScreen
+			// already shows after a disconnect, so the button is also hidden on the loading screen
+			// (= Client null / not connected).
+			if (_disconnectBtn != null)
+				_disconnectBtn.Visible = NetMain.Instance?.Client?.Connected == true;
+		}
 		else
 			Engine.MaxFps = Settings.FpsCap;
 	}
@@ -255,7 +262,33 @@ public partial class SettingsMenu : CanvasLayer
 
 		_saveStatus = new Label { Text = "" };
 		_saveStatus.AddThemeColorOverride("font_color", new Color(0.7f, 1f, 0.7f));
+		_saveStatus.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 		btnRow.AddChild(_saveStatus);
+
+		// Disconnect on the right side — only visible when actually connected to a server
+		// (visibility refresh happens in SetOpen). Calls NetMain.RequestDisconnect which
+		// triggers the same cleanup the transport-drop path uses.
+		_disconnectBtn = new Button { Text = "  Disconnect  ", CustomMinimumSize = new Vector2(140, 36) };
+		_disconnectBtn.AddThemeColorOverride("font_color", new Color(1f, 0.7f, 0.5f));
+		_disconnectBtn.Pressed += OnDisconnectPressed;
+		btnRow.AddChild(_disconnectBtn);
+
+		// Quit closes the game entirely.
+		var quitBtn = new Button { Text = "  Quit  ", CustomMinimumSize = new Vector2(120, 36) };
+		quitBtn.AddThemeColorOverride("font_color", new Color(1f, 0.55f, 0.55f));
+		quitBtn.Pressed += () => GetTree().Quit();
+		btnRow.AddChild(quitBtn);
+	}
+
+	private Button _disconnectBtn;
+
+	/// <summary>Click handler for the Disconnect button — closes the menu first (so the
+	/// mouse mode + FPS-cap revert to in-game values briefly) then asks NetMain to tear
+	/// down the network connection and show the disconnect overlay.</summary>
+	private void OnDisconnectPressed()
+	{
+		SetOpen(false);
+		NetMain.Instance?.RequestDisconnect("Disconnected by user");
 	}
 
 	/// <summary>Creates a tab page (ScrollContainer + VBox). The node name becomes the tab title.</summary>

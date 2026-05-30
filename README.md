@@ -91,6 +91,7 @@ The result is a round-based competitive shooter with classic tactical pacing —
 **Tick Model**
 - **128 Hz physics tick rate** (Jolt Physics), CLI-overridable (`--tickrate`, clamped 30..256).
 - **64 Hz snapshot rate** (every second tick).
+- **Sub-tick input pipeline (CS2-style)** — every keyboard / mouse-button edge is timestamped the moment the OS reports it, and the movement step decomposes each physics tick into mini-segments at each event's in-tick position. Counter-strafe taps, jump edges, crouch presses and fire-press timing land on **~30 µs / 1-tick-of-256 granularity** instead of being quantised to the 7.8 ms tick boundary. Physics itself still steps once per tick — only the *input* is subtick, exactly like CS2. Empty event list = legacy single-segment fast path (bot agents, server replays of legacy clients).
 - **NetMain autoload** at `ProcessPriority = -100` so networking polls before the physics step.
 
 **Client-Side Prediction & Reconciliation**
@@ -102,7 +103,7 @@ The result is a round-based competitive shooter with classic tactical pacing —
 
 **Server-Side Lag Compensation**
 - 128-tick **RewindBuffer** (1 s @ 128 Hz) of every hitbox transform.
-- Hitscan replays at `currentTick − RTT/2 − InterpDelayTicks(6)`.
+- Hitscan replays at `currentTick − RTT/2 − InterpDelayTicks(6) + FireSubTick / 256` — the **fractional** rewind tick is interpolated between two stored snapshots, so a fire-press that happened mid-tick on the shooter resolves against opponent positions at that exact moment instead of snapping to the previous tick boundary. Eliminates tick-aliasing in close-range duels.
 - RTT clamped to 0..64 ticks to prevent rewind exploits.
 - Linear interpolation between stored ticks for sub-tick accuracy.
 
@@ -112,9 +113,10 @@ The result is a round-based competitive shooter with classic tactical pacing —
 - Server agents freeze until they receive their first input (no pre-spawn drift).
 
 **Input Pipeline**
-- **Input redundancy**: each client packet includes recent ticks; server dedupes via `LastInputTick`.
-- **Edge-flag clearing** after consume (jump/fire/reload are one-shot, not held state).
-- **Anti-cheat clamps**: `WishDir` magnitude > 1.1 triggers normalisation + violation counter; pitch clamped to ±π/2; server-derived `OnFloor/TouchingWall/WallNormal` (not trusted from client).
+- **Sub-tick event stream** — each input body carries `InitialBits` + an ordered array of up to 16 `SubtickEvent { TFraction, StateAfter (InputBits bitmask), ViewYaw, ViewPitch }` entries captured on every keyboard / mouse-button edge. Server replays the same events deterministically, so client prediction and server simulation agree at sub-tick resolution. Wire cost: 7 B / event header + 7 B / event body, typical tick adds ~14–20 B per input frame.
+- **Press-edge derivation** — jump / crouch / fire / reload / inspect edges are computed from `state & ~previousState` in the driver loop, not sent as separate booleans. Server can't be tricked into a phantom press by a malformed flag bit because the rising edge requires an actual `0 → 1` transition in the bitmask.
+- **Input redundancy** — each client packet includes the last 3 ticks; server dedupes via `LastInputTick`. Sub-tick events ride along on the redundant copies so a dropped packet doesn't lose a precise counter-strafe moment.
+- **Anti-cheat clamps**: `WishDir` magnitude > 1.1 triggers normalisation + violation counter; pitch clamped to ±π/2; `TFraction` non-monotonic in an event array → entire event list is dropped server-side (tick still simulated via the legacy fast path so the player still moves); server-derived `OnFloor/TouchingWall/WallNormal` (not trusted from client).
 
 **Connection Lifecycle**
 - **Identity tokens**: 16-byte GUID persisted to `user://settings.cfg`, server-assigned on first connect.
@@ -186,10 +188,10 @@ At server start, `NetServer.TryBuildVoxelPvs` looks for a `VoxelPvsInstance` in 
 ### Movement
 
 **Ground Physics**
-- Walk 5.0 / Sprint 6.0 / Shift 1.9 / Crouch 1.9 m/s.
-- Ground accel 60, ground friction 50, gravity 17.5, jump 4.95 m/s.
-- Air accel 100, air-max-wishspeed 0.6 (for strafe control without infinite gain).
-- **Counter-strafe** — opposing input instantly cancels velocity.
+- Walk 4.0 / Sprint 5.0 / Shift 1.9 / Crouch 1.9 m/s.
+- **Source-engine acceleration model** (CS-style). Per tick: friction first — `drop = max(speed, stopspeed) × friction × dt` — then accelerate only in the wish direction, capped by remaining wish-speed budget — `addSpeed = wishSpeed × accel × dt`, clamped to `(wishSpeed − currentInWishDir)`. Tuning: **accel 15, friction 5.2, stopspeed 1.6**, gravity 17.5, jump 4.95 m/s. Hits near-max speed in ~80 ms; pure key-release decays over ~400 ms (CS-style "drift" if you stop pressing), counter-strafe drops to zero in ~50–80 ms (see below).
+- Air accel 100, air-max-wishspeed 0.6 (Quake-style strafe control without infinite gain).
+- **Counter-strafe** — opposite-direction input gives a negative `currentInWishDir`, so `addSpeed` grows past `wishSpeed` and the new direction overtakes the old. Combined with friction this brings full-speed velocity to a complete stop in ~50–80 ms (the exact moment of key-press is sub-tick precise via the input pipeline above).
 
 **Jump Techniques**
 - **Coyote time** 100 ms.

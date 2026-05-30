@@ -13,8 +13,9 @@ public class SvConVars
 	public float SprintSpeed = 5.0f;
 	public float CrouchSpeed = 1.9f;
 
-	public float GroundAcceleration = 60f;
-	public float GroundFriction = 50f;
+	public float GroundAcceleration = 15f;
+	public float GroundFriction = 5.2f;
+	public float StopSpeed = 1.6f;
 	public float AirAcceleration = 100f;
 	public float AirMaxWishSpeed = 0.6f;
 	public float JumpVelocity = 4.95f;

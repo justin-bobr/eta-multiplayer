@@ -197,6 +197,39 @@ public partial class PlayerCore : ServerBaseCharacter
 	/// observable side-effects there.</summary>
 	protected ulong _lastFirePressUsec;
 
+	// ---------- Subtick input pipeline (LocalPlayer only) ----------
+	// Per-event timestamped buffer. Filled by RecordSubtickInputEvent on every keyboard/mouse-button edge
+	// (= much higher rate than 60 Hz physics). Flushed at the start of each tick by BuildMovementInput into
+	// MovementInput.Events with TFraction computed against [_prevTickStartUsec, _tickStartUsec]. The server
+	// replays each segment between events through MovementController.Step → counter-strafe taps, jump
+	// timing and fire-edges land on sub-tick boundaries instead of being quantised to the 16.6 ms tick.
+	private struct BufferedSubtickEvent
+	{
+		public ulong Usec;
+		public InputBits State;
+		public float Yaw;
+		public float Pitch;
+	}
+	/// <summary>Hard cap on events per tick. Mirrors <see cref="Packets.MaxSubtickEventsWire"/> so a tick
+	/// that hits the cap on the client is also accepted in full by the server. 16 = ~1 ms granularity at
+	/// 60 Hz; excess events drop silently (held state stays correct via <see cref="_liveBits"/>, only the
+	/// in-tick ordering of the dropped ones is lost — practically never reached during real play).</summary>
+	private const int MaxSubtickEventsPerTick = Packets.MaxSubtickEventsWire;
+	private readonly System.Collections.Generic.List<BufferedSubtickEvent> _subtickBuffer
+		= new System.Collections.Generic.List<BufferedSubtickEvent>(MaxSubtickEventsPerTick);
+	/// <summary>Held-input bitmask updated live on every input event. End-of-tick value seeds the
+	/// MovementInput's legacy held flags as well as the next tick's <see cref="_intervalStartBits"/>.</summary>
+	protected InputBits _liveBits;
+	/// <summary>Held-input bitmask at the start of the current input-collection interval (= the previous
+	/// tick's <see cref="_liveBits"/> snapshot). Used as <see cref="MovementInput.InitialBits"/>.</summary>
+	protected InputBits _intervalStartBits;
+	protected float _intervalStartViewYaw;
+	protected float _intervalStartViewPitch;
+	/// <summary>Wallclock at the start of the previous tick — the lower bound of the interval whose events
+	/// are flushed into this tick's <see cref="MovementInput"/>. Set in <see cref="_PhysicsProcess"/>
+	/// immediately before <see cref="_tickStartUsec"/> is updated.</summary>
+	protected ulong _prevTickStartUsec;
+
 	protected PhysicsRayQueryParameters3D _rayQuery;
 	protected Godot.Collections.Array<Rid> _selfExclude;
 	/// <summary>Rate-limit timestamp (msec) for the "[stepup] BLOCKED — obstacle height" diagnostic log. The diagnostic raycast runs once per second max while diagnostic logging is enabled, so walking along a wall doesn't spam the log every physics tick.</summary>
@@ -586,6 +619,7 @@ public partial class PlayerCore : ServerBaseCharacter
 		if (!IsLocalPlayer && !IsServerAgent) return;
 		using var _prof = IsServerAgent ? MiniProfiler.SampleServer("PlayerCore._PhysicsProcess") : MiniProfiler.SampleClient("PlayerCore._PhysicsProcess (Local)");
 
+		_prevTickStartUsec = _tickStartUsec;
 		_tickStartUsec = Time.GetTicksUsec();
 
 		if (IsLocalPlayer)
@@ -1051,17 +1085,23 @@ public partial class PlayerCore : ServerBaseCharacter
 	}
 
 	/// <summary>Quantises the in-tick fraction at which fire was pressed to a byte (1/256 of a tick).
-	/// Returns 0 when fire is not pressed, when no press has been recorded yet, or when the recorded
-	/// press is from a previous tick (= held auto-fire — the server should use the tick boundary, not
-	/// a stale sub-tick offset).</summary>
+	/// The reference interval is [_prevTickStartUsec, _tickStartUsec] (= the interval whose input
+	/// events feed THIS tick's <see cref="MovementInput"/>). In Godot's main-loop order, <c>_Input</c>
+	/// callbacks for a frame run BEFORE that frame's <c>_PhysicsProcess</c>, so the fire-press wallclock
+	/// captured by LocalPlayer._Input always sits inside [_prevTickStartUsec, _tickStartUsec]. Using
+	/// _tickStartUsec as the lower bound (as v5 did) made every press appear "in the future" and the
+	/// function returned 0 always — sub-tick fire never actually reached the server. Returns 0 if fire
+	/// isn't pressed, if the press is from before the previous tick (= held auto-fire), or on the very
+	/// first tick (no previous interval yet).</summary>
 	private byte ComputeFireSubTick(bool firePressed)
 	{
-		if (!firePressed || _lastFirePressUsec == 0 || _tickStartUsec == 0) return 0;
-		if (_lastFirePressUsec < _tickStartUsec) return 0;
-		ulong tickPeriodUsec = (ulong)Mathf.Max(1, (int)(_fixedDt * 1_000_000f));
-		ulong offsetUsec = _lastFirePressUsec - _tickStartUsec;
-		if (offsetUsec >= tickPeriodUsec) offsetUsec = tickPeriodUsec - 1;
-		return (byte)Mathf.Min(255, (int)((offsetUsec * 256UL) / tickPeriodUsec));
+		if (!firePressed || _lastFirePressUsec == 0) return 0;
+		if (_prevTickStartUsec == 0 || _tickStartUsec <= _prevTickStartUsec) return 0;
+		if (_lastFirePressUsec < _prevTickStartUsec) return 0;
+		if (_lastFirePressUsec >= _tickStartUsec) return 0;
+		ulong period = _tickStartUsec - _prevTickStartUsec;
+		ulong offset = _lastFirePressUsec - _prevTickStartUsec;
+		return (byte)Mathf.Clamp((int)((offset * 256UL) / period), 0, 255);
 	}
 
 	/// <summary>Steps the footstep cadence per tick and plays the sound on each step event. The cadence
@@ -1654,6 +1694,84 @@ public partial class PlayerCore : ServerBaseCharacter
 		WeaponHolder.Footstep = _footstepLogic;
 	}
 
+	/// <summary>Snapshots the live held-input state from Godot's input system into an
+	/// <see cref="InputBits"/> bitmask. Called from <see cref="LocalPlayer._Input"/> on every input edge.
+	/// Reads <see cref="Input.IsActionPressed"/> for each tracked action — these reflect the just-applied
+	/// event state, so the bitmask is correct for the moment the InputEvent arrives.</summary>
+	private InputBits ReadInputBitsFromGodot()
+	{
+		if (InputGate.Blocked) return InputBits.None;
+		InputBits b = InputBits.None;
+		if (Input.IsActionPressed(InputActions.Forward))  b |= InputBits.Forward;
+		if (Input.IsActionPressed(InputActions.Back))     b |= InputBits.Back;
+		if (Input.IsActionPressed(InputActions.Left))     b |= InputBits.Left;
+		if (Input.IsActionPressed(InputActions.Right))    b |= InputBits.Right;
+		if (Input.IsActionPressed(InputActions.Jump))     b |= InputBits.Jump;
+		if (Input.IsActionPressed(InputActions.Crouch))   b |= InputBits.Crouch;
+		if (Input.IsActionPressed(InputActions.Sprint))   b |= InputBits.Sprint;
+		if (Input.IsActionPressed(InputActions.Shift))    b |= InputBits.ShiftWalk;
+		if (Input.IsActionPressed(InputActions.Fire))     b |= InputBits.Fire;
+		if (Input.IsActionPressed(InputActions.Ads))      b |= InputBits.Ads;
+		if (Input.IsActionPressed(InputActions.Reload))   b |= InputBits.Reload;
+		if (Input.IsActionPressed(InputActions.Inspect))  b |= InputBits.Inspect;
+		if (Input.IsActionPressed(InputActions.Breath))   b |= InputBits.BreathHold;
+		return b;
+	}
+
+	/// <summary>Records a subtick input event when the held-input bitmask changes. Called from
+	/// <see cref="LocalPlayer._Input"/>. Mouse motion alone does NOT push an event — only bit transitions
+	/// (key press/release, mouse-button click). The event captures the current view yaw/pitch so the
+	/// substep starting at this event uses the correct aim direction (e.g. for fire-edge → spec rewind).</summary>
+	public void RecordSubtickInputEvent()
+	{
+		if (!IsLocalPlayer) return;
+		InputBits newBits = ReadInputBitsFromGodot();
+		if (newBits == _liveBits) return;
+		_liveBits = newBits;
+		if (_subtickBuffer.Count >= MaxSubtickEventsPerTick) return;
+		float yaw = Rotation.Y;
+		float pitch = HeadPitch != null ? HeadPitch.Rotation.X : 0f;
+		_subtickBuffer.Add(new BufferedSubtickEvent
+		{
+			Usec = Time.GetTicksUsec(),
+			State = newBits,
+			Yaw = yaw,
+			Pitch = pitch,
+		});
+	}
+
+	/// <summary>Flushes <see cref="_subtickBuffer"/> into a freshly allocated <see cref="SubtickEvent"/>
+	/// array with TFraction normalised to [0..1] over the interval [_prevTickStartUsec, _tickStartUsec].
+	/// Returns null if no events buffered → caller takes the legacy single-segment path in
+	/// <see cref="MovementController.Step"/>. The buffer is cleared regardless.</summary>
+	private SubtickEvent[] FlushSubtickEvents()
+	{
+		int count = _subtickBuffer.Count;
+		if (count == 0 || _prevTickStartUsec == 0 || _tickStartUsec <= _prevTickStartUsec)
+		{
+			_subtickBuffer.Clear();
+			return null;
+		}
+		ulong period = _tickStartUsec - _prevTickStartUsec;
+		float invPeriod = 1f / (float)period;
+		SubtickEvent[] arr = new SubtickEvent[count];
+		for (int i = 0; i < count; i++)
+		{
+			BufferedSubtickEvent b = _subtickBuffer[i];
+			ulong offset = b.Usec >= _prevTickStartUsec ? b.Usec - _prevTickStartUsec : 0UL;
+			if (offset > period) offset = period;
+			arr[i] = new SubtickEvent
+			{
+				TFraction = Mathf.Clamp((float)offset * invPeriod, 0f, 1f),
+				StateAfter = b.State,
+				ViewYaw = b.Yaw,
+				ViewPitch = b.Pitch,
+			};
+		}
+		_subtickBuffer.Clear();
+		return arr;
+	}
+
 	/// <summary>Builds the per-tick movement input. Server agents pull from the latest net packet; local
 	/// players read live Godot input gated by <see cref="InputGate"/>. Sub-divided into three profiler
 	/// samples (InputReads / CollisionState / WeaponLookup) so a spike here is locatable instead of a
@@ -1700,12 +1818,24 @@ public partial class PlayerCore : ServerBaseCharacter
 			weapon = WeaponHolder?.ActiveWeapon;
 		}
 
+		float currentYaw = Rotation.Y;
+		float currentPitch = HeadPitch != null ? HeadPitch.Rotation.X : 0f;
+
+		InputBits initialBits = _intervalStartBits;
+		float initialYaw = _intervalStartViewYaw;
+		float initialPitch = _intervalStartViewPitch;
+		SubtickEvent[] events = FlushSubtickEvents();
+
+		_intervalStartBits = _liveBits;
+		_intervalStartViewYaw = currentYaw;
+		_intervalStartViewPitch = currentPitch;
+
 		return new MovementInput
 		{
 			TickIndex = _currentTick,
 			WishDir = wish,
-			ViewYaw = Rotation.Y,
-			ViewPitch = HeadPitch != null ? HeadPitch.Rotation.X : 0f,
+			ViewYaw = currentYaw,
+			ViewPitch = currentPitch,
 			SprintHeld = sprintHeld,
 			ShiftHeld = shiftHeld,
 			CrouchHeld = crouchHeld,
@@ -1718,6 +1848,10 @@ public partial class PlayerCore : ServerBaseCharacter
 			TouchingWall = onWall,
 			WallNormal = wallNormal,
 			Dt = dt,
+			Events = events,
+			InitialBits = initialBits,
+			InitialViewYaw = initialYaw,
+			InitialViewPitch = initialPitch,
 		};
 	}
 
@@ -1756,6 +1890,10 @@ public partial class PlayerCore : ServerBaseCharacter
 			TouchingWall = IsOnWall(),
 			WallNormal = IsOnWall() ? GetWallNormal() : Vector3.Zero,
 			Dt = dt,
+			Events = p.Events,
+			InitialBits = (InputBits)p.InitialBits,
+			InitialViewYaw = p.InitialViewYaw,
+			InitialViewPitch = p.InitialViewPitch,
 		};
 	}
 

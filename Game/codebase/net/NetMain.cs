@@ -351,6 +351,27 @@ public partial class NetMain : Node
 	/// button calls <see cref="RequestReconnect"/>.</summary>
 	private DisconnectScreen _disconnectScreen;
 
+	/// <summary>User-initiated disconnect (Settings menu button). Stops the NetClient (closes
+	/// the socket) and routes through the same cleanup path the transport-drop callback uses, so
+	/// LocalPlayer/Puppets/HudGate get torn down and the DisconnectScreen overlay shows up.
+	/// Subscription to <see cref="NetClient.OnDisconnected"/> is removed first so the cleanup
+	/// only runs once even if LiteNetLib's Stop() also fires a peer-disconnect event.</summary>
+	public void RequestDisconnect(string reason = "Disconnected by user")
+	{
+		Dbg.Print($"[NetMain] RequestDisconnect: {reason}");
+		if (Client != null)
+		{
+			Client.OnDisconnected -= HandleDisconnect;
+			Client.Stop();
+		}
+		HandleDisconnect(reason);
+	}
+
+	/// <summary>True while we're in the post-disconnect idle state — set after a disconnect, cleared
+	/// when the user picks Reconnect/Quit. SceneLoader checks this to suppress its auto-connect logic
+	/// (= sits idle behind the DisconnectScreen overlay rather than firing a fresh connect attempt).</summary>
+	public static bool PostDisconnectIdle;
+
 	private void HandleDisconnect(string reason)
 	{
 		Dbg.Print($"[NetMain] HandleDisconnect: {reason}");
@@ -364,6 +385,15 @@ public partial class NetMain : Node
 		_localPlayerInitialized = false;
 		_teamSelectFlowInitialized = false;
 		HudGate.Reset();
+
+		// Switch the rendered scene back to loading.tscn — this frees the whole world tree (HUDs,
+		// LocalPlayer remnants, ServerAgents, World3D) in one go. Without this, HUD nodes that
+		// hold a ref to the freed LocalPlayer crash with ObjectDisposedException on the next
+		// _Process. The DisconnectScreen overlay below is added to GetTree().Root (NOT to the
+		// current scene), so it survives the scene change and remains visible on top.
+		PostDisconnectIdle = true;
+		Cli.AutoConnect = false;
+		GetTree().ChangeSceneToFile("res://loading.tscn");
 
 		if (_disconnectScreen != null && GodotObject.IsInstanceValid(_disconnectScreen))
 		{
@@ -397,6 +427,10 @@ public partial class NetMain : Node
 			Client.Stop();
 			Client = null;
 		}
+		// Re-enable auto-connect path before recreating the client + reloading the scene so
+		// SceneLoader's Connecting phase actually progresses instead of sitting idle.
+		PostDisconnectIdle = false;
+		Cli.AutoConnect = true;
 		CreateAndStartClient();
 
 		GetTree().ChangeSceneToFile("res://loading.tscn");
