@@ -22,6 +22,7 @@ config/icon="uid://c1erobi2viv60"
 
 NetMain="*res://codebase/net/NetMain.cs"
 ProcessPriorityBoost="*res://codebase/ProcessPriorityBoost.cs"
+WorldFadeOverlay="*res://codebase/WorldFadeOverlay.cs"
 
 [debug]
 
@@ -54,6 +55,7 @@ bombsite_b=""
 spawn_ct=""
 spawn_t=""
 spawn_deathmatch=""
+preview_cam=""
 
 [input]
 

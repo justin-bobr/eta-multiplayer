@@ -199,6 +199,16 @@ public partial class PlayerCore : ServerBaseCharacter
 
 	protected PhysicsRayQueryParameters3D _rayQuery;
 	protected Godot.Collections.Array<Rid> _selfExclude;
+	/// <summary>Rate-limit timestamp (msec) for the "[stepup] BLOCKED — obstacle height" diagnostic log. The diagnostic raycast runs once per second max while diagnostic logging is enabled, so walking along a wall doesn't spam the log every physics tick.</summary>
+	private ulong _lastStepupBlockedLogMs;
+	/// <summary>Rate-limit timestamp (msec) for the "[stepup] +X.XXm" success log. At 128Hz on a long staircase + replay ticks the log otherwise fires hundreds of times per second; the string interpolation contributed visibly to GC pressure.</summary>
+	private ulong _lastStepupSuccessLogMs;
+	/// <summary>True for the LocalPlayer after _Ready until the WorldFadeOverlay fade-out is triggered. Polled in _Process — once all FootstepAudio preloads have finalised the fade-out is requested and this flag flips false to disable further polling.</summary>
+	private bool _waitingForFadeOut;
+	/// <summary>Position at the last tick where TryStepUp ran the full TestMove-sequence and was blocked (= obstacle was not step-able). Used as a cooldown gate: while the player hasn't moved &gt;10cm since the last block, skip the full sequence — 3×TestMove + 1×IntersectRay per tick was the dominant load when walking into a wall (128Hz × replay × 8 = ~1000 redundant queries/sec).</summary>
+	private Vector3 _stepupLastBlockedPos = new(float.MinValue, 0, 0);
+	private uint _stepupLastBlockedTick;
+	private const uint StepupBlockedCooldownTicks = 8;
 
 	/// <summary>Initializes physics tuning, audio banks, hitbox rig, and the third-person aim setup. Server
 	/// agents take an early-out and skip all visual-only setup.</summary>
@@ -344,6 +354,7 @@ public partial class PlayerCore : ServerBaseCharacter
 				TpsAnimTree.Active = true;
 				TpsAnimTree.CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Physics;
 			}
+			PreWarmAnimationOneShots();
 			ViewMode = ViewMode.Disabled;
 			ApplyViewMode();
 			DisableExpensiveSubtreeProcessing();
@@ -354,12 +365,56 @@ public partial class PlayerCore : ServerBaseCharacter
 
 		if (TpsAnimTree != null) TpsAnimTree.Active = true;
 
+		// Pre-warm AnimationNodeOneShot animations so the lazy-load resource-import
+		// happens at spawn (= during load screen / connection) instead of mid-gameplay
+		// when the player first triggers Mantle / Jump / Land / Reload / Inspect.
+		// Measured cost of a cold first-fire: 40-50ms hitch on the physics tick. Cold-load
+		// is one-time per game session — pre-warming moves it from "first action" to
+		// "spawn", which is invisible to the user.
+		PreWarmAnimationOneShots();
+
 		// HitboxRig wurde bereits weiter oben (vor dem ServerAgent-Early-Return) gebaut.
 
 		ApplyViewMode();
 
+		// LocalPlayer (the user's own player) ist jetzt fully spawned + animations warm.
+		// FootstepAudio finalisierung läuft noch in _Process (rate-limited to 2/frame). Erst
+		// wenn das pending-queue leer ist → fade-out. Polling läuft auf _Process, weil wir
+		// keinen direkten Callback aus FootstepAudio haben. While waiting we freeze:
+		// no local input reads, no SendNetInput → no pre-spawn garbage ticks to the server.
+		if (IsLocalPlayer)
+		{
+			_waitingForFadeOut = true;
+			InputGate.LocalPlayerFrozen = true;
+		}
+
 		_prevPhysicsPos = GlobalPosition;
 		_currentPhysicsPos = GlobalPosition;
+	}
+
+	/// <summary>Auto-discovers every AnimationNodeOneShot in the TpsAnimTree by enumerating all
+	/// property names ending in "/request" — the signature path of a OneShot's Fire/Abort slot.
+	/// Fires + Aborts each one immediately so Godot lazy-loads + caches the referenced animation
+	/// resource here at spawn rather than during the first triggered gameplay event (which spikes
+	/// the physics tick by 40-50ms). Idempotent — pre-warming once is enough for the session.</summary>
+	private void PreWarmAnimationOneShots()
+	{
+		if (TpsAnimTree == null) return;
+		var props = TpsAnimTree.GetPropertyList();
+		int count = 0;
+		foreach (Godot.Collections.Dictionary prop in props)
+		{
+			if (prop["name"].VariantType != Variant.Type.String && prop["name"].VariantType != Variant.Type.StringName)
+				continue;
+			string name = prop["name"].AsString();
+			if (!name.StartsWith("parameters/") || !name.EndsWith("/request"))
+				continue;
+			TpsAnimTree.Set(name, (int)AnimationNodeOneShot.OneShotRequest.Fire);
+			TpsAnimTree.Set(name, (int)AnimationNodeOneShot.OneShotRequest.Abort);
+			count++;
+		}
+		if (count > 0)
+			Dbg.Print($"[prewarm] pre-fired {count} animation one-shot(s) on {(IsPuppet ? "puppet" : IsServerAgent ? "server-agent" : "local")} player");
 	}
 
 	/// <summary>Active camera used by logic reads (shoot origin, grenade spawn, HUD FOV). Default null
@@ -578,6 +633,20 @@ public partial class PlayerCore : ServerBaseCharacter
 		if (!IsLocalPlayer) return;
 		float fraction = (float)Engine.GetPhysicsInterpolationFraction();
 		GlobalPosition = _prevPhysicsPos.Lerp(_currentPhysicsPos, fraction) + _visualErrorOffset;
+
+		// Gate the world-fade-in until FootstepAudio finishes its async preloads.
+		// Polling once per render frame is cheap (just a static int read). When all
+		// pending clips are finalised → tell server we're world-ready (so peers can
+		// reveal our TPS body), unfreeze input (so the player can move), and request
+		// the smooth fade-out for the local view.
+		if (_waitingForFadeOut && FootstepAudio.PendingLoadCount == 0)
+		{
+			_waitingForFadeOut = false;
+			InputGate.LocalPlayerFrozen = false;
+			NetMain.Instance?.Client?.SendWorldInitComplete();
+			WorldFadeOverlay.Instance?.RequestFadeOut();
+			Dbg.Print("[PlayerCore] world preloads done → unfrozen + WorldInitComplete sent + fade-out requested");
+		}
 	}
 
 	/// <summary>Server-replayable tick step. Called with a constant <paramref name="dt"/> = 1/TickRate. Only
@@ -682,13 +751,18 @@ public partial class PlayerCore : ServerBaseCharacter
 		Vector3 drift = serverPos - entry.PostPos;
 		float driftLen = drift.Length();
 
-		// Epsilon hochgesetzt von 0.02m + vel*dt → 0.06m + vel*dt × 2. Reduce frequency of triggered
-		// reconciles drastically — bei Wall-Slide drift'd Position oft 2-5cm wegen Client/Server-
-		// Collision-Timing-Differenz, was VOR dem Fix jeden Snapshot (64Hz) Reconcile + 8-tick Replay
-		// triggert (= 64*8 = 512 ReplayTicks/sec). Mit 6cm Schwelle nur noch echte Drifts (>5cm
-		// off = visible mismatch) korrigiert. Sub-Schwelle bleibt durch normales Forward-Sim corrected.
-		float epsilon = 0.06f + Velocity.Length() * _fixedDt * 2f;
-		if (driftLen < epsilon) return;
+		// Split horizontal vs. vertical tolerance — CS2-style. Stair-step drifts are almost
+		// purely vertical (client step-up applied a tick before server's replay does the same),
+		// and a 0.15m vertical mismatch is gameplay-invisible (hitbox stays the same height,
+		// camera height matches anyway via re-sim). Horizontal drift maps directly to where
+		// the enemy sees your hitbox — must stay tight. Reconcile only triggers if EITHER
+		// axis exceeds its own threshold.
+		Vector3 horizDrift = new Vector3(drift.X, 0f, drift.Z);
+		float horizDriftLen = horizDrift.Length();
+		float vertDriftLen = Mathf.Abs(drift.Y);
+		float horizEpsilon = 0.06f + Velocity.Length() * _fixedDt * 2f;
+		const float vertEpsilon = 0.20f;
+		if (horizDriftLen < horizEpsilon && vertDriftLen < vertEpsilon) return;
 
 		Vector3 visualPosBefore = _currentPhysicsPos + _visualErrorOffset;
 
@@ -745,6 +819,8 @@ public partial class PlayerCore : ServerBaseCharacter
 			Dbg.Print($"[NetReconcile] REPLAY @ tick={ackedTick} drift={driftLen:F2}m replayed-ticks={Prediction.Count - 1} visualBleed={visualDelta.Length():F2}m");
 
 		NetStats.LastReconcileDriftM = driftLen;
+		NetStats.LastReconcileDriftHorizM = horizDriftLen;
+		NetStats.LastReconcileDriftVertM = vertDriftLen;
 		NetStats.LastReconcileTimeSec = Time.GetTicksMsec() / 1000.0;
 		_reconcileCountWindow++;
 	}
@@ -947,6 +1023,11 @@ public partial class PlayerCore : ServerBaseCharacter
 	{
 		if (!IsLocalPlayer) return;
 		if (_isReplaying) return;
+		// While the local player is frozen (asset preloads still running), don't ship
+		// input packets to the server — they'd be discarded as garbage pre-spawn ticks
+		// anyway. Same effect as InputGate.Blocked from the input-read side but explicit
+		// here so server-side input-rate-limit counters don't bump.
+		if (InputGate.LocalPlayerFrozen) return;
 		var client = NetMain.Instance?.Client;
 		if (client == null || !client.Spawned) return;
 		bool blocked = InputGate.Blocked;
@@ -979,33 +1060,44 @@ public partial class PlayerCore : ServerBaseCharacter
 	private void HandleFootsteps()
 	{
 		bool blocked = InputGate.Blocked;
-		_footstepLogic.Step(new FootstepInput
+		using (MiniProfiler.SampleClient("PlayerCore.HandleFootsteps.Cadence"))
 		{
-			Dt = _fixedDt,
-			HorizontalSpeed = _movement.HorizontalSpeed,
-			OnFloor = IsOnFloor(),
-			ShiftHeld = !blocked && Input.IsActionPressed(InputActions.Shift),
-			CrouchHeld = _movement.CrouchBlend > 0.5f,
-			IsSprinting = _movement.ActuallySprinting,
-			IsSliding = _movement.IsSliding,
-		});
+			_footstepLogic.Step(new FootstepInput
+			{
+				Dt = _fixedDt,
+				HorizontalSpeed = _movement.HorizontalSpeed,
+				OnFloor = IsOnFloor(),
+				ShiftHeld = !blocked && Input.IsActionPressed(InputActions.Shift),
+				CrouchHeld = _movement.CrouchBlend > 0.5f,
+				IsSprinting = _movement.ActuallySprinting,
+				IsSliding = _movement.IsSliding,
+			});
+		}
 
 		if (!_footstepLogic.DidStepThisFrame) return;
 		if (_isReplaying) return;
 
-		HitInfo ground = CastGround();
+		HitInfo ground;
+		using (MiniProfiler.SampleClient("PlayerCore.HandleFootsteps.CastGround"))
+			ground = CastGround();
 		StringName material = ground.Hit ? ground.Material : (StringName)"default";
 
 		if (IsServerAuthority)
 		{
-			byte loudByte = (byte)Mathf.Clamp(Mathf.RoundToInt(_footstepLogic.StepLoudness * 255f), 0, 255);
-			NetMain.Instance?.Server?.BroadcastFootstep(NetId, GlobalPosition, material.ToString(),
-				loudByte, _footstepLogic.StepIsLeftFoot, _movement.ActuallySprinting);
+			using (MiniProfiler.SampleClient("PlayerCore.HandleFootsteps.Broadcast"))
+			{
+				byte loudByte = (byte)Mathf.Clamp(Mathf.RoundToInt(_footstepLogic.StepLoudness * 255f), 0, 255);
+				NetMain.Instance?.Server?.BroadcastFootstep(NetId, GlobalPosition, material.ToString(),
+					loudByte, _footstepLogic.StepIsLeftFoot, _movement.ActuallySprinting);
+			}
 			if (IsServerAgent) return;
 		}
 
-		bool inTunnel = IsTunnelGround(ground);
-		Audio.PlayStep(GlobalPosition, material, _footstepLogic.StepLoudness, inTunnel, _movement.ActuallySprinting);
+		bool inTunnel;
+		using (MiniProfiler.SampleClient("PlayerCore.HandleFootsteps.TunnelCheck"))
+			inTunnel = IsTunnelGround(ground);
+		using (MiniProfiler.SampleClient("PlayerCore.HandleFootsteps.PlayStep"))
+			Audio.PlayStep(GlobalPosition, material, _footstepLogic.StepLoudness, inTunnel, _movement.ActuallySprinting);
 		Dbg.Print($"[footstep] tick={_currentTick} {(_footstepLogic.StepIsLeftFoot ? "L" : "R")} mat={material}{(inTunnel ? " tunnel" : "")} loud={_footstepLogic.StepLoudness:F2} speed={_movement.HorizontalSpeed:F1}");
 	}
 
@@ -1552,20 +1644,49 @@ public partial class PlayerCore : ServerBaseCharacter
 	}
 
 	/// <summary>Builds the per-tick movement input. Server agents pull from the latest net packet; local
-	/// players read live Godot input gated by <see cref="InputGate"/>.</summary>
+	/// players read live Godot input gated by <see cref="InputGate"/>. Sub-divided into three profiler
+	/// samples (InputReads / CollisionState / WeaponLookup) so a spike here is locatable instead of a
+	/// flat "BuildMovementInput 47ms" line.</summary>
 	private MovementInput BuildMovementInput(float dt)
 	{
 		if (IsServerAgent && NetInputSource.HasValue)
 			return BuildMovementInputFromNet(dt, NetInputSource.Value);
 
 		bool blocked = InputGate.Blocked;
+
 		Vector3 wish = Vector3.Zero;
-		if (!blocked)
+		bool sprintHeld, shiftHeld, crouchHeld, crouchPressed, adsHeld, breathHeld, jumpPressed;
+		using (MiniProfiler.SampleClient("PlayerCore.BuildMovementInput.InputReads"))
 		{
-			if (Input.IsActionPressed(InputActions.Forward)) wish.Z -= 1f;
-			if (Input.IsActionPressed(InputActions.Back)) wish.Z += 1f;
-			if (Input.IsActionPressed(InputActions.Left)) wish.X -= 1f;
-			if (Input.IsActionPressed(InputActions.Right)) wish.X += 1f;
+			if (!blocked)
+			{
+				if (Input.IsActionPressed(InputActions.Forward)) wish.Z -= 1f;
+				if (Input.IsActionPressed(InputActions.Back)) wish.Z += 1f;
+				if (Input.IsActionPressed(InputActions.Left)) wish.X -= 1f;
+				if (Input.IsActionPressed(InputActions.Right)) wish.X += 1f;
+			}
+			sprintHeld    = !blocked && Input.IsActionPressed(InputActions.Sprint);
+			shiftHeld     = !blocked && Input.IsActionPressed(InputActions.Shift);
+			crouchHeld    = !blocked && Input.IsActionPressed(InputActions.Crouch);
+			crouchPressed = !blocked && Input.IsActionJustPressed(InputActions.Crouch);
+			adsHeld       = !blocked && Input.IsActionPressed(InputActions.Ads);
+			breathHeld    = !blocked && Input.IsActionPressed(InputActions.Breath);
+			jumpPressed   = !blocked && Input.IsActionJustPressed(InputActions.Jump);
+		}
+
+		bool onFloor, onWall;
+		Vector3 wallNormal;
+		using (MiniProfiler.SampleClient("PlayerCore.BuildMovementInput.CollisionState"))
+		{
+			onFloor    = IsOnFloor();
+			onWall     = IsOnWall();
+			wallNormal = onWall ? GetWallNormal() : Vector3.Zero;
+		}
+
+		WeaponStats weapon;
+		using (MiniProfiler.SampleClient("PlayerCore.BuildMovementInput.WeaponLookup"))
+		{
+			weapon = WeaponHolder?.ActiveWeapon;
 		}
 
 		return new MovementInput
@@ -1574,17 +1695,17 @@ public partial class PlayerCore : ServerBaseCharacter
 			WishDir = wish,
 			ViewYaw = Rotation.Y,
 			ViewPitch = HeadPitch != null ? HeadPitch.Rotation.X : 0f,
-			SprintHeld = !blocked && Input.IsActionPressed(InputActions.Sprint),
-			ShiftHeld = !blocked && Input.IsActionPressed(InputActions.Shift),
-			CrouchHeld = !blocked && Input.IsActionPressed(InputActions.Crouch),
-			CrouchPressed = !blocked && Input.IsActionJustPressed(InputActions.Crouch),
-			AdsHeld = !blocked && Input.IsActionPressed(InputActions.Ads),
-			BreathHoldHeld = !blocked && Input.IsActionPressed(InputActions.Breath),
-			Weapon = WeaponHolder?.ActiveWeapon,
-			JumpPressed = !blocked && Input.IsActionPressed(InputActions.Jump),
-			OnFloor = IsOnFloor(),
-			TouchingWall = IsOnWall(),
-			WallNormal = IsOnWall() ? GetWallNormal() : Vector3.Zero,
+			SprintHeld = sprintHeld,
+			ShiftHeld = shiftHeld,
+			CrouchHeld = crouchHeld,
+			CrouchPressed = crouchPressed,
+			AdsHeld = adsHeld,
+			BreathHoldHeld = breathHeld,
+			Weapon = weapon,
+			JumpPressed = jumpPressed,
+			OnFloor = onFloor,
+			TouchingWall = onWall,
+			WallNormal = wallNormal,
 			Dt = dt,
 		};
 	}
@@ -1658,6 +1779,16 @@ public partial class PlayerCore : ServerBaseCharacter
 		bool hasVel = horizVel.LengthSquared() >= 0.25f;
 		if (!hasInput && !hasVel) return;
 
+		// Stuck-against-wall cooldown. Walking into an obstacle taller than StepMaxHeight
+		// causes TryStepUp to run the full 3×TestMove + IntersectRay sequence every single
+		// tick (the wall blocks horizMove, so the early-out below doesn't fire). Replay
+		// makes this 6-8× worse per server snapshot. Cache the position when blocked and
+		// skip the full sequence for 8 ticks if the player hasn't moved appreciably —
+		// reduces 128Hz wall-stuck rate to ~16Hz with no functional change.
+		if (_currentTick - _stepupLastBlockedTick < StepupBlockedCooldownTicks
+			&& GlobalPosition.DistanceSquaredTo(_stepupLastBlockedPos) < 0.01f)
+			return;
+
 		Vector3 inputDir = hasInput
 			? (Transform.Basis * wishLocal.Normalized())
 			: horizVel.Normalized();
@@ -1674,23 +1805,34 @@ public partial class PlayerCore : ServerBaseCharacter
 		if (TestMove(startTrans, upMove))
 		{
 			Dbg.Print($"[stepup] BLOCKED — no headroom (ceiling above, StepMaxHeight={StepMaxHeight:F2}m)");
+			_stepupLastBlockedPos = GlobalPosition;
+			_stepupLastBlockedTick = _currentTick;
 			return;
 		}
 
 		Transform3D elevated = startTrans.Translated(upMove);
 		if (TestMove(elevated, horizMove))
 		{
-			if (Dbg.Enabled)
+			// Diagnostic raycast was log-spamming every tick the player runs along a wall
+			// (TestMove triggers for any wall edge, even 1cm). Skip the raycast entirely
+			// unless this is the first BLOCKED in 1s AND the player is currently moving
+			// forward — otherwise it's not useful diagnostic info.
+			if (Dbg.Enabled && Time.GetTicksMsec() - _lastStepupBlockedLogMs > 1000)
 			{
+				_lastStepupBlockedLogMs = Time.GetTicksMsec();
 				Vector3 dbgProbeFrom = startTrans.Origin + inputDir * (CapsuleRadius + 0.1f) + Vector3.Up * 5f;
 				_rayQuery.From = dbgProbeFrom;
 				_rayQuery.To = dbgProbeFrom + Vector3.Down * 10f;
 				var topHit = GetWorld3D().DirectSpaceState.IntersectRay(_rayQuery);
-				string heightStr = topHit.Count > 0
-					? $"{((Vector3)topHit["position"]).Y - startTrans.Origin.Y:F2}m"
-					: "unknown (raycast no hit)";
-				Dbg.Print($"[stepup] BLOCKED — obstacle height ≈ {heightStr} (> StepMax {StepMaxHeight:F2}m) → crouch-jump (up to ~{MantleMinHeight:F1}m) or mantle (up to {MantleMaxHeight:F2}m) required.");
+				if (topHit.Count > 0)
+				{
+					float h = ((Vector3)topHit["position"]).Y - startTrans.Origin.Y;
+					if (h > StepMaxHeight && h < 2.0f)
+						Dbg.Print($"[stepup] BLOCKED — obstacle height ≈ {h:F2}m → crouch-jump (up to ~{MantleMinHeight:F1}m) or mantle (up to {MantleMaxHeight:F2}m) required.");
+				}
 			}
+			_stepupLastBlockedPos = GlobalPosition;
+			_stepupLastBlockedTick = _currentTick;
 			return;
 		}
 
@@ -1703,13 +1845,30 @@ public partial class PlayerCore : ServerBaseCharacter
 		var downHit = space.IntersectRay(_rayQuery);
 		if (downHit.Count == 0)
 		{
-			Dbg.Print("[stepup] no step surface detected → no lift");
+			if (Dbg.Enabled && Time.GetTicksMsec() - _lastStepupBlockedLogMs > 1000)
+			{
+				_lastStepupBlockedLogMs = Time.GetTicksMsec();
+				Dbg.Print("[stepup] no step surface detected → no lift");
+			}
+			_stepupLastBlockedPos = GlobalPosition;
+			_stepupLastBlockedTick = _currentTick;
 			return;
 		}
 		float actualStep = ((Vector3)downHit["position"]).Y - startTrans.Origin.Y;
+		// Micro-step floating-point noise (|step| < 5cm) is silent — the alternative was
+		// log-spamming every physics tick when the player walks along a wall edge with
+		// sub-cm collision jitter. Out-of-range obstacles (negative = down-ledge, > StepMax
+		// = mantle territory) are rate-limited to one line per second.
+		if (Mathf.Abs(actualStep) < 0.05f) return;
 		if (actualStep <= 0.02f || actualStep > StepMaxHeight)
 		{
-			Dbg.Print($"[stepup] obstacle {actualStep:F2}m outside [0.02..{StepMaxHeight:F2}m] → no lift (jump/mantle required)");
+			if (Dbg.Enabled && Time.GetTicksMsec() - _lastStepupBlockedLogMs > 1000)
+			{
+				_lastStepupBlockedLogMs = Time.GetTicksMsec();
+				Dbg.Print($"[stepup] obstacle {actualStep:F2}m outside [0.02..{StepMaxHeight:F2}m] → no lift (jump/mantle required)");
+			}
+			_stepupLastBlockedPos = GlobalPosition;
+			_stepupLastBlockedTick = _currentTick;
 			return;
 		}
 		GlobalPosition += new Vector3(0f, actualStep, 0f);
@@ -1718,7 +1877,15 @@ public partial class PlayerCore : ServerBaseCharacter
 		// bei tall steps und negative pre-step Velocity).
 		var v = Velocity;
 		if (v.Y < 0f) { v.Y = 0f; Velocity = v; }
-		Dbg.Print($"[stepup] +{actualStep:F3}m (ground threshold) | speed={horizVel.Length():F1}");
+		// Rate-limited to 1 per 200ms — at 128Hz on a long staircase the success log fires
+		// 5-10× per second per live tick PLUS 6-8× per replay tick = several hundred per
+		// second. The interpolated string + GD.Print contributed visibly to GC pressure
+		// when the player traverses stairs repeatedly. Diagnostic value is preserved.
+		if (Dbg.Enabled && Time.GetTicksMsec() - _lastStepupSuccessLogMs > 200)
+		{
+			_lastStepupSuccessLogMs = Time.GetTicksMsec();
+			Dbg.Print($"[stepup] +{actualStep:F3}m (ground threshold) | speed={horizVel.Length():F1}");
+		}
 	}
 
 	/// <summary>Auto-mantle: when airborne with forward wish input and crouch held, and an obstacle with a

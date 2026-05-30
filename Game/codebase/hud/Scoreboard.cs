@@ -111,8 +111,8 @@ public partial class Scoreboard : CanvasLayer
 
 		BuildHeader();
 		BuildColumnHeader();
-		_vektor = BuildTeamSection((byte)Team.CT);
-		_atlas = BuildTeamSection((byte)Team.T);
+		_vektor = BuildTeamSection((byte)Team.Team1);
+		_atlas = BuildTeamSection((byte)Team.Team2);
 		_dm = BuildTeamSection((byte)Team.Deathmatch);
 	}
 
@@ -304,8 +304,8 @@ public partial class Scoreboard : CanvasLayer
 		{
 			foreach (var e in _entryBuf)
 			{
-				if (e.team == (byte)Team.CT) _ctBuf.Add(e);
-				else if (e.team == (byte)Team.T) _tBuf.Add(e);
+				if (e.team == (byte)Team.Team1) _ctBuf.Add(e);
+				else if (e.team == (byte)Team.Team2) _tBuf.Add(e);
 			}
 			_ctBuf.Sort((a, b) => b.kills.CompareTo(a.kills));
 			_tBuf.Sort((a, b) => b.kills.CompareTo(a.kills));
@@ -418,18 +418,18 @@ public partial class Scoreboard : CanvasLayer
 
 	private static string TeamLabelText(byte team) => team switch
 	{
-		(byte)Team.CT => "VEKTOR",
-		(byte)Team.T => "ATLAS-9",
-		(byte)Team.Deathmatch => "Deathmatch",
+		(byte)Team.Team1 => Teams.Team1Name,
+		(byte)Team.Team2 => Teams.Team2Name,
+		(byte)Team.Deathmatch => Teams.DeathmatchName,
 		_ => "",
 	};
 
 	/// <summary>Solid colored badge background per team (saturated, low alpha so the overall panel
-	/// stays dark). VEKTOR=blau, ATLAS=orange, DM=neutralgrey.</summary>
+	/// stays dark). Team1=blau, Team2=orange, DM=neutralgrey.</summary>
 	private static Color TeamBadgeBgColor(byte team) => team switch
 	{
-		(byte)Team.CT => new Color(0.20f, 0.40f, 0.65f, 0.85f),
-		(byte)Team.T => new Color(0.65f, 0.40f, 0.18f, 0.85f),
+		(byte)Team.Team1 => new Color(0.20f, 0.40f, 0.65f, 0.85f),
+		(byte)Team.Team2 => new Color(0.65f, 0.40f, 0.18f, 0.85f),
 		_ => new Color(0.30f, 0.30f, 0.32f, 0.85f),
 	};
 }

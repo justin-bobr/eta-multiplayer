@@ -9,8 +9,8 @@ using System.Reflection;
 public class SvConVars
 {
 	public float ShiftSpeed = 1.9f;
-	public float WalkSpeed = 5.0f;
-	public float SprintSpeed = 6.0f;
+	public float WalkSpeed = 4.0f;
+	public float SprintSpeed = 5.0f;
 	public float CrouchSpeed = 1.9f;
 
 	public float GroundAcceleration = 60f;
@@ -366,6 +366,7 @@ public static class ConVars
 			Name = "M4A1",
 			FireRate = 8.0f,
 			FireMode = 0,
+			MoveSpeedMul = 0.86f,
 			ReloadTime = 2.6f,
 			MagazineSize = 30,
 			MaxReserveAmmo = 90,

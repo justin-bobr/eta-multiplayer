@@ -1,3 +1,4 @@
+using Godot;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -207,14 +208,14 @@ public static class MiniProfiler
 		}
 		string text = _reportSb.ToString();
 
-		// File-I/O off-thread.
+		// File-I/O off-thread. Resolve the path via Godot's GlobalizePath here on the main
+		// thread (Godot APIs are not guaranteed thread-safe) and pass the absolute path
+		// into the worker — that uses native .NET System.IO.File which is actually thread-
+		// safe and doesn't take any engine-internal locks.
+		string absPath = ProjectSettings.GlobalizePath(path);
 		System.Threading.Tasks.Task.Run(() =>
 		{
-			try
-			{
-				using var f = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Write);
-				if (f != null) f.StoreString(text);
-			}
+			try { System.IO.File.WriteAllText(absPath, text); }
 			catch { }
 		});
 	}

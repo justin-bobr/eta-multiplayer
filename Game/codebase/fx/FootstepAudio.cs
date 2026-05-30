@@ -87,15 +87,34 @@ public partial class FootstepAudio : Node3D
 	private static readonly Dictionary<string, AudioStream> _clipCache = new();
 	private static readonly HashSet<string> _requested = new();
 	private static readonly List<string> _pending = new();
+	/// <summary>Count of footstep audio clips still being asynchronously loaded across ALL FootstepAudio instances. PlayerCore polls this to gate WorldFadeOverlay's fade-out: while clips are still loading the world stays masked.</summary>
+	public static int PendingLoadCount => _pending.Count;
 
 	/// <summary>Builds the clip library and preloads the common floor materials.</summary>
 	public override void _Ready()
 	{
 		BuildLibrary();
+		// Auto-discover materials by scanning the scene tree for nodes tagged with any
+		// of the material group names known to the library. Avoids the "first step on
+		// material X = 40ms cold-load" hitch by kicking off the threaded import at
+		// spawn, when the user is in the loading screen anyway. Materials in
+		// PreloadGroups (inspector override) are additionally loaded even if not in
+		// the current map — useful for grenade-bounce sounds that travel cross-area.
+		SceneTree tree = GetTree();
+		if (tree != null)
+		{
+			foreach (var kv in _lib)
+			{
+				string mat = kv.Key;
+				if (tree.GetNodesInGroup(mat).Count > 0)
+					EnsureMaterialLoaded(mat);
+			}
+		}
 		foreach (string mat in PreloadGroups)
 			if (!string.IsNullOrEmpty(mat))
 				EnsureMaterialLoaded(mat);
 		SetProcess(_pending.Count > 0);
+		Dbg.Print($"[FootstepAudio] auto-discovered + preloaded queue: {_pending.Count} clips pending");
 	}
 
 	/// <summary>Groups <see cref="ClipPaths"/> by material (folder) and action (filename token).</summary>
@@ -158,11 +177,19 @@ public partial class FootstepAudio : Node3D
 		}
 	}
 
-	/// <summary>Polls pending threaded loads and disables itself once nothing is loading.</summary>
+	/// <summary>Max finalizations per frame. LoadThreadedGet runs the resource-import finalization
+	/// on the main thread (decodes the .wav buffer, instantiates AudioStream + sub-resources). At
+	/// ~28k Godot-objects + 10MB heap per finalization on the cold path, doing N at once spikes
+	/// the frame visibly. 2/frame spreads the load over a handful of frames, each spike sub-ms.</summary>
+	private const int MaxFinalizationsPerFrame = 2;
+
+	/// <summary>Polls pending threaded loads (rate-limited to <see cref="MaxFinalizationsPerFrame"/>
+	/// per tick to avoid main-thread spikes) and disables itself once nothing is loading.</summary>
 	public override void _Process(double delta)
 	{
 		using var _prof = MiniProfiler.SampleClient("FootstepAudio._Process");
-		for (int i = _pending.Count - 1; i >= 0; i--)
+		int finalizedThisFrame = 0;
+		for (int i = _pending.Count - 1; i >= 0 && finalizedThisFrame < MaxFinalizationsPerFrame; i--)
 		{
 			string path = _pending[i];
 			var status = ResourceLoader.LoadThreadedGetStatus(path);
@@ -175,6 +202,7 @@ public partial class FootstepAudio : Node3D
 				_clipCache[path] = stream;
 			else
 				GD.PushWarning($"[FootstepAudio] clip load failed: {path} ({status})");
+			finalizedThisFrame++;
 		}
 		if (_pending.Count == 0)
 			SetProcess(false);

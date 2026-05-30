@@ -19,6 +19,12 @@ public class NetClient
 	/// <summary>Own NetId after successful SpawnAck. 0 = not yet assigned.</summary>
 	public byte OwnNetId { get; private set; }
 	public bool Spawned { get; private set; }
+	/// <summary>True once the server has authorized a real spawn (= deathmatch SpawnAck OR competitive
+	/// SpawnAuthorize after TeamSelect). NetMain.TryInitializeLocalPlayer only instantiates the
+	/// LocalPlayer scene when this is true — otherwise the client cycles preview-cams + shows the
+	/// team-select UI in competitive mode.</summary>
+	public bool SpawnAuthorized { get; private set; }
+	public Team OwnTeam { get; private set; }
 	public uint LastServerTick { get; private set; }
 	public ushort ServerTickRate { get; private set; }
 	public Vector3 PendingSpawnPos { get; private set; }
@@ -287,6 +293,9 @@ public class NetClient
 			case PacketType.SpawnAck:
 				HandleSpawnAck(reader);
 				break;
+			case PacketType.SpawnAuthorize:
+				HandleSpawnAuthorize(reader);
+				break;
 			case PacketType.PlayerJoined:
 				HandlePlayerJoined(reader);
 				break;
@@ -373,6 +382,45 @@ public class NetClient
 		var w = Packets.WriteConVarSyncRequest(name, value);
 		_server.Send(w, NetServer.ChannelReliable, DeliveryMethod.ReliableOrdered);
 	}
+
+	/// <summary>Signal the server that all client-side world preloads are done (audio/animation
+	/// pre-warm finished). Server flips WorldReady on the PeerState; subsequent snapshots emit
+	/// the WorldReady bit, peers' PuppetPlayer then shows the TPS body. Idempotent server-side —
+	/// safe to call multiple times. Reliable so it isn't dropped mid-handshake.</summary>
+	/// <summary>C2S: in competitive mode after the user picks CT or T on the team-select menu,
+	/// fire this to ask the server for a spawn. Idempotent — if the server rejects (already in team,
+	/// invalid team value, world not ready) it silently drops the request. Reliable channel so it
+	/// isn't lost mid-handshake.</summary>
+	public void SendTeamSelect(Team team)
+	{
+		if (_server == null) return;
+		var w = Packets.WriteTeamSelect(team);
+		_server.Send(w, NetServer.ChannelReliable, DeliveryMethod.ReliableOrdered);
+		Dbg.Print($"[NetClient] TeamSelect({team}) sent to server");
+	}
+
+	/// <summary>Receives the post-TeamSelect spawn authorization. Sets the pending spawn pose +
+	/// flips SpawnAuthorized=true so NetMain.TryInitializeLocalPlayer finally instantiates the
+	/// LocalPlayer scene.</summary>
+	private void HandleSpawnAuthorize(NetPacketReader r)
+	{
+		Packets.ReadSpawnAuthorize(r, out Team team, out Vector3 spawnPos, out float spawnYaw);
+		OwnTeam = team;
+		PendingSpawnPos = spawnPos;
+		PendingSpawnYaw = spawnYaw;
+		SpawnAuthorized = true;
+		Dbg.Print($"[NetClient] SpawnAuthorize received: team={team} pos={spawnPos} yaw={spawnYaw:F2}");
+	}
+
+	public void SendWorldInitComplete()
+	{
+		if (_server == null || _worldInitSent) return;
+		_worldInitSent = true;
+		var w = Packets.WriteWorldInitComplete();
+		_server.Send(w, NetServer.ChannelReliable, DeliveryMethod.ReliableOrdered);
+		Dbg.Print("[NetClient] WorldInitComplete sent to server");
+	}
+	private bool _worldInitSent;
 
 	/// <summary>Vom Server-Broadcast oder vom Initial-Sync nach SpawnAck: lokale Sv-ConVar setzen
 	/// damit Visualization-Gates (HudServerHitboxesDebug etc.) auf dem aktuellen Sv-State sind.</summary>
@@ -485,9 +533,11 @@ public class NetClient
 	private void HandleSpawnAck(NetPacketReader r)
 	{
 		Packets.ReadSpawnAck(r,
-			out byte yourId, out string map, out uint serverTick, out ushort tickRate,
+			out byte yourId, out Team yourTeam,
+			out string map, out uint serverTick, out ushort tickRate,
 			out Vector3 spawn, out float yaw, out InitialPlayerState[] others, out byte[] assignedToken);
 		OwnNetId = yourId;
+		OwnTeam = yourTeam;
 		LastServerTick = serverTick;
 		ServerTickRate = tickRate;
 		PendingSpawnPos = spawn;
@@ -497,6 +547,10 @@ public class NetClient
 		RemotePlayers.Clear();
 		foreach (var o in others) RemotePlayers[o.NetId] = o;
 		Spawned = true;
+		// In competitive mode the initial SpawnAck arrives as Spectator with no pose. The
+		// LocalPlayer must NOT be instantiated until the user picks a team and the server
+		// replies with SpawnAuthorize. NetMain.TryInitializeLocalPlayer gates on this.
+		SpawnAuthorized = yourTeam != Team.Spectator;
 
 		if (assignedToken != null && assignedToken.Length > 0 && string.IsNullOrEmpty(_cli.IdentityOverride))
 		{

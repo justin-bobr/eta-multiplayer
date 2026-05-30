@@ -77,12 +77,15 @@ public partial class ViewmodelLightSampler : Node3D
 	// 10Hz statt 20Hz — halbiert die Sample-Cost ohne sichtbare Reduktion der Reaktivität (Smoothing
 	// gleicht jeden Tick eh aus). 20Hz war ~30ms/sec overhead, 10Hz ~15ms/sec.
 	private const double SampleInterval = 1.0 / 10.0;
-	private Godot.Collections.Array<Rid> _excludeBodies;
-
-	// Pre-allokierte PhysicsRayQueryParameters3D — wird pro Sample mutiert statt new'd. Sparte
-	// ~6 Allokationen pro Sample × 10Hz = 60 GC-Allocs/sec eliminiert.
-	private PhysicsRayQueryParameters3D _reusableQuery;
-	private PhysicsRayQueryParameters3D _reusableSunQuery;
+	// Pre-allocated RayCast3D nodes (TopLevel = true so they ignore the sampler's transform).
+	// 5 ambient probes around the camera, 1 straight-up probe for sky-visibility check, 5
+	// sun-cone probes. Each ForceRaycastUpdate() returns its hit info on the node itself
+	// (IsColliding / GetCollisionPoint / GetCollider) — zero Dictionary allocations per sample
+	// vs. ~11 with the old IntersectRay path. At 10Hz this eliminates ~110 Dict-allocs/sec
+	// which was the largest single GC-pressure source measured in the profiler.
+	private RayCast3D[] _ambientCasts;
+	private RayCast3D _sunUpCast;
+	private RayCast3D[] _sunConeCasts;
 
 	/// <summary>Samples world lighting at 20 Hz while smoothing the result every tick, and applies it to the viewmodel light.</summary>
 	public override void _PhysicsProcess(double delta)
@@ -132,21 +135,17 @@ public partial class ViewmodelLightSampler : Node3D
 		int skyHits = 0;
 		int validHits = 0;
 
-		// Query-Object reusen statt new pro Ray (= 5× weniger GC-Allocs pro Sample). CollideWithAreas
-		// + Mask einmal gesetzt, dann nur From/To mutieren.
-		if (_reusableQuery == null)
-		{
-			_reusableQuery = new PhysicsRayQueryParameters3D { CollideWithAreas = false };
-		}
+		EnsureCastNodes();
 
 		for (int i = 0; i < dirs.Length; i++)
 		{
 			Vector3 dir = dirs[i].Normalized();
-			_reusableQuery.From = origin;
-			_reusableQuery.To = origin + dir * SampleDistance;
-			Godot.Collections.Dictionary hit = space.IntersectRay(_reusableQuery);
+			RayCast3D rc = _ambientCasts[i];
+			rc.GlobalTransform = new Transform3D(Basis.Identity, origin);
+			rc.TargetPosition = dir * SampleDistance;
+			rc.ForceRaycastUpdate();
 
-			if (hit.Count == 0)
+			if (!rc.IsColliding())
 			{
 				colorSum += SkyFallbackColor;
 				energySum += SkyFallbackEnergy;
@@ -154,7 +153,7 @@ public partial class ViewmodelLightSampler : Node3D
 			}
 			else
 			{
-				colorSum += SampleMaterialColor(hit);
+				colorSum += SampleMaterialColor(rc.GetCollider() as Node);
 				energySum += 0.4f;
 			}
 			validHits++;
@@ -165,7 +164,6 @@ public partial class ViewmodelLightSampler : Node3D
 		float sunBonus = 0f;
 		if (WorldSun != null)
 		{
-			var excludes = GetPlayerBodyExcludes();
 			// Dynamic sun direction from the actual WorldSun rotation. Godot DLs shine along
 			// -Basis.Z, so the direction "toward the light source" (= what we want to raycast
 			// for sky visibility) is +Basis.Z. Falls back to the legacy hardcoded vector if
@@ -174,13 +172,10 @@ public partial class ViewmodelLightSampler : Node3D
 			if (sunDir.LengthSquared() < 0.001f) sunDir = SunDirectionWorld;
 			sunDir = sunDir.Normalized();
 
-			// Reuse query für sun-rays (Exclude muss gesetzt sein, anders als _reusableQuery).
-			if (_reusableSunQuery == null)
-				_reusableSunQuery = new PhysicsRayQueryParameters3D { CollideWithAreas = false };
-			_reusableSunQuery.From = origin;
-			_reusableSunQuery.To = origin + Vector3.Up * SunRayDistance;
-			_reusableSunQuery.Exclude = excludes;
-			bool upOpen = space.IntersectRay(_reusableSunQuery).Count == 0;
+			_sunUpCast.GlobalTransform = new Transform3D(Basis.Identity, origin);
+			_sunUpCast.TargetPosition = Vector3.Up * SunRayDistance;
+			_sunUpCast.ForceRaycastUpdate();
+			bool upOpen = !_sunUpCast.IsColliding();
 
 			if (upOpen)
 			{
@@ -198,10 +193,11 @@ public partial class ViewmodelLightSampler : Node3D
 				int openCount = 0;
 				for (int i = 0; i < 5; i++)
 				{
-					// Reuse _reusableSunQuery — Exclude bleibt schon gesetzt aus dem up-Ray oben.
-					_reusableSunQuery.From = origin;
-					_reusableSunQuery.To = origin + sunDirs[i] * SunRayDistance;
-					if (space.IntersectRay(_reusableSunQuery).Count == 0) openCount++;
+					RayCast3D rc = _sunConeCasts[i];
+					rc.GlobalTransform = new Transform3D(Basis.Identity, origin);
+					rc.TargetPosition = sunDirs[i] * SunRayDistance;
+					rc.ForceRaycastUpdate();
+					if (!rc.IsColliding()) openCount++;
 				}
 				sunVisibility = openCount / 5f;
 			}
@@ -294,6 +290,53 @@ public partial class ViewmodelLightSampler : Node3D
 		}
 	}
 
+	/// <summary>Lazy-allocates the 11 RayCast3D probe nodes on first use and wires the player's
+	/// body colliders as exceptions so the sun-cone rays don't self-intersect. TopLevel=true so
+	/// the casts ignore the sampler's parent transform and we can drive them with raw world
+	/// coordinates via GlobalTransform.</summary>
+	private void EnsureCastNodes()
+	{
+		if (_ambientCasts != null) return;
+
+		_ambientCasts = new RayCast3D[5];
+		for (int i = 0; i < 5; i++) _ambientCasts[i] = CreateProbe($"vm_amb_{i}");
+		_sunUpCast = CreateProbe("vm_sun_up");
+		_sunConeCasts = new RayCast3D[5];
+		for (int i = 0; i < 5; i++) _sunConeCasts[i] = CreateProbe($"vm_sun_{i}");
+
+		// Player body excludes — recurse up from MainCamera and add every CollisionObject3D
+		// to ALL casts (sun + ambient). The player capsule must never block its own ambient
+		// or sun-visibility probes.
+		Node n = MainCamera;
+		while (n != null)
+		{
+			if (n is CollisionObject3D co)
+			{
+				for (int i = 0; i < 5; i++) _ambientCasts[i].AddException(co);
+				_sunUpCast.AddException(co);
+				for (int i = 0; i < 5; i++) _sunConeCasts[i].AddException(co);
+			}
+			n = n.GetParent();
+		}
+	}
+
+	/// <summary>Spawns a single RayCast3D probe child node, configured for world-space driving (TopLevel + Enabled, world-only collision mask, no area collisions). Mask covers Layer 1 (WORLD geometry) + Layer 20 (extra world colliders). All player/hitbox layers (2/3/5) stay blind so other puppets never block sun-visibility or pollute the ambient colour sample.</summary>
+	private const uint WorldCollisionMask = 1u | (1u << 19);
+	private RayCast3D CreateProbe(string name)
+	{
+		var rc = new RayCast3D
+		{
+			Name = name,
+			Enabled = true,
+			TopLevel = true,
+			CollideWithAreas = false,
+			CollideWithBodies = true,
+			CollisionMask = WorldCollisionMask,
+		};
+		AddChild(rc);
+		return rc;
+	}
+
 	/// <summary>
 	/// Interpolates _current* toward _target* and applies the result to ViewmodelLight.
 	/// Called every 60 Hz tick — even when the underlying sampling runs at 20 Hz —
@@ -334,9 +377,9 @@ public partial class ViewmodelLightSampler : Node3D
 	/// StandardMaterial3D plus three ShaderMaterial conventions: Godot-default `albedo`
 	/// Color parameter, and the Source-2 / csgo_complex pattern of `global_tint` ×
 	/// `model_tint`. Returns gray if no recognised Color parameter is exposed.</summary>
-	private static Color SampleMaterialColor(Godot.Collections.Dictionary hit)
+	private static Color SampleMaterialColor(Node hitNode)
 	{
-		if (hit["collider"].AsGodotObject() is not Node hitNode) return Colors.Gray;
+		if (hitNode == null) return Colors.Gray;
 
 		MeshInstance3D mesh = FindFirstMesh(hitNode);
 		if (mesh == null || mesh.Mesh == null || mesh.Mesh.GetSurfaceCount() == 0) return Colors.Gray;
@@ -367,23 +410,6 @@ public partial class ViewmodelLightSampler : Node3D
 	}
 
 	/// <summary>
-	/// Caches the CollisionObject3D RIDs of all ancestors of MainCamera (typically the
-	/// player's CharacterBody3D). Excluded from the sun raycast so the player does not
-	/// count as a shadow caster against themselves.
-	/// </summary>
-	private Godot.Collections.Array<Rid> GetPlayerBodyExcludes()
-	{
-		if (_excludeBodies != null) return _excludeBodies;
-		_excludeBodies = new Godot.Collections.Array<Rid>();
-		Node n = MainCamera;
-		while (n != null)
-		{
-			if (n is CollisionObject3D co) _excludeBodies.Add(co.GetRid());
-			n = n.GetParent();
-		}
-		return _excludeBodies;
-	}
-
 	/// <summary>
 	/// Finds the world sun: the first DirectionalLight3D in the tree that is NOT the
 	/// viewmodel light and lives in the same World3D as the main camera.

@@ -121,9 +121,13 @@ public static class Packets
 		token = r.GetBytesWithLength();
 	}
 
-	/// <summary>Writes a SpawnAck packet with the joiner's NetId, world info, spawn pose and initial player roster.</summary>
+	/// <summary>Writes a SpawnAck packet with the joiner's NetId, world info, spawn pose and initial player roster.
+	/// In competitive mode <paramref name="yourTeam"/> is <see cref="Team.Spectator"/> and the spawn pose is
+	/// ignored — the client will cycle preview-cams + show team-select UI and request a real pose via
+	/// <see cref="PacketType.TeamSelect"/>.</summary>
 	public static NetDataWriter WriteSpawnAck(
 		byte yourNetId,
+		Team yourTeam,
 		string mapPath,
 		uint serverTickNow,
 		ushort tickRate,
@@ -134,6 +138,7 @@ public static class Packets
 	{
 		var w = Begin(PacketType.SpawnAck);
 		w.Put(yourNetId);
+		w.Put((byte)yourTeam);
 		w.Put(mapPath ?? "res://world.tscn");
 		w.Put(serverTickNow);
 		w.Put(tickRate);
@@ -158,11 +163,13 @@ public static class Packets
 
 	/// <summary>Reads a SpawnAck body into out parameters, including the array of already-spawned players.</summary>
 	public static void ReadSpawnAck(NetPacketReader r,
-		out byte yourNetId, out string mapPath, out uint serverTick, out ushort tickRate,
+		out byte yourNetId, out Team yourTeam,
+		out string mapPath, out uint serverTick, out ushort tickRate,
 		out Vector3 spawnPos, out float spawnYaw,
 		out InitialPlayerState[] others, out byte[] assignedToken)
 	{
 		yourNetId = r.GetByte();
+		yourTeam = (Team)r.GetByte();
 		mapPath = r.GetString(128);
 		serverTick = r.GetUInt();
 		tickRate = r.GetUShort();
@@ -767,6 +774,38 @@ public static class Packets
 		return w;
 	}
 
+	/// <summary>Empty payload — server only needs the packet-type byte to flip WorldReady on this peer's PeerState.</summary>
+	public static NetDataWriter WriteWorldInitComplete() => Begin(PacketType.WorldInitComplete);
+
+	/// <summary>C2S: client signals its team choice (CT/T). Spectator is the only invalid value — selecting
+	/// it would put the client back into preview-cam mode. Server validates and replies with SpawnAuthorize.</summary>
+	public static NetDataWriter WriteTeamSelect(Team team)
+	{
+		var w = Begin(PacketType.TeamSelect);
+		w.Put((byte)team);
+		return w;
+	}
+
+	public static Team ReadTeamSelect(NetPacketReader r) => (Team)r.GetByte();
+
+	/// <summary>S2C: server grants spawn after a TeamSelect. Carries the resolved Team (in case the
+	/// server rebalanced — e.g. CT was full so the client got T anyway) and the spawn pose.</summary>
+	public static NetDataWriter WriteSpawnAuthorize(Team team, Vector3 spawnPos, float spawnYaw)
+	{
+		var w = Begin(PacketType.SpawnAuthorize);
+		w.Put((byte)team);
+		w.Put(spawnPos.X); w.Put(spawnPos.Y); w.Put(spawnPos.Z);
+		w.Put(spawnYaw);
+		return w;
+	}
+
+	public static void ReadSpawnAuthorize(NetPacketReader r, out Team team, out Vector3 spawnPos, out float spawnYaw)
+	{
+		team = (Team)r.GetByte();
+		spawnPos = new Vector3(r.GetFloat(), r.GetFloat(), r.GetFloat());
+		spawnYaw = r.GetFloat();
+	}
+
 	public static void ReadConVarSyncRequest(NetPacketReader r, out string name, out string value)
 	{
 		name = r.GetString(64);
@@ -866,6 +905,21 @@ public enum PacketType : byte
 	/// <summary>C2S Reliable: Client requests setting a sv_* ConVar via console. Server validates +
 	/// applies + broadcasts ConVarSync to all clients.</summary>
 	ConVarSyncRequest = 12,
+	/// <summary>C2S Reliable: Client signals it has finished all asset pre-loads (audio, animations)
+	/// and is ready to be visible to other players. Server flips per-player WorldReady=true and starts
+	/// emitting the corresponding bit in subsequent snapshots so peers' PuppetPlayer can switch their
+	/// TPS body Visible=false → true. Scoreboard entry is unaffected — players appear there from the
+	/// moment they connect regardless of world-ready state.</summary>
+	WorldInitComplete = 13,
+	/// <summary>C2S Reliable: Client picks a team (CT/T) after the initial SpawnAck assigned them
+	/// Spectator in competitive mode. Server validates, assigns the team + spawn pose, and replies
+	/// with <see cref="SpawnAuthorize"/>. Deathmatch skips this entirely (initial SpawnAck already
+	/// carries the pose).</summary>
+	TeamSelect = 14,
+	/// <summary>S2C Reliable: Server grants the client its spawn pose after a successful TeamSelect.
+	/// Triggers the deferred LocalPlayer instantiation in NetMain. Carries final Team + Pose so the
+	/// client knows which side it's on and where to spawn.</summary>
+	SpawnAuthorize = 42,
 
 	SpawnAck = 20,
 	PlayerJoined = 21,
@@ -949,6 +1003,11 @@ public enum SnapshotFlags : byte
 	Sprinting      = 1 << 3,
 	WallClinging   = 1 << 4,
 	Inspecting     = 1 << 5,
+	/// <summary>Player has finished client-side world preloads (audio + animations) and signalled
+	/// <see cref="PacketType.WorldInitComplete"/>. Cleared by default on respawn / reconnect so the
+	/// next preload cycle is awaited. Puppet TPS body is hidden while this bit is unset to avoid
+	/// showing a freshly-connecting player in mid-load on every other peer.</summary>
+	WorldReady     = 1 << 6,
 	Dead           = 1 << 7,
 }
 

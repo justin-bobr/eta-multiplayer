@@ -28,9 +28,9 @@ public abstract partial class BaseCharacter : CharacterBody3D
 	[Export(PropertyHint.Range, "0.5,2.5,0.05")] public float StandHeight = 1.8f;
 	[Export(PropertyHint.Range, "0.5,2.0,0.05")] public float CrouchHeight = 1.2f;
 	[Export(PropertyHint.Range, "0.1,1.0,0.01")] public float CapsuleRadius = 0.4f;
-	[Export(PropertyHint.Range, "0.0,1.0,0.05")] public float FloorSnapDist = 0.4f;
+	[Export(PropertyHint.Range, "0.0,1.0,0.05")] public float FloorSnapDist = 0.6f;
 	[Export(PropertyHint.Range, "0,90,1")] public float FloorMaxAngleDeg = 50f;
-	[Export(PropertyHint.Range, "0.0,1.0,0.01")] public float StepMaxHeight = 0.35f;
+	[Export(PropertyHint.Range, "0.0,1.0,0.01")] public float StepMaxHeight = 0.45f;
 
 	[Export(PropertyHint.Range, "1.0,2.5,0.05")] public float StandEyeHeight = 1.7f;
 	[Export(PropertyHint.Range, "0.5,2.0,0.05")] public float CrouchEyeHeight = 1.1f;

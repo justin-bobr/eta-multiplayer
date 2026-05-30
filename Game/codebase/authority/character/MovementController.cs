@@ -934,10 +934,14 @@ public class MovementController
 		else baseSpeed = Sv.WalkSpeed;
 
 		float speed = Mathf.Lerp(baseSpeed, Sv.CrouchSpeed, CrouchBlend);
-		if (AdsBlend > 0f && input.Weapon != null)
+		if (input.Weapon != null)
 		{
-			float adsMul = Mathf.Lerp(1f, input.Weapon.AdsSpeedMul, AdsBlend);
-			speed *= adsMul;
+			speed *= input.Weapon.MoveSpeedMul;
+			if (AdsBlend > 0f)
+			{
+				float adsMul = Mathf.Lerp(1f, input.Weapon.AdsSpeedMul, AdsBlend);
+				speed *= adsMul;
+			}
 		}
 		return speed;
 	}

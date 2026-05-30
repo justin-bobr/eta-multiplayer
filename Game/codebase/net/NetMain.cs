@@ -107,9 +107,33 @@ public partial class NetMain : Node
 	private PackedScene _characterScene;
 
 	/// <summary>Instantiates the local player into the Players container once SpawnAck has arrived AND world.tscn is active.</summary>
+	private bool _teamSelectFlowInitialized;
+	/// <summary>One-shot: when the client lands in Spectator team after SpawnAck (= competitive mode,
+	/// no spawn yet), spawn the PreviewCameraController (cinematic cycle through map angles) and
+	/// the TeamSelectionMenu (CS-style CT/T picker). Both self-destruct once SpawnAuthorize arrives
+	/// and the LocalPlayer instantiates. Skipped for deathmatch (already authorized → LocalPlayer
+	/// spawned directly).</summary>
+	private void TryInitializeTeamSelectFlow()
+	{
+		if (_teamSelectFlowInitialized || Client == null || !Client.Spawned) return;
+		if (Client.SpawnAuthorized) { _teamSelectFlowInitialized = true; return; }
+		var tree = GetTree();
+		if (tree?.CurrentScene == null || tree.CurrentScene.Name != "World") return;
+		_teamSelectFlowInitialized = true;
+		tree.CurrentScene.AddChild(new PreviewCameraController { Name = "PreviewCameraController" });
+		tree.CurrentScene.AddChild(new TeamSelectionMenu { Name = "TeamSelectionMenu" });
+		Dbg.Print("[NetMain] Spectator team → PreviewCameraController + TeamSelectionMenu spawned");
+	}
+
 	private void TryInitializeLocalPlayer()
 	{
 		if (_localPlayerInitialized || Client == null || !Client.Spawned)
+			return;
+		// Competitive mode: client lands here in Spectator team with SpawnAuthorized=false.
+		// Don't instantiate the LocalPlayer scene yet — the PreviewCameraController + team-
+		// select menu run in the meantime. Once the user picks a team and the server replies
+		// with SpawnAuthorize, SpawnAuthorized flips true and this gate finally lets us through.
+		if (!Client.SpawnAuthorized)
 			return;
 		var tree = GetTree();
 		if (tree?.CurrentScene == null)
@@ -170,18 +194,23 @@ public partial class NetMain : Node
 		// Klassen-Datei HitFeed.cs bleibt fürs etwaige Wiederaufnehmen.
 
 		// HP-System HUD-Stack — hitmarker (eigene Damage-Pop-Ups), killfeed (alle Deaths), low-hp screen-fx.
-		// Alle drei abonnieren NetClient-Events bzw. lesen LastSelfSnap.
+		// Alle drei abonnieren NetClient-Events bzw. lesen LastSelfSnap. Layers werden in HudGate
+		// registriert, der ihre Visibility ein/ausschaltet basierend auf LocalPlayer-Live-State
+		// (versteckt während team-select / preload / Hp=0).
 		var hitmarkerLayer = new CanvasLayer { Name = "hitmarker_layer", Layer = 110 };
 		tree.CurrentScene.AddChild(hitmarkerLayer);
 		hitmarkerLayer.AddChild(new HudHitmarker { Name = "HudHitmarker" });
+		HudGate.Register(hitmarkerLayer);
 
 		var killfeedLayer = new CanvasLayer { Name = "killfeed_layer", Layer = 110 };
 		tree.CurrentScene.AddChild(killfeedLayer);
 		killfeedLayer.AddChild(new HudKillfeed { Name = "HudKillfeed" });
+		HudGate.Register(killfeedLayer);
 
 		var lowhpLayer = new CanvasLayer { Name = "lowhp_layer", Layer = 105 };
 		tree.CurrentScene.AddChild(lowhpLayer);
 		lowhpLayer.AddChild(new HudLowHpFx { Name = "HudLowHpFx" });
+		HudGate.Register(lowhpLayer);
 
 		// Canvas-stage post-FX (CA/Sharpen/Vignette/Grain) at layer 50 — between viewmodel
 		// (layer 10) and HUD (layer 100+). FSR2-compatible alternative to the Compositor-
@@ -220,7 +249,11 @@ public partial class NetMain : Node
 		using (MiniProfiler.SampleClient("NetClient.Poll")) Client?.Poll();
 
 		if (!_localPlayerInitialized)
+		{
 			TryInitializeLocalPlayer();
+			TryInitializeTeamSelectFlow();
+		}
+		HudGate.Tick();
 	}
 
 	// Spike-Logger — nur aktiv wenn Dbg.Enabled (= ProjectSettings "global/debug" auf true). Sonst
@@ -291,8 +324,16 @@ public partial class NetMain : Node
 		double dProc = (timeProc - _timeProcessLast) * 1000;
 		double dPhys = (timePhys - _timePhysProcessLast) * 1000;
 
+		string roleTag = Cli?.Mode switch
+		{
+			NetMode.Server => "[SV]",
+			NetMode.Client => $"[CL netId={LocalPlayer?.NetId.ToString() ?? "?"}]",
+			NetMode.Listen => $"[HOST netId={LocalPlayer?.NetId.ToString() ?? "?"}]",
+			_ => "[?]",
+		};
+
 		GD.Print(
-			$"[SPIKE] dt={delta * 1000:F1}ms{gcTag} | gc Δ gen0={dGen0} gen1={dGen1} gen2={dGen2} heap={heapKb}KB (Δ {dHeapKb:+0;-0;0}KB)\n" +
+			$"[SPIKE]{roleTag} dt={delta * 1000:F1}ms{gcTag} | gc Δ gen0={dGen0} gen1={dGen1} gen2={dGen2} heap={heapKb}KB (Δ {dHeapKb:+0;-0;0}KB)\n" +
 			$"  godot: process={timeProc * 1000:F2}ms phys={timePhys * 1000:F2}ms (Δ {dProc:+0.0;-0.0;0}/{dPhys:+0.0;-0.0;0}ms)\n" +
 			$"  render: draw={drawCalls} (Δ {dDraw:+0;-0;0}) vram={vram / (1024 * 1024)}MB (Δ {dVramKb:+0;-0;0}KB)\n" +
 			$"  scene: objects={objCount} (Δ {dObj:+0;-0;0}) nodes={nodeCount} (Δ {dNode:+0;-0;0}) orphans={orphan} (Δ {dOrphan:+0;-0;0})\n" +
@@ -321,6 +362,8 @@ public partial class NetMain : Node
 		Puppets?.Shutdown();
 		Puppets = null;
 		_localPlayerInitialized = false;
+		_teamSelectFlowInitialized = false;
+		HudGate.Reset();
 
 		if (_disconnectScreen != null && GodotObject.IsInstanceValid(_disconnectScreen))
 		{

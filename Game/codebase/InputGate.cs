@@ -11,11 +11,18 @@ using Godot;
 /// </summary>
 public static class InputGate
 {
+	/// <summary>Set true by LocalPlayer's _Ready while asset preloads (audio + animations) are still
+	/// running, set false the same moment <c>WorldInitComplete</c> is sent. While true, both input
+	/// reads (so the player can't move locally) and SendNetInput (so the server doesn't see garbage
+	/// pre-spawn ticks) are skipped — the player is fully frozen until the world is ready.</summary>
+	public static bool LocalPlayerFrozen;
+
 	/// <summary>True when no game input should be accepted right now.</summary>
 	public static bool Blocked
 	{
 		get
 		{
+			if (LocalPlayerFrozen) return true;
 			if (SettingsMenu.IsAnyOpen) return true;
 			if (ConsoleHud.IsAnyOpen) return true;
 			if (DisplayServer.GetName() != "headless"

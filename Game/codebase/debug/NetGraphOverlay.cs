@@ -47,6 +47,7 @@ public partial class NetGraphOverlay : Node
 		if (NetMain.Instance?.Cli?.Mode == NetMode.Server) { QueueFree(); return; }
 		_layer = new CanvasLayer { Layer = 100 };
 		AddChild(_layer);
+		HudGate.Register(_layer);
 
 		_panel = new PanelContainer
 		{
@@ -211,15 +212,20 @@ public partial class NetGraphOverlay : Node
 		Set(2, 1, $"out {upKBs:F1}KB/s");
 		Set(2, 2, serverType);
 
-		float driftCm = NetStats.LastReconcileDriftM * 100f;
+		// Split horizontal (aim-relevant) vs. vertical (Stair-Step floating-point noise).
+		// Colour-code on the more severe axis so a 20cm vertical drift doesn't paint the
+		// label red when the horizontal mismatch is sub-cm.
+		float driftHorizCm = NetStats.LastReconcileDriftHorizM * 100f;
+		float driftVertCm = NetStats.LastReconcileDriftVertM * 100f;
 		int rps = NetStats.ReconcilesPerSec;
 		double sinceLast = (Time.GetTicksMsec() / 1000.0) - NetStats.LastReconcileTimeSec;
+		float severity = Mathf.Max(driftHorizCm, driftVertCm * 0.3f);
 		Color reconcileCol;
-		if (driftCm < 5f && rps < 3)             reconcileCol = new Color(0.6f, 1f, 0.6f);
-		else if (driftCm < 30f && rps < 10)      reconcileCol = new Color(1f, 0.95f, 0.55f);
-		else                                     reconcileCol = new Color(1f, 0.4f, 0.4f);
+		if (severity < 5f && rps < 3)             reconcileCol = new Color(0.6f, 1f, 0.6f);
+		else if (severity < 30f && rps < 10)      reconcileCol = new Color(1f, 0.95f, 0.55f);
+		else                                      reconcileCol = new Color(1f, 0.4f, 0.4f);
 		if (sinceLast < 0.3) reconcileCol = reconcileCol.Lerp(new Color(1f, 1f, 1f), 0.5f);
-		_reconcileLabel.Text = $"reconcile {driftCm:F1}cm  {rps}/s";
+		_reconcileLabel.Text = $"reconcile H{driftHorizCm:F1} V{driftVertCm:F1}cm  {rps}/s";
 		_reconcileLabel.AddThemeColorOverride("font_color", reconcileCol);
 
 		_downHeader.Text = $"↓Jit {_downJitterMs:F1}ms";

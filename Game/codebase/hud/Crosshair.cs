@@ -20,6 +20,7 @@ public partial class Crosshair : Node
 		if (NetMain.Instance?.Cli?.Mode == NetMode.Server) { QueueFree(); return; }
 		_layer = new CanvasLayer { Layer = CanvasLayerOrder };
 		AddChild(_layer);
+		HudGate.Register(_layer);
 
 		_drawer = new CrosshairDrawer { Player = Player };
 		_drawer.AnchorLeft = 0f;

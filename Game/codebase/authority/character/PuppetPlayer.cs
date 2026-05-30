@@ -98,6 +98,12 @@ public partial class PuppetPlayer : Node3D
 	private byte _lastAppliedLocalTeam = 255;
 	private Color _cachedTeamColor = new(1f, 1f, 1f, 1f);
 	private bool _cachedTeamColorValid = false;
+	/// <summary>Last <see cref="_cachedTeamColor"/> value actually pushed to the silhouette's
+	/// per-instance shader parameter. Used to skip the SetInstanceShaderParameter call when the
+	/// colour has not changed — team_color only flips when TeamSlot does (≈ once per match per
+	/// puppet), so pushing every frame is pure waste.</summary>
+	private Color _lastPushedTeamColor;
+	private bool _lastPushedTeamColorValid;
 	/// <summary>False until the FIRST UpdateNameAndGlow has been observed for this puppet. Forces the
 	/// TeamSlot block to run on the first call regardless of whether snap.TeamSlot equals the reset
 	/// _lastShownTeamSlot (= 255). Without this guard, if the initial snapshot has TeamSlot = 255
@@ -105,6 +111,9 @@ public partial class PuppetPlayer : Node3D
 	/// skipped — material stayed at the default white for 2-3 s until the server finally sent a
 	/// real team-slot value. Symptom user observed: "wird grün erst nach ner Zeit wenn man davor steht".</summary>
 	private bool _hasInitialAppliedTeamColor = false;
+	/// <summary>Time.GetTicksUsec() when <c>_visual.Visible</c> was set to false in _Ready (waiting for WorldReady snapshot bit). Drives the failsafe in _Process — after <see cref="VisualRevealFailsafeUsec"/> microseconds the body is force-revealed regardless of flag state, so server-agent bots (which never send WorldInitComplete) or stale players from before this feature was deployed aren't permanently invisible.</summary>
+	private ulong _visualHiddenSinceUsec;
+	private const ulong VisualRevealFailsafeUsec = 5_000_000;
 
 	/// <summary>The pre-baked single-mesh silhouette node living under the puppet's Skeleton3D
 	/// (created in puppet_player.tscn via the GlowSilhouetteMeshBaker editor tool). All puppets share
@@ -139,6 +148,15 @@ public partial class PuppetPlayer : Node3D
 		_visual.NetId = NetId;
 		_visual.Name = "visual";
 		_visual.ViewMode = ViewMode.Tps;
+		// Hide TPS body until the remote client signals WorldInitComplete (= the WorldReady
+		// snapshot flag arrives). Otherwise other players would see freshly-connecting puppets
+		// pop in with a default pose before their world is even loaded. PushSnapshot flips
+		// this back true the first time a snapshot with WorldReady=1 arrives, and the failsafe
+		// in _Process forces it visible after 5s if the flag never arrives (e.g. server-agent
+		// bots that never send WorldInitComplete, or pre-existing players from before this
+		// feature was deployed).
+		_visual.Visible = false;
+		_visualHiddenSinceUsec = Time.GetTicksUsec();
 		AddChild(_visual);
 		ApplySpectateMode();
 
@@ -355,6 +373,15 @@ public partial class PuppetPlayer : Node3D
 		_buf.Add(new Entry { Tick = serverTick, Snap = snap });
 		while (_buf.Count > Capacity) _buf.RemoveAt(0);
 		_lastSnapshotPushUsec = now;
+
+		// Reveal the TPS body the first tick the server says the remote client finished its
+		// world preloads. Hidden by default in _Ready until this flag flips true.
+		if (_visual != null && !_visual.Visible
+			&& (snap.Flags & (byte)SnapshotFlags.WorldReady) != 0)
+		{
+			_visual.Visible = true;
+			Dbg.Print($"[PuppetPlayer netId={NetId}] world-ready → TPS body revealed");
+		}
 	}
 
 	/// <summary>Snapshot-gap threshold (microseconds) past which the puppet is treated as having re-
@@ -438,6 +465,19 @@ public partial class PuppetPlayer : Node3D
 	{
 		using var _prof = MiniProfiler.SampleClient("PuppetPlayer._Process");
 		if (_visual == null || _buf.Count == 0) return;
+
+		// Failsafe: if 5s passed since spawn AND _visual is still hidden, force-reveal.
+		// Catches edge cases where the WorldReady snapshot bit never arrives (server-agent
+		// bots have it set at spawn, but stale players from before the feature deployment
+		// or net-glitched clients might not). Better to show a body 5s late than to leave
+		// the player permanently invisible to peers.
+		if (!_visual.Visible
+			&& Time.GetTicksUsec() - _visualHiddenSinceUsec > VisualRevealFailsafeUsec)
+		{
+			_visual.Visible = true;
+			Dbg.Print($"[PuppetPlayer netId={NetId}] WorldReady-failsafe → TPS revealed after 5s grace");
+		}
+
 		var client = NetMain.Instance?.Client;
 		if (client == null) return;
 
@@ -547,8 +587,13 @@ public partial class PuppetPlayer : Node3D
 			UpdateSpectateTpsCollision((float)delta);
 
 		UpdateServerPosDebugCapsule();
-		if (_cachedTeamColorValid && _glowSilhouette != null && GodotObject.IsInstanceValid(_glowSilhouette))
+		if (_cachedTeamColorValid && _glowSilhouette != null && GodotObject.IsInstanceValid(_glowSilhouette)
+			&& (!_lastPushedTeamColorValid || _lastPushedTeamColor != _cachedTeamColor))
+		{
 			_glowSilhouette.SetInstanceShaderParameter("team_color", _cachedTeamColor);
+			_lastPushedTeamColor = _cachedTeamColor;
+			_lastPushedTeamColorValid = true;
+		}
 
 		// Per-frame frustum gate on the silhouette. We could rely on Godot's automatic frustum
 		// culling at render time (it would still skip the mesh-submit when fully off-camera), but
@@ -561,7 +606,7 @@ public partial class PuppetPlayer : Node3D
 		// on the baked silhouette node — the frustum check only gates true off-camera puppets.
 		if (_glowCurrentlyOn && _glowSilhouette != null && GodotObject.IsInstanceValid(_glowSilhouette))
 		{
-			bool wantVisible = SilhouetteInActiveCameraFrustum();
+			bool wantVisible = _lodTier != PuppetLodTier.Off && SilhouetteInActiveCameraFrustum();
 			if (_glowSilhouette.Visible != wantVisible) _glowSilhouette.Visible = wantVisible;
 		}
 
@@ -577,6 +622,7 @@ public partial class PuppetPlayer : Node3D
 		float h = _visual.StandHeight;
 		float r = _visual.CapsuleRadius;
 		float hHalf = h * 0.5f;
+		if (cam.IsPositionInFrustum(pos + new Vector3(0f, hHalf, 0f))) return true;
 		if (cam.IsPositionInFrustum(pos)) return true;
 		if (cam.IsPositionInFrustum(pos + new Vector3(0f, h, 0f))) return true;
 		if (cam.IsPositionInFrustum(pos + new Vector3(r, hHalf, 0f))) return true;

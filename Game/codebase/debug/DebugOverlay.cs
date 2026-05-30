@@ -34,6 +34,7 @@ public partial class DebugOverlay : Node
 		if (NetMain.Instance?.Cli?.Mode == NetMode.Server) { QueueFree(); return; }
 		_layer = new CanvasLayer { Layer = 100 };
 		AddChild(_layer);
+		HudGate.Register(_layer);
 
 		_panel = new PanelContainer
 		{

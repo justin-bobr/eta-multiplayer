@@ -396,6 +396,7 @@ public class NetServer
 			if (mc.ActuallySprinting)  flags |= (byte)SnapshotFlags.Sprinting;
 			if (mc.IsWallClinging)     flags |= (byte)SnapshotFlags.WallClinging;
 			if (mc.IsInspecting)       flags |= (byte)SnapshotFlags.Inspecting;
+			if (s.WorldReady)          flags |= (byte)SnapshotFlags.WorldReady;
 			if (s.Hp == 0)             flags |= (byte)SnapshotFlags.Dead;
 
 			_snapBuf.Add(new SnapshotPlayer
@@ -716,6 +717,12 @@ public class NetServer
 			case PacketType.ConVarSyncRequest:
 				HandleConVarSyncRequest(peer, reader);
 				break;
+			case PacketType.WorldInitComplete:
+				HandleWorldInitComplete(peer);
+				break;
+			case PacketType.TeamSelect:
+				HandleTeamSelect(peer, reader);
+				break;
 			default:
 				break;
 		}
@@ -754,6 +761,66 @@ public class NetServer
 	// before Apply once the auth system is in.
 
 	/// <summary>Client requests sv_* ConVar set via console. Apply + broadcast to all clients.</summary>
+	/// <summary>Client signalled it has finished its world preload (audio + animations). Flip the
+	/// WorldReady flag on its PeerState — subsequent snapshots will emit <see cref="SnapshotFlags.WorldReady"/>
+	/// for this player, peers' PuppetPlayer.UpdateNameAndGlow then shows the TPS body.</summary>
+	private void HandleWorldInitComplete(NetPeer sender)
+	{
+		if (!_peers.TryGetValue(sender, out var state)) return;
+		if (state.WorldReady) return;
+		state.WorldReady = true;
+		Dbg.Print($"[NetServer] WorldInitComplete netId={state.NetId} name=\"{state.PlayerName}\" — TPS now visible to peers");
+	}
+
+	/// <summary>Competitive-mode client picked a team (CT/T) after the spectator/preview phase.
+	/// Reject Spectator (= would noop), Deathmatch (= illegal in this mode), and any non-Spectator
+	/// current team (= already in a team, ignore stale packet from reconnect/lag). On success assign
+	/// the team, allocate a spawn pose from the team's pool, ensure a ServerAgent exists, and reply
+	/// with <see cref="PacketType.SpawnAuthorize"/> so the client instantiates its LocalPlayer.</summary>
+	private void HandleTeamSelect(NetPeer sender, NetPacketReader r)
+	{
+		if (!_peers.TryGetValue(sender, out var state)) return;
+		Team chosen = Packets.ReadTeamSelect(r);
+		if (chosen != Team.Team1 && chosen != Team.Team2)
+		{
+			Dbg.Print($"[NetServer] TeamSelect from netId={state.NetId} → invalid team {chosen}, dropped");
+			return;
+		}
+		if (state.Team != Team.Spectator)
+		{
+			Dbg.Print($"[NetServer] TeamSelect from netId={state.NetId} ignored — already in team {state.Team}");
+			return;
+		}
+		state.Team = chosen;
+		state.TeamSlot = AssignFreeTeamSlot(chosen);
+
+		var tree = Engine.GetMainLoop() as SceneTree;
+		if (tree?.CurrentScene == null || tree.CurrentScene.Name != "World" || !_spawns.Initialized)
+		{
+			Dbg.Print($"[NetServer] TeamSelect netId={state.NetId}: world not ready, deferring spawn");
+			return;
+		}
+		_playersContainer ??= tree.CurrentScene.GetNodeOrNull<Node3D>("Players");
+
+		var occupied = new System.Collections.Generic.List<Vector3>();
+		foreach (var s in AllPeers)
+		{
+			if (s == state || s.HandshakePending) continue;
+			occupied.Add(s.ServerAgent != null && GodotObject.IsInstanceValid(s.ServerAgent)
+				? s.ServerAgent.GlobalPosition
+				: s.SpawnPos);
+		}
+		var (spawnPos, spawnYaw) = _spawns.PickFreeSpawn(state.Team, occupied);
+		spawnPos = GroundSnap(spawnPos);
+		state.SpawnPos = spawnPos;
+		state.SpawnYaw = spawnYaw;
+		EnsureServerAgent(state);
+
+		sender.Send(Packets.WriteSpawnAuthorize(state.Team, spawnPos, spawnYaw),
+			DeliveryMethod.ReliableOrdered);
+		Dbg.Print($"[NetServer] TeamSelect netId={state.NetId} → team={state.Team} spawn={spawnPos} yaw={spawnYaw:F2}");
+	}
+
 	private void HandleConVarSyncRequest(NetPeer sender, NetPacketReader r)
 	{
 		Packets.ReadConVarSyncRequest(r, out string name, out string value);
@@ -841,7 +908,7 @@ public class NetServer
 					Team = (byte)s.Team, TeamSlot = s.TeamSlot,
 				});
 			}
-			peer.Send(Packets.WriteSpawnAck(pooled.NetId, "res://world.tscn", _serverTick, (ushort)_cli.TickRate,
+			peer.Send(Packets.WriteSpawnAck(pooled.NetId, pooled.Team, "res://world.tscn", _serverTick, (ushort)_cli.TickRate,
 				nowPos, nowYaw, othersReconnect, pooled.Token), ChannelReliable, DeliveryMethod.ReliableOrdered);
 			Broadcast(Packets.WritePlayerJoined(pooled.NetId, pooled.PlayerName, nowPos, nowYaw, pooled.Hp, pooled.ActiveSlot, pooled.WeaponId, (byte)pooled.Team, pooled.TeamSlot),
 				DeliveryMethod.ReliableOrdered, ChannelReliable, excludePeer: peer);
@@ -865,17 +932,18 @@ public class NetServer
 		Team team;
 		if (_cli.GameMode == GameMode.Deathmatch)
 		{
+			// Deathmatch: skip the spectator/team-select stage. Player goes straight into the
+			// match with a fresh spawn pose carried in SpawnAck.
 			team = Team.Deathmatch;
 		}
 		else
 		{
-			int ctCount = 0, tCount = 0;
-			foreach (var s in _peers.Values)
-			{
-				if (s.Team == Team.CT) ctCount++;
-				else if (s.Team == Team.T) tCount++;
-			}
-			team = ctCount <= tCount ? Team.CT : Team.T;
+			// Competitive: park the client as Spectator. No spawn pose is assigned in the
+			// initial SpawnAck — the client cycles preview cameras and shows the team-select
+			// UI. When the user picks CT/T, the client sends PacketType.TeamSelect and the
+			// server runs balance logic + SpawnAuthorize. WorldReady stays false until then
+			// so peers' PuppetPlayer doesn't show a body in mid-selection.
+			team = Team.Spectator;
 		}
 
 		var state = new PeerState
@@ -905,7 +973,12 @@ public class NetServer
 		foreach (var s in _peers.Values)
 		{
 			if (s.HandshakePending) TryFinalizeHandshake(s);
-			else if (s.ServerAgent == null) EnsureServerAgent(s);
+			// Skip spectators — they have no spawn pose yet (waiting for TeamSelect). If we
+			// instantiated their agent here it would land at Vector3.Zero and the later
+			// HandleTeamSelect call (which short-circuits on `if (state.ServerAgent != null)`)
+			// would never reposition it. Result: client falls through the world because the
+			// authoritative position is Zero. Wait until TeamSelect provides a real spawn pose.
+			else if (s.ServerAgent == null && s.Team != Team.Spectator) EnsureServerAgent(s);
 		}
 	}
 
@@ -923,20 +996,34 @@ public class NetServer
 		_playersContainer ??= tree.CurrentScene.GetNodeOrNull<Node3D>("Players");
 		if (_playersContainer == null) return;
 
-		var occupied = new List<Vector3>();
-		foreach (var s in AllPeers)
+		Vector3 spawnPos;
+		float spawnYaw;
+		if (state.Team == Team.Spectator)
 		{
-			if (s == state || s.HandshakePending) continue;
-			occupied.Add(s.ServerAgent != null && GodotObject.IsInstanceValid(s.ServerAgent)
-				? s.ServerAgent.GlobalPosition
-				: s.SpawnPos);
+			// Competitive: player parked as Spectator until TeamSelect arrives. No spawn pose,
+			// no ServerAgent — agent gets instantiated in HandleTeamSelect once the team is locked in.
+			spawnPos = Vector3.Zero;
+			spawnYaw = 0f;
+			state.SpawnPos = spawnPos;
+			state.SpawnYaw = spawnYaw;
 		}
-		var (spawnPos, spawnYaw) = _spawns.PickFreeSpawn(state.Team, occupied);
-		spawnPos = GroundSnap(spawnPos);
-		state.SpawnPos = spawnPos;
-		state.SpawnYaw = spawnYaw;
+		else
+		{
+			var occupied = new List<Vector3>();
+			foreach (var s in AllPeers)
+			{
+				if (s == state || s.HandshakePending) continue;
+				occupied.Add(s.ServerAgent != null && GodotObject.IsInstanceValid(s.ServerAgent)
+					? s.ServerAgent.GlobalPosition
+					: s.SpawnPos);
+			}
+			(spawnPos, spawnYaw) = _spawns.PickFreeSpawn(state.Team, occupied);
+			spawnPos = GroundSnap(spawnPos);
+			state.SpawnPos = spawnPos;
+			state.SpawnYaw = spawnYaw;
 
-		EnsureServerAgent(state);
+			EnsureServerAgent(state);
+		}
 
 		var others = new List<InitialPlayerState>();
 		foreach (var kv in _peers)
@@ -958,7 +1045,7 @@ public class NetServer
 			});
 		}
 
-		var ackWriter = Packets.WriteSpawnAck(state.NetId, "res://world.tscn", _serverTick, (ushort)_cli.TickRate, spawnPos, spawnYaw, others, state.Token);
+		var ackWriter = Packets.WriteSpawnAck(state.NetId, state.Team, "res://world.tscn", _serverTick, (ushort)_cli.TickRate, spawnPos, spawnYaw, others, state.Token);
 		state.Peer.Send(ackWriter, ChannelReliable, DeliveryMethod.ReliableOrdered);
 
 		SendInitialConVarSync(state.Peer);
@@ -1050,11 +1137,11 @@ public class NetServer
 		{
 			int ctBots = 0, tBots = 0;
 			foreach (var b in _bots)
-				if (!b.PendingRemoval) { if (b.Team == Team.CT) ctBots++; else if (b.Team == Team.T) tBots++; }
-			team = ctBots <= tBots ? Team.CT : Team.T;
+				if (!b.PendingRemoval) { if (b.Team == Team.Team1) ctBots++; else if (b.Team == Team.Team2) tBots++; }
+			team = ctBots <= tBots ? Team.Team1 : Team.Team2;
 		}
-		else if (_spawns.CtCount > 0) team = Team.CT;
-		else if (_spawns.TCount > 0) team = Team.T;
+		else if (_spawns.CtCount > 0) team = Team.Team1;
+		else if (_spawns.TCount > 0) team = Team.Team2;
 		else team = Team.Deathmatch;
 
 		var occupied = new List<Vector3>();
@@ -1079,6 +1166,9 @@ public class NetServer
 			SpawnPos = spawnPos,
 			SpawnYaw = spawnYaw,
 			IsBot = true,
+			// Bots have no client to send WorldInitComplete — flag them ready immediately so
+			// puppet bodies aren't permanently hidden on other clients.
+			WorldReady = true,
 		};
 		_bots.Add(bot);
 		_peersByNetId[netId] = bot;
@@ -1257,13 +1347,16 @@ public class NetServer
 		var space = world.DirectSpaceState;
 		if (space == null) return pos;
 
-		var from = pos + Vector3.Up * 2f;
-		var to = pos + Vector3.Down * 2f;
+		// Markers are placed by level designers near floor level. Raycast a short distance
+		// up (to avoid starting inside the floor) and a longer distance down. Going too far
+		// UP would hit tunnel ceilings or overhanging geometry and snap the player onto them.
+		var from = pos + Vector3.Up * 0.5f;
+		var to = pos + Vector3.Down * 5f;
 		var q = PhysicsRayQueryParameters3D.Create(from, to, collisionMask: 1u);
 		var result = space.IntersectRay(q);
 		if (result.Count == 0) return pos;
 		var hit = (Vector3)result["position"];
-		return new Vector3(pos.X, hit.Y + 0.05f, pos.Z);
+		return new Vector3(pos.X, hit.Y + 0.1f, pos.Z);
 	}
 
 	/// <summary>Returns the lowest free NetId in 1..254 by scanning the live + bot id map; 0 means no slot left.</summary>
@@ -1515,6 +1608,12 @@ public class PeerState
 	public byte NetId;
 	public string PlayerName;
 	public byte[] Token;
+	/// <summary>Set to true when the client sends <see cref="PacketType.WorldInitComplete"/> after
+	/// finishing all asset pre-loads (audio + animations). Server broadcasts this bit via
+	/// <see cref="SnapshotFlags.WorldReady"/> so other clients can switch their PuppetPlayer's TPS
+	/// body visible at exactly the right moment — no half-loaded-puppet pop-in for spectators.
+	/// Persists for the session: once set, stays set until reconnect.</summary>
+	public bool WorldReady;
 	public Team Team;
 	/// <summary>Persistent slot within the team (0..15), assigned at register-time. Drives the per-player
 	/// color (palette[teamSlot]). Stable for the session — only freed when the player permanently leaves.</summary>

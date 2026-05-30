@@ -22,16 +22,27 @@ public partial class SceneLoader : Control
 	private Label _statusLabel;
 
 	/// <summary>Loading phases the player sees. Client steps through ALL phases sequentially,
-	/// Server/Listen-Mode jumps straight to LoadingWorld (no remote connection needed).</summary>
+	/// Server/Listen-Mode jumps straight to LoadingWorld (no remote connection needed).
+	/// PreloadingAudio scans res://audio/footsteps/ and triggers background ResourceLoader
+	/// requests so the first step on each surface doesn't cold-load (~40ms hitch). PreloadingAnims
+	/// is a short cosmetic delay covering the AnimationTree one-shot pre-warm that PlayerCore._Ready
+	/// performs after the scene switch — typically &lt;100ms, but the user gets a visible message.</summary>
 	private enum LoadPhase
 	{
 		Connecting,
 		Handshaking,
 		LoadingWorld,
+		PreloadingAudio,
+		PreloadingAnims,
 		SwitchingScene,
 	}
 
+	private const string FootstepAudioRoot = "res://audio/footsteps";
+	private const float PreloadAnimsCosmeticSec = 0.40f;
+
 	private readonly Godot.Collections.Array _progress = new();
+	private readonly System.Collections.Generic.List<string> _audioPaths = new();
+	private int _audioFinalizedCount;
 	private float _targetRatio;
 	private float _shownRatio;
 	private bool _loaded;
@@ -90,7 +101,7 @@ public partial class SceneLoader : Control
 			case LoadPhase.Connecting:
 				if (NetMain.Instance?.Client?.Connected == true)
 				{
-					SetPhase(LoadPhase.Handshaking, "Erhalte Spawn-Daten vom Server…");
+					SetPhase(LoadPhase.Handshaking, "Server-Handshake…");
 				}
 				else if (_phaseTimer > ConnectTimeoutSec)
 				{
@@ -139,7 +150,35 @@ public partial class SceneLoader : Control
 				_percent.Text = $"{Mathf.RoundToInt(_shownRatio * 100f)} %";
 				if (_loaded && _shownRatio >= 0.999f)
 				{
-					SetPhase(LoadPhase.SwitchingScene, "Welt geladen — spawne Spieler…");
+					SetPhase(LoadPhase.PreloadingAnims, "Lade Animationen…");
+				}
+				return;
+
+			case LoadPhase.PreloadingAnims:
+				// Cosmetic phase — animations are bundled inside the loaded PackedScene and
+				// won't actually do file-IO here. The real animation pre-warm runs in
+				// PlayerCore._Ready post-scene-switch. We just show the message + ramp the
+				// bar so the user sees "what's happening" before the audio queue starts.
+				_targetRatio = Mathf.Clamp(_phaseTimer / PreloadAnimsCosmeticSec, 0f, 1f);
+				_shownRatio = Mathf.MoveToward(_shownRatio, _targetRatio, (float)delta * BarFollowSpeed);
+				_bar.Value = _shownRatio * 100.0;
+				_percent.Text = $"{Mathf.RoundToInt(_shownRatio * 100f)} %";
+				if (_phaseTimer >= PreloadAnimsCosmeticSec)
+				{
+					SetPhase(LoadPhase.PreloadingAudio, "Lade Audio…");
+					BeginAudioPreload();
+				}
+				return;
+
+			case LoadPhase.PreloadingAudio:
+				PollAudioPreload();
+				_shownRatio = Mathf.MoveToward(_shownRatio, _targetRatio, (float)delta * BarFollowSpeed);
+				_bar.Value = _shownRatio * 100.0;
+				int total = _audioPaths.Count;
+				_percent.Text = total > 0 ? $"{_audioFinalizedCount}/{total}" : "0/0";
+				if (total == 0 || _audioFinalizedCount >= total)
+				{
+					SetPhase(LoadPhase.SwitchingScene, "Spawne Spieler…");
 					_targetRatio = 1f;
 					_shownRatio = 1f;
 					_bar.Value = 100.0;
@@ -151,10 +190,56 @@ public partial class SceneLoader : Control
 				if (!_switched && _phaseTimer > 0.25f)
 				{
 					_switched = true;
+					// Snap the WorldFadeOverlay to opaque black BEFORE switching — masks
+					// the first-frame render burst (shader compile, lightmap upload, materials
+					// lazy-binding). PlayerCore._Ready later calls RequestFadeOut() once
+					// preloads + spawn are done.
+					WorldFadeOverlay.Instance?.ShowOpaque();
 					GetTree().ChangeSceneToPacked(_loadedScene);
 				}
 				return;
 		}
+	}
+
+	/// <summary>Recursively scans res://audio/footsteps/ for .wav clips and kicks off threaded
+	/// loads for each. The list is what FootstepAudio.ClipPaths references — we don't have access
+	/// to that node yet (scene not switched), so we mirror the on-disk paths instead. Each load
+	/// is async; finalization (= main-thread import) happens later when FootstepAudio._Process
+	/// polls them, but the bulk of the I/O cost is already paid here.</summary>
+	private void BeginAudioPreload()
+	{
+		_audioPaths.Clear();
+		_audioFinalizedCount = 0;
+		using var root = DirAccess.Open(FootstepAudioRoot);
+		if (root == null) return;
+		foreach (string subName in root.GetDirectories())
+		{
+			using var sub = DirAccess.Open($"{FootstepAudioRoot}/{subName}");
+			if (sub == null) continue;
+			foreach (string fileName in sub.GetFiles())
+			{
+				if (fileName.EndsWith(".wav") || fileName.EndsWith(".ogg") || fileName.EndsWith(".mp3"))
+					_audioPaths.Add($"{FootstepAudioRoot}/{subName}/{fileName}");
+			}
+		}
+		foreach (string path in _audioPaths)
+			ResourceLoader.LoadThreadedRequest(path);
+	}
+
+	/// <summary>Polls the status of every queued audio path; counts the number that have reached terminal state (Loaded or Failed). Drives both the percent label and the phase-completion check.</summary>
+	private void PollAudioPreload()
+	{
+		int finalized = 0;
+		for (int i = 0; i < _audioPaths.Count; i++)
+		{
+			var s = ResourceLoader.LoadThreadedGetStatus(_audioPaths[i]);
+			if (s == ResourceLoader.ThreadLoadStatus.Loaded
+				|| s == ResourceLoader.ThreadLoadStatus.Failed
+				|| s == ResourceLoader.ThreadLoadStatus.InvalidResource)
+				finalized++;
+		}
+		_audioFinalizedCount = finalized;
+		_targetRatio = _audioPaths.Count > 0 ? (float)finalized / _audioPaths.Count : 1f;
 	}
 
 	/// <summary>Polls the background load and updates target progress/status.</summary>

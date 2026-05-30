@@ -100,6 +100,7 @@ public partial class HudCs2 : Node
 
 		_layer = new CanvasLayer { Layer = CanvasLayerOrder };
 		AddChild(_layer);
+		HudGate.Register(_layer);
 
 		BuildTopBar();
 		BuildVitals();

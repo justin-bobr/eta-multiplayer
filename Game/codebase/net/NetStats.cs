@@ -31,6 +31,10 @@ public static class NetStats
 	/// 0 = no correction since spawn. Used by <see cref="DebugOverlay"/>/NetGraphOverlay for
 	/// severity colour coding (green/yellow/red).</summary>
 	public static float LastReconcileDriftM;
+	/// <summary>Horizontal component of the last reconcile drift (XZ-plane length, metres). Aim-hitbox-relevant — should stay tight.</summary>
+	public static float LastReconcileDriftHorizM;
+	/// <summary>Vertical component of the last reconcile drift (absolute Y diff, metres). Mostly Stair-Step floating-point mismatch and gameplay-cosmetic — tolerance up to ~20cm is acceptable per CS2 reference.</summary>
+	public static float LastReconcileDriftVertM;
 	/// <summary>Number of reconciles in the last ~1 s (rolling). 0 = stable, high = constant drift replays.</summary>
 	public static int ReconcilesPerSec;
 	/// <summary>Engine time (sec) when the last reconcile triggered — used for "recent" highlight.</summary>

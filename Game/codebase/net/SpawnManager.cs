@@ -1,15 +1,52 @@
 using Godot;
 using System.Collections.Generic;
 
-/// <summary>Which spawn pool a player uses.</summary>
+/// <summary>Which spawn pool a player uses. Enum byte values are stable wire-format — do not
+/// renumber. Display names live in <see cref="Teams"/>.</summary>
 public enum Team : byte
 {
-	/// <summary>Counter-Terrorists — marker group "spawn_ct".</summary>
-	CT = 0,
-	/// <summary>Terrorists — marker group "spawn_t".</summary>
-	T = 1,
+	/// <summary>Team 1 — lore-name "VEKTOR". Spawn-marker group "spawn_team1".</summary>
+	Team1 = 0,
+	/// <summary>Team 2 — lore-name "ATLAS-9". Spawn-marker group "spawn_team2".</summary>
+	Team2 = 1,
 	/// <summary>Deathmatch / Free-for-All — marker group "spawn_deathmatch".</summary>
 	Deathmatch = 2,
+	/// <summary>Initial state in competitive mode while the player is choosing a team. No spawn pose
+	/// is assigned, the LocalPlayer is not instantiated, and the client cycles through preview cameras.
+	/// Switches to Team1/Team2 via <see cref="PacketType.TeamSelect"/> after which the server replies
+	/// with <see cref="PacketType.SpawnAuthorize"/> carrying the real spawn pose.</summary>
+	Spectator = 3,
+}
+
+/// <summary>Display strings + visual tints for each team. Single source of truth — UI code
+/// (Scoreboard, TeamSelectionMenu, KillFeed) reads from here instead of hardcoding "VEKTOR"/"ATLAS-9".
+/// Lore names from the project README: VEKTOR is the licensed PMC contracted by clients, ATLAS-9
+/// the deniable strike network.</summary>
+public static class Teams
+{
+	public const string Team1Name = "VEKTOR";
+	public const string Team2Name = "ATLAS-9";
+	public const string DeathmatchName = "DEATHMATCH";
+	public const string SpectatorName = "SPECTATOR";
+
+	public static readonly Color Team1Color = new(0.30f, 0.60f, 1.00f);
+	public static readonly Color Team2Color = new(1.00f, 0.65f, 0.20f);
+
+	public static string DisplayName(Team t) => t switch
+	{
+		Team.Team1 => Team1Name,
+		Team.Team2 => Team2Name,
+		Team.Deathmatch => DeathmatchName,
+		Team.Spectator => SpectatorName,
+		_ => t.ToString(),
+	};
+
+	public static Color DisplayColor(Team t) => t switch
+	{
+		Team.Team1 => Team1Color,
+		Team.Team2 => Team2Color,
+		_ => Colors.White,
+	};
 }
 
 /// <summary>
@@ -60,8 +97,14 @@ public class SpawnManager
 		_tRotator = 0;
 		_dmRotator = 0;
 
+		// Accept both the new "spawn_team1"/"spawn_team2" names AND the legacy "spawn_ct"/"spawn_t"
+		// so existing maps don't need an editor pass. New maps should use the team1/team2 names.
+		foreach (var n in tree.GetNodesInGroup("spawn_team1"))
+			if (n is Marker3D m) _ctSpawns.Add(MarkerToPoint(m));
 		foreach (var n in tree.GetNodesInGroup("spawn_ct"))
 			if (n is Marker3D m) _ctSpawns.Add(MarkerToPoint(m));
+		foreach (var n in tree.GetNodesInGroup("spawn_team2"))
+			if (n is Marker3D m) _tSpawns.Add(MarkerToPoint(m));
 		foreach (var n in tree.GetNodesInGroup("spawn_t"))
 			if (n is Marker3D m) _tSpawns.Add(MarkerToPoint(m));
 		foreach (var n in tree.GetNodesInGroup("spawn_deathmatch"))
@@ -101,10 +144,10 @@ public class SpawnManager
 	{
 		switch (team)
 		{
-			case Team.CT:
+			case Team.Team1:
 				if (_ctSpawns.Count > 0) return PickFromList(_ctSpawns, ref _ctRotator, occupied);
 				break;
-			case Team.T:
+			case Team.Team2:
 				if (_tSpawns.Count > 0) return PickFromList(_tSpawns, ref _tRotator, occupied);
 				break;
 			case Team.Deathmatch:
