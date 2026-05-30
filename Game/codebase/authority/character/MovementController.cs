@@ -420,8 +420,8 @@ public class MovementController
 	public Vector2 LastShotPatternEntry { get; private set; }
 	public float LastShotSpread { get; private set; }
 	public bool RecentlyFired { get; private set; }
-	/// <summary>Horizontal speed magnitude (X and Z components only).</summary>
-	public float HorizontalSpeed => new Vector3(Velocity.X, 0f, Velocity.Z).Length();
+	/// <summary>Horizontal speed magnitude (X and Z components only). Inlined sqrt — avoids the per-call Vector3 ctor when this property is read in 128 Hz hot paths (footstep/fire/anim).</summary>
+	public float HorizontalSpeed => Mathf.Sqrt(Velocity.X * Velocity.X + Velocity.Z * Velocity.Z);
 
 	private readonly Godot.RandomNumberGenerator _fireRng = new();
 

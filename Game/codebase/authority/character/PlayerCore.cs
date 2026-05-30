@@ -760,7 +760,13 @@ public partial class PlayerCore : ServerBaseCharacter
 		Vector3 horizDrift = new Vector3(drift.X, 0f, drift.Z);
 		float horizDriftLen = horizDrift.Length();
 		float vertDriftLen = Mathf.Abs(drift.Y);
-		float horizEpsilon = 0.06f + Velocity.Length() * _fixedDt * 2f;
+		// Flat horizontal epsilon — the previous velocity-scaled formula (0.06 + |V| × dt × 2)
+		// reached 0.17m at sprint speed, which meant a sprinting player could visibly diverge
+		// from the server's authoritative position for 17cm before reconcile kicked in. Worse,
+		// when idle the float-noise alone (~mm-scale) was below the threshold so OK, but any
+		// sub-tick velocity that wasn't perfectly zero (e.g. residual after stair-step) would
+		// shift the threshold up unpredictably. 8cm flat is gameplay-invisible at any speed.
+		const float horizEpsilon = 0.08f;
 		const float vertEpsilon = 0.20f;
 		if (horizDriftLen < horizEpsilon && vertDriftLen < vertEpsilon) return;
 
@@ -772,11 +778,16 @@ public partial class PlayerCore : ServerBaseCharacter
 		_movement.Velocity = serverVel;
 		_isMantling = false;
 
-		// Zero-alloc replay-loop + Cap auf MaxReplayPerFrame Ticks. Cap=8 (war 32, dann 32 × ~0.15ms
-		// = 5ms Spike beim Wall-Collide). Bei N-Tick-Drift wird über mehrere Snapshots verteilt
-		// (Snapshots kommen ~64Hz, also 8 Ticks/Snapshot = 64 Ticks/Sekunde Convergence — schneller
-		// als jede Bewegung sich akkumulieren kann). Hard-Snap im Visual-Bleed bleibt aktiv.
-		const int MaxReplayPerFrame = 8;
+		// Replay the FULL set of post-ack predictions in one pass — covers all ticks the local
+		// player has predicted since the server's authoritative snapshot. Previously this was
+		// capped at 8 ticks/frame which sounded conservative but actually caused a sustained
+		// reconcile-storm: when real drift covered >8 ticks (= high ping or a wall-collide), the
+		// untouched entries past index 8 kept their stale PostPos, so every subsequent snapshot
+		// hit the drift check again and triggered another partial replay. 5+ frames of ~1ms
+		// re-sim is worse than one rare 4-5 ms spike. Cap at 64 as a sanity guard against an
+		// absurdly stale Prediction buffer (= 500 ms of mispredictions, which would be a
+		// network-disconnect-level event anyway).
+		const int MaxReplayPerFrame = 64;
 		_isReplaying = true;
 		try
 		{

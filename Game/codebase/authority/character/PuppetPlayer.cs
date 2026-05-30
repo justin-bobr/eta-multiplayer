@@ -59,6 +59,31 @@ public partial class PuppetPlayer : Node3D
 	/// snapping between delay values when jitter fluctuates. Updated each <see cref="_Process"/> tick
 	/// from <see cref="NetStats.JitterDownMs"/> when <see cref="ClConVars.InterpLockTicks"/> is 0.</summary>
 	private float _smoothedInterpDelay = 6f;
+	/// <summary>Free-running virtual server-tick this client renders at. Advances by
+	/// <c>delta × tickRate</c> per frame and is only gently nudged toward the "raw" target
+	/// (<c>LastSnapshotServerTick - delay + ticksSinceLast</c>) — not re-anchored every snapshot.
+	/// Without this smoothing, every incoming snapshot whose inter-arrival differs from the ideal
+	/// cadence shifted the renderTick by a few ms in either direction, which translated to visible
+	/// per-snapshot micro-snaps in puppet position. The clock hard-resets only on large divergences
+	/// (>RenderClockResnapTicks ticks) which represent a real network event, not jitter.</summary>
+	private float _renderClockTickF;
+	private bool _renderClockInitialized;
+	/// <summary>Hard re-anchor threshold for the virtual render-clock. Below this, drift is bled in
+	/// at a small fraction of frame-delta so it's visually invisible; above it, we accept the snap
+	/// because the network state has moved further than smoothing could mask in any reasonable time.
+	/// 4 ticks ≈ 31 ms at 128 Hz — wider than typical jitter, tighter than typical hitch.</summary>
+	private const float RenderClockResnapTicks = 4f;
+	/// <summary>Fraction of one tick the clock is allowed to nudge per second when bleeding off
+	/// sub-resnap drift. 0.5 = 0.5 ticks/s = ~4 ms/s — slow enough to be imperceptible.</summary>
+	private const float RenderClockNudgeRateTicksPerSec = 0.5f;
+	/// <summary>Last yaw/pitch read out of a bracketed snapshot pair. During extrapolation (when no
+	/// bracket is found because the newest snapshot is older than renderTick) we hold these instead
+	/// of snapping to A.Yaw — A == B during extrapolation, and A.Yaw can differ from the last
+	/// rendered yaw by an arbitrary amount when packets resume. Without this cache, extrapolation
+	/// produced a visible head-twitch on every packet drop.</summary>
+	private float _lastBracketedYaw;
+	private float _lastBracketedPitch;
+	private bool _lastBracketedAnglesValid;
 	private PlayerCore _visual;
 	/// <summary>Read-only Zugriff aufs Visual-PlayerCore (= das instanziierte puppet_player.tscn).
 	/// Wird vom HudServerHitboxesDebug-Renderer gebraucht um die Hitbox-Shape-Specs des Puppets zu lesen.</summary>
@@ -489,8 +514,36 @@ public partial class PuppetPlayer : Node3D
 
 		int effectiveDelay = ComputeEffectiveInterpDelay(tickDt, (float)delta);
 
-		float renderTickF = (float)client.LastSnapshotServerTick - effectiveDelay + ticksSinceLast;
-		if (renderTickF < 0f) renderTickF = 0f;
+		// Compute the raw "target" render-tick and feed it into a smoothed virtual clock.
+		// Anchoring the renderTick to LastSnapshotServerTick + ticksSinceLast directly causes
+		// micro-snaps every time inter-arrival jitter pushes a snapshot ±1 ms off its expected
+		// cadence — visible as per-snapshot positional twitch on remote players. The virtual
+		// clock advances at constant delta × tickRate and only nudges toward the target.
+		float targetRenderTickF = (float)client.LastSnapshotServerTick - effectiveDelay + ticksSinceLast;
+		if (targetRenderTickF < 0f) targetRenderTickF = 0f;
+		float renderTickF;
+		if (!_renderClockInitialized)
+		{
+			_renderClockTickF = targetRenderTickF;
+			_renderClockInitialized = true;
+			renderTickF = _renderClockTickF;
+		}
+		else
+		{
+			float drift = targetRenderTickF - _renderClockTickF;
+			if (Mathf.Abs(drift) > RenderClockResnapTicks)
+			{
+				// Real network event (hitch, packet burst, large RTT shift) — hard-resync.
+				_renderClockTickF = targetRenderTickF;
+			}
+			else
+			{
+				_renderClockTickF += (float)delta * tickRate;
+				float maxNudge = (float)delta * RenderClockNudgeRateTicksPerSec;
+				_renderClockTickF += Mathf.Clamp(drift, -maxNudge, maxNudge);
+			}
+			renderTickF = _renderClockTickF;
+		}
 
 		Entry A = _buf[0], B = _buf[_buf.Count - 1];
 		bool bracketed = false;
@@ -519,10 +572,29 @@ public partial class PuppetPlayer : Node3D
 		Vector3 pos = A.Snap.Pos.Lerp(B.Snap.Pos, t);
 		if (extrapolateAheadTicks > 0f)
 			pos += B.Snap.Vel * (extrapolateAheadTicks * tickDt);
-		float viewYaw = Mathf.LerpAngle(A.Snap.Yaw, B.Snap.Yaw, t);
-		float viewPitch = Mathf.LerpAngle(A.Snap.Pitch, B.Snap.Pitch, t);
 
-		_visual.GlobalPosition = pos;
+		float viewYaw, viewPitch;
+		if (bracketed)
+		{
+			viewYaw = Mathf.LerpAngle(A.Snap.Yaw, B.Snap.Yaw, t);
+			viewPitch = Mathf.LerpAngle(A.Snap.Pitch, B.Snap.Pitch, t);
+			_lastBracketedYaw = viewYaw;
+			_lastBracketedPitch = viewPitch;
+			_lastBracketedAnglesValid = true;
+		}
+		else if (_lastBracketedAnglesValid)
+		{
+			// Hold the last bracketed orientation during extrapolation. Snapping to A.Yaw (= B.Yaw =
+			// newest snapshot) here would jump the head/aim direction relative to what we just
+			// rendered last frame — exactly the head-twitch users perceive as "lag".
+			viewYaw = _lastBracketedYaw;
+			viewPitch = _lastBracketedPitch;
+		}
+		else
+		{
+			viewYaw = B.Snap.Yaw;
+			viewPitch = B.Snap.Pitch;
+		}
 
 		if (!_bodyYawInitialized)
 		{
@@ -540,24 +612,48 @@ public partial class PuppetPlayer : Node3D
 		if (Mathf.Abs(postTwist) > MaxTwistRad)
 			_puppetBodyYaw = viewYaw - Mathf.Sign(postTwist) * MaxTwistRad;
 
-		var r = _visual.Rotation; r.Y = _puppetBodyYaw; _visual.Rotation = r;
+		// Coalesce the visual root's position + body-yaw into a single GlobalTransform write.
+		// Previously: GlobalPosition setter (1 interop) + Rotation getter (1) + Rotation setter (1)
+		// + HeadPitch.Rotation getter+setter (2) = 5 interops per puppet per frame. Now we build
+		// the basis from a single yaw rotation (= column-2 only) and write once.
+		float bodyYawCos = Mathf.Cos(_puppetBodyYaw);
+		float bodyYawSin = Mathf.Sin(_puppetBodyYaw);
+		var bodyBasis = new Basis(
+			new Vector3(bodyYawCos, 0f, -bodyYawSin),
+			new Vector3(0f, 1f, 0f),
+			new Vector3(bodyYawSin, 0f, bodyYawCos));
+		_visual.GlobalTransform = new Transform3D(bodyBasis, pos);
 
 		if (_visual.HeadPitch != null)
 		{
-			var hr = _visual.HeadPitch.Rotation; hr.X = viewPitch; _visual.HeadPitch.Rotation = hr;
+			float pitchCos = Mathf.Cos(viewPitch);
+			float pitchSin = Mathf.Sin(viewPitch);
+			var pitchBasis = new Basis(
+				new Vector3(1f, 0f, 0f),
+				new Vector3(0f, pitchCos, pitchSin),
+				new Vector3(0f, -pitchSin, pitchCos));
+			var headXform = _visual.HeadPitch.Transform;
+			headXform.Basis = pitchBasis;
+			_visual.HeadPitch.Transform = headXform;
 		}
 
 		float spineTwist = Mathf.Wrap(viewYaw - _puppetBodyYaw, -Mathf.Pi, Mathf.Pi);
 		_visual.PuppetSpineTwist = Mathf.Clamp(spineTwist, -MaxTwistRad, MaxTwistRad);
 
 		var mc = _visual.Movement;
-		mc.Velocity = B.Snap.Vel;
-		_visual.Velocity = B.Snap.Vel;
-		mc.AdsBlend = B.Snap.AdsBlend / 255f;
-		mc.CrouchBlend = B.Snap.CrouchBlend / 255f;
-		mc.WeaponRaiseBlend = B.Snap.RaiseBlend / 255f;
+		// Interpolate animation blends just like position/yaw — snapping every frame to
+		// snapshot-B's value caused visible "staircase" stepping in crouch/ADS transitions
+		// and aim-punch flicker on remote players. AimPunch is dequantised from byte before
+		// the lerp so the linear interp doesn't quantise twice.
+		mc.Velocity = (A.Snap.Vel.Lerp(B.Snap.Vel, t));
+		_visual.Velocity = mc.Velocity;
+		mc.AdsBlend = Mathf.Lerp(A.Snap.AdsBlend, B.Snap.AdsBlend, t) / 255f;
+		mc.CrouchBlend = Mathf.Lerp(A.Snap.CrouchBlend, B.Snap.CrouchBlend, t) / 255f;
+		mc.WeaponRaiseBlend = Mathf.Lerp(A.Snap.RaiseBlend, B.Snap.RaiseBlend, t) / 255f;
 		mc.ShotIndex = B.Snap.ShotIndex;
-		mc.AimPunch = new Vector3(B.Snap.AimPunchX / 16f, B.Snap.AimPunchY / 16f, 0f);
+		float apX = Mathf.Lerp(A.Snap.AimPunchX, B.Snap.AimPunchX, t) / 16f;
+		float apY = Mathf.Lerp(A.Snap.AimPunchY, B.Snap.AimPunchY, t) / 16f;
+		mc.AimPunch = new Vector3(apX, apY, 0f);
 		mc.IsSliding = (B.Snap.Flags & (byte)SnapshotFlags.Sliding) != 0;
 		mc.IsWallClinging = (B.Snap.Flags & (byte)SnapshotFlags.WallClinging) != 0;
 		_visual.PuppetIsAirborne = (B.Snap.Flags & (byte)SnapshotFlags.Airborne) != 0;
@@ -568,11 +664,23 @@ public partial class PuppetPlayer : Node3D
 
 		_visual.UpdateTpsBodyAim();
 
-		// Distance + frustum check feeds the per-tier animation update rate. Computed
-		// once per frame against the active 3D camera (local player's FPS cam, or the
-		// TPS spectate cam when alive-spectating). Falls through to Near tier if no
-		// camera is available (= editor / very early in the spawn flow).
-		_lodTier = ResolveLodTier();
+		// Cache the active camera + its basis ONCE per frame so the LOD tier resolve and the
+		// silhouette frustum check don't each call GetViewport().GetCamera3D() (interop) +
+		// IsPositionInFrustum (×7 interop) for free. Both checks now use a manual half-space
+		// test against the same cached forward / cosFovHalf.
+		Camera3D cam = GetViewport()?.GetCamera3D();
+		Vector3 camPos = Vector3.Zero;
+		Vector3 camForward = -Vector3.Forward;
+		float cosFovHalf = -1f;
+		if (cam != null)
+		{
+			camPos = cam.GlobalPosition;
+			camForward = -cam.GlobalBasis.Z;
+			float fovHalfRad = cam.Fov * Mathf.Pi / 360.0f;
+			cosFovHalf = Mathf.Cos(fovHalfRad);
+		}
+
+		_lodTier = ResolveLodTierCached(cam, camPos, camForward, cosFovHalf);
 		float lodHz = LodTierUpdateHz(_lodTier);
 		_lodAnimAccum += (float)delta;
 		if (lodHz > 0f && _lodAnimAccum >= 1f / lodHz)
@@ -595,18 +703,13 @@ public partial class PuppetPlayer : Node3D
 			_lastPushedTeamColorValid = true;
 		}
 
-		// Per-frame frustum gate on the silhouette. We could rely on Godot's automatic frustum
-		// culling at render time (it would still skip the mesh-submit when fully off-camera), but
-		// we ALSO want the upstream Visible flag to flip so the per-instance shader-parameter
-		// push above becomes a no-op for off-screen puppets — saves a tiny per-frame CPU cost
-		// over a 10-puppet match. Tests six representative AABB points (feet, head, four sides
-		// at mid height): if ANY one is inside the active 3D camera's frustum, the puppet is
-		// considered visible (matches the user request: "auch wenn nur ein stück in meiner
-		// kamera ist"). Through-wall visibility is preserved via IgnoreOcclusionCulling = true
-		// on the baked silhouette node — the frustum check only gates true off-camera puppets.
+		// Per-frame frustum gate on the silhouette. Uses the cached camera basis from this frame
+		// and a single manual cone test (capsule-center + radius pad), not 7 separate
+		// IsPositionInFrustum calls — same coverage at ~1/15th the interop cost.
 		if (_glowCurrentlyOn && _glowSilhouette != null && GodotObject.IsInstanceValid(_glowSilhouette))
 		{
-			bool wantVisible = _lodTier != PuppetLodTier.Off && SilhouetteInActiveCameraFrustum();
+			bool wantVisible = _lodTier != PuppetLodTier.Off
+				&& SilhouetteInFrustumManual(cam, camPos, camForward, cosFovHalf);
 			if (_glowSilhouette.Visible != wantVisible) _glowSilhouette.Visible = wantVisible;
 		}
 
@@ -614,22 +717,37 @@ public partial class PuppetPlayer : Node3D
 			UpdateNameAndGlow(_buf[_buf.Count - 1].Snap);
 	}
 
-	private bool SilhouetteInActiveCameraFrustum()
+	/// <summary>Manual frustum test against the cached camera basis. Treats the puppet as a vertical
+	/// capsule and tests its mid-point cone-angle against camForward, with an angular pad scaled
+	/// from the capsule's radius / distance. Same effective coverage as the previous 7-point
+	/// <c>IsPositionInFrustum</c> sweep, but a single cone test instead of 7 interop calls.</summary>
+	private bool SilhouetteInFrustumManual(Camera3D cam, Vector3 camPos, Vector3 camForward, float cosFovHalf)
 	{
-		var cam = GetViewport()?.GetCamera3D();
 		if (cam == null || _visual == null) return true;
-		Vector3 pos = _visual.GlobalPosition;
-		float h = _visual.StandHeight;
-		float r = _visual.CapsuleRadius;
-		float hHalf = h * 0.5f;
-		if (cam.IsPositionInFrustum(pos + new Vector3(0f, hHalf, 0f))) return true;
-		if (cam.IsPositionInFrustum(pos)) return true;
-		if (cam.IsPositionInFrustum(pos + new Vector3(0f, h, 0f))) return true;
-		if (cam.IsPositionInFrustum(pos + new Vector3(r, hHalf, 0f))) return true;
-		if (cam.IsPositionInFrustum(pos + new Vector3(-r, hHalf, 0f))) return true;
-		if (cam.IsPositionInFrustum(pos + new Vector3(0f, hHalf, r))) return true;
-		if (cam.IsPositionInFrustum(pos + new Vector3(0f, hHalf, -r))) return true;
-		return false;
+		Vector3 center = _visual.GlobalPosition + new Vector3(0f, _visual.StandHeight * 0.5f, 0f);
+		Vector3 toPuppet = center - camPos;
+		float dist = toPuppet.Length();
+		if (dist < 0.0001f) return true; // we're inside the puppet — definitely "visible"
+		// Behind camera AND further than capsule extent → cull.
+		float forwardDist = camForward.Dot(toPuppet);
+		if (forwardDist < -_visual.StandHeight) return false;
+		// Cone test with angular pad ≈ capsuleRadius / forwardDist. Generous: 17° absolute pad
+		// at short range collapses; at long range the radius pad dominates. Result: anything that
+		// would peek into the viewport is conservatively kept visible.
+		float angularPadCos;
+		if (forwardDist <= 0.1f)
+		{
+			angularPadCos = 1f; // accept anything ahead
+		}
+		else
+		{
+			float capR = Mathf.Max(_visual.CapsuleRadius, _visual.StandHeight * 0.5f);
+			// Subtract approximate angular extent of the capsule from cosFovHalf.
+			float angularExtentRad = Mathf.Atan2(capR, forwardDist);
+			angularPadCos = Mathf.Cos(Mathf.Acos(Mathf.Clamp(cosFovHalf, -1f, 1f)) + angularExtentRad);
+		}
+		float dirDot = forwardDist / dist;
+		return dirDot >= angularPadCos;
 	}
 
 
@@ -656,22 +774,21 @@ public partial class PuppetPlayer : Node3D
 		_ => 0f,
 	};
 
-	/// <summary>Picks the LOD tier from distance to the active 3D camera AND a forgiving frustum check. Off-frustum AND beyond Near range collapses straight to Off; close puppets even when off-camera stay one tier above so a quick turn doesn't catch them in T-pose.</summary>
+	/// <summary>Picks the LOD tier from distance to the cached camera AND a forgiving frustum check.
+	/// Same logic as before but takes the camera + basis from the caller so we don't call
+	/// <c>GetViewport().GetCamera3D()</c> twice per frame per puppet (once here, once in the
+	/// silhouette frustum test).</summary>
 	[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-	private PuppetLodTier ResolveLodTier()
+	private PuppetLodTier ResolveLodTierCached(Camera3D cam, Vector3 camPos, Vector3 camForward, float cosFovHalf)
 	{
-		Camera3D cam = GetViewport()?.GetCamera3D();
 		if (cam == null || _visual == null) return PuppetLodTier.Near;
-		Vector3 toPuppet = _visual.GlobalPosition - cam.GlobalPosition;
+		Vector3 toPuppet = _visual.GlobalPosition - camPos;
 		float dist = toPuppet.Length();
 		bool inFrustum = true;
 		if (dist > LodNearMaxDist)
 		{
-			Vector3 camForward = -cam.GlobalBasis.Z;
 			float dirDot = camForward.Dot(toPuppet / Mathf.Max(dist, 0.0001f));
-			float fovHalfRad = cam.Fov * Mathf.Pi / 360.0f;
-			float cosFovHalf = Mathf.Cos(fovHalfRad) - LodFrustumPadCos;
-			inFrustum = dirDot >= cosFovHalf;
+			inFrustum = dirDot >= (cosFovHalf - LodFrustumPadCos);
 		}
 		if (!inFrustum) return dist <= LodMidMaxDist ? PuppetLodTier.Far : PuppetLodTier.Off;
 		if (dist <= LodNearMaxDist) return PuppetLodTier.Near;
@@ -680,7 +797,10 @@ public partial class PuppetPlayer : Node3D
 		return PuppetLodTier.Off;
 	}
 
-	/// <summary>Toggles the spine-aim SkeletonModifier3D off when the puppet is in the Off tier. No one sees the spine pose then, so the Modifier's per-frame quaternion math + SetBonePoseRotation can be skipped entirely. Result lookup is cached after first walk.</summary>
+	private bool _lastAimModifierActive;
+	private bool _lastAimModifierActiveValid;
+
+	/// <summary>Toggles the spine-aim SkeletonModifier3D off when the puppet is in the Off tier. No one sees the spine pose then, so the Modifier's per-frame quaternion math + SetBonePoseRotation can be skipped entirely. Result lookup is cached after first walk. Active-setter is delta-gated — it's an interop call that fires every frame otherwise.</summary>
 	private void ApplyAimModifierLod()
 	{
 		if (!_aimModifierLookupDone)
@@ -690,8 +810,14 @@ public partial class PuppetPlayer : Node3D
 				foreach (Node n in _visual.FindChildren("*", "TpsAimModifier", true, false))
 					if (n is TpsAimModifier mod) { _cachedAimModifier = mod; break; }
 		}
-		if (_cachedAimModifier != null)
-			_cachedAimModifier.Active = _lodTier != PuppetLodTier.Off;
+		if (_cachedAimModifier == null) return;
+		bool wantActive = _lodTier != PuppetLodTier.Off;
+		if (!_lastAimModifierActiveValid || _lastAimModifierActive != wantActive)
+		{
+			_cachedAimModifier.Active = wantActive;
+			_lastAimModifierActive = wantActive;
+			_lastAimModifierActiveValid = true;
+		}
 	}
 
 	private Camera3D _spectateTpsCam;
