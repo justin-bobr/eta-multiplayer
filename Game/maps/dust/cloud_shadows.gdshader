@@ -2,7 +2,10 @@
 // the sun ray onto a cloud plane and samples noise there - same math as
 // sky.gdshader. Self-contained: no script needed (sun direction is static).
 shader_type spatial;
-render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled, fog_disabled;
+// blend_mul: ALBEDO wird mit dem Framebuffer multipliziert statt alpha-gemischt. Echter Schatten
+// darkens, bewahrt aber die Textur-Details darunter. Ein Albedo von vec3(1.0) lässt unverändert,
+// shadow_tint verdunkelt. Mix(white, shadow_tint, intensity) gibt einen weichen Multiplier.
+render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled, fog_disabled, blend_mul;
 
 // Direction the sunlight travels. Static - matches the map's DirectionalLight3D.
 uniform vec3 sun_travel_dir = vec3(0.287, -0.819, -0.497);
@@ -15,7 +18,9 @@ uniform float cloud_sag : hint_range(0.5, 4.0) = 1.5;
 uniform float coverage : hint_range(0.0, 1.0) = 0.6;
 uniform float softness : hint_range(0.01, 0.6) = 0.3;
 uniform float shadow_strength : hint_range(0.0, 1.0) = 0.55;
-uniform vec3 shadow_tint : source_color = vec3(0.0);
+// shadow_tint ist jetzt der MULTIPLIER für voll-schattierte Bereiche (blend_mul). vec3(1) = kein
+// Effekt, vec3(0) = Pure Schwarz. Typisch: (0.5, 0.55, 0.65) für leicht kühlen, weichen Wolkenschatten.
+uniform vec3 shadow_tint : source_color = vec3(0.5, 0.55, 0.65);
 uniform float surface_falloff : hint_range(0.05, 1.0) = 0.4;
 
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest;
@@ -243,6 +248,8 @@ void fragment() {
 
 		}   // end if (dist_fade > 0.0) block — entfernt Pixel-Shader-Cost für ferne Pixel
 	}
-	ALBEDO = shadow_tint;
-	ALPHA = shadow_strength * cloud;
+	// blend_mul: ALBEDO wird mit Framebuffer multipliziert. 1.0 = unverändert, shadow_tint = voll
+	// gedimmt. Cloud * shadow_strength steuert wie stark interpoliert wird (0 = kein Schatten).
+	ALBEDO = mix(vec3(1.0), shadow_tint, shadow_strength * cloud);
+	ALPHA = 1.0;
 }

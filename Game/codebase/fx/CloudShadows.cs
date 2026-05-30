@@ -41,7 +41,7 @@ public partial class CloudShadows : MeshInstance3D
 	private float _shadowStrength = 0.65f;
 	[Export(PropertyHint.Range, "0,1,0.01")] public float ShadowStrength { get => _shadowStrength; set { _shadowStrength = value; _mat?.SetShaderParameter(_shadowStrengthParam, value); } }
 
-	private Color _shadowTint = new(0.02f, 0.03f, 0.06f, 1f);
+	private Color _shadowTint = new(0.5f, 0.55f, 0.65f, 1f);
 	[Export] public Color ShadowTint { get => _shadowTint; set { _shadowTint = value; _mat?.SetShaderParameter(_shadowTintParam, value); } }
 
 	private float _surfaceFalloff = 0.4f;

@@ -225,7 +225,7 @@ public partial class SettingsMenu : CanvasLayer
 		outer.AddThemeConstantOverride("separation", 10);
 		panel.AddChild(outer);
 
-		var title = new Label { Text = "SETTINGS  (ESC schließen)" };
+		var title = new Label { Text = "SETTINGS  (ESC to close)" };
 		title.AddThemeFontSizeOverride("font_size", 18);
 		title.AddThemeColorOverride("font_color", new Color(0.85f, 1f, 0.85f));
 		outer.AddChild(title);
@@ -276,9 +276,9 @@ public partial class SettingsMenu : CanvasLayer
 	/// <summary>Builds the Graphics tab (quality, world effects, post-processing, camera effects, debug overlays).</summary>
 	private Control BuildGraphicsTab()
 	{
-		var (page, vbox) = NewTabPage("Grafik");
+		var (page, vbox) = NewTabPage("Graphics");
 
-		AddSectionHeader(vbox, "QUALITÄT");
+		AddSectionHeader(vbox, "QUALITY");
 		_presetOpt = AddDropdown(vbox, "Quality-Preset", new[] { "Low", "Medium", "High", "Ultra", "Custom" });
 		_presetOpt.ItemSelected += OnPresetChanged;
 
@@ -300,7 +300,7 @@ public partial class SettingsMenu : CanvasLayer
 		_shadowsOpt = AddDropdown(vbox, "Shadows", new[] { "Off", "Low", "Medium", "High" });
 		_shadowsOpt.ItemSelected += OnShadowsChanged;
 
-		AddSectionHeader(vbox, "WELT-EFFEKTE");
+		AddSectionHeader(vbox, "WORLD EFFECTS");
 		_aoOpt = AddDropdown(vbox, "Ambient Occlusion", new[] { "Off", "On" });
 		_aoOpt.ItemSelected += OnAoChanged;
 
@@ -372,8 +372,8 @@ public partial class SettingsMenu : CanvasLayer
 		_teamGlowOpt = AddDropdown(vbox, "Team Glow (CS2-Outline)", new[] { "Off", "On" });
 		_teamGlowOpt.ItemSelected += OnTeamGlowChanged;
 
-		AddSectionHeader(vbox, "KAMERA-EFFEKTE");
-		_viewBobOpt = AddDropdown(vbox, "View Bob (Lauf-Bobbing)", new[] { "Off", "On" });
+		AddSectionHeader(vbox, "CAMERA EFFECTS");
+		_viewBobOpt = AddDropdown(vbox, "View Bob (Walk Bob)", new[] { "Off", "On" });
 		_viewBobOpt.ItemSelected += OnViewBobChanged;
 
 		_sprintSwayOpt = AddDropdown(vbox, "Sprint Sway", new[] { "Off", "On" });
@@ -385,10 +385,10 @@ public partial class SettingsMenu : CanvasLayer
 		_directionLeanOpt = AddDropdown(vbox, "Direction Lean (Strafe-Tilt)", new[] { "Off", "On" });
 		_directionLeanOpt.ItemSelected += OnDirectionLeanChanged;
 
-		_cameraShakeOpt = AddDropdown(vbox, "Camera Shake (Schuss)", new[] { "Off", "On" });
+		_cameraShakeOpt = AddDropdown(vbox, "Camera Shake (Firing)", new[] { "Off", "On" });
 		_cameraShakeOpt.ItemSelected += OnCameraShakeChanged;
 
-		AddSectionHeader(vbox, "DEBUG-OVERLAYS");
+		AddSectionHeader(vbox, "DEBUG OVERLAYS");
 		_showDebugBarOpt = AddDropdown(vbox, "Debug Bar (F3)", new[] { "Off", "On" });
 		_showDebugBarOpt.ItemSelected += OnShowDebugBarChanged;
 
@@ -401,7 +401,7 @@ public partial class SettingsMenu : CanvasLayer
 	/// <summary>Builds the Display tab (window mode, resolution, vsync, FPS caps, brightness, HUD margins).</summary>
 	private Control BuildDisplayTab()
 	{
-		var (page, vbox) = NewTabPage("Anzeige");
+		var (page, vbox) = NewTabPage("Display");
 
 		_windowModeOpt = AddDropdown(
 			vbox,
@@ -438,9 +438,9 @@ public partial class SettingsMenu : CanvasLayer
 		_uiScaleSlider.ValueChanged += OnUiScaleChanged;
 
 		AddSectionHeader(vbox, "HUD");
-		(_hudMarginHSlider, _hudMarginHValue) = AddSlider(vbox, "HUD-Rand Horizontal", 0f, 140f, 2f);
+		(_hudMarginHSlider, _hudMarginHValue) = AddSlider(vbox, "HUD Margin Horizontal", 0f, 140f, 2f);
 		_hudMarginHSlider.ValueChanged += OnHudMarginHChanged;
-		(_hudMarginVSlider, _hudMarginVValue) = AddSlider(vbox, "HUD-Rand Vertikal", 0f, 140f, 2f);
+		(_hudMarginVSlider, _hudMarginVValue) = AddSlider(vbox, "HUD Margin Vertical", 0f, 140f, 2f);
 		_hudMarginVSlider.ValueChanged += OnHudMarginVChanged;
 
 		return page;
@@ -449,7 +449,7 @@ public partial class SettingsMenu : CanvasLayer
 	/// <summary>Builds the Controls tab (mouse sensitivity, FOV).</summary>
 	private Control BuildControlsTab()
 	{
-		var (page, vbox) = NewTabPage("Steuerung");
+		var (page, vbox) = NewTabPage("Controls");
 
 		(_sensSlider, _sensValue) = AddSlider(vbox, "Mouse Sens", 0.01f, 10.0f, 0.01f);
 		_sensSlider.ValueChanged += OnSensChanged;
