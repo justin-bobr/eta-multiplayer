@@ -59,11 +59,11 @@ public partial class SceneLoader : Control
 		var mode = NetMain.Instance?.Cli?.Mode ?? NetMode.Listen;
 		if (mode == NetMode.Client)
 		{
-			SetPhase(LoadPhase.Connecting, "Verbinde zum Server…");
+			SetPhase(LoadPhase.Connecting, "Connecting to server…");
 		}
 		else
 		{
-			SetPhase(LoadPhase.LoadingWorld, "Lade Welt…");
+			SetPhase(LoadPhase.LoadingWorld, "Loading world…");
 			BeginWorldLoad();
 		}
 	}
@@ -101,12 +101,12 @@ public partial class SceneLoader : Control
 			case LoadPhase.Connecting:
 				if (NetMain.Instance?.Client?.Connected == true)
 				{
-					SetPhase(LoadPhase.Handshaking, "Server-Handshake…");
+					SetPhase(LoadPhase.Handshaking, "Server handshake…");
 				}
 				else if (_phaseTimer > ConnectTimeoutSec)
 				{
 					_failed = true;
-					_statusLabel.Text = "Verbindung zum Server fehlgeschlagen.\nBitte Server prüfen und neu starten.";
+					_statusLabel.Text = "Connection to server failed.\nCheck the server and try again.";
 					_bar.Visible = false;
 					_percent.Visible = false;
 					SetProcess(false);
@@ -123,13 +123,13 @@ public partial class SceneLoader : Control
 			case LoadPhase.Handshaking:
 				if (NetMain.Instance?.Client?.Spawned == true)
 				{
-					SetPhase(LoadPhase.LoadingWorld, "Lade Welt…");
+					SetPhase(LoadPhase.LoadingWorld, "Loading world…");
 					BeginWorldLoad();
 				}
 				else if (_phaseTimer > ConnectTimeoutSec)
 				{
 					_failed = true;
-					_statusLabel.Text = "Server akzeptiert keine Spawn-Anfrage.\nVerbindung wird abgebrochen.";
+					_statusLabel.Text = "Server is not accepting the spawn request.\nDisconnecting.";
 					_bar.Visible = false;
 					_percent.Visible = false;
 					SetProcess(false);
@@ -150,7 +150,7 @@ public partial class SceneLoader : Control
 				_percent.Text = $"{Mathf.RoundToInt(_shownRatio * 100f)} %";
 				if (_loaded && _shownRatio >= 0.999f)
 				{
-					SetPhase(LoadPhase.PreloadingAnims, "Lade Animationen…");
+					SetPhase(LoadPhase.PreloadingAnims, "Loading animations…");
 				}
 				return;
 
@@ -165,7 +165,7 @@ public partial class SceneLoader : Control
 				_percent.Text = $"{Mathf.RoundToInt(_shownRatio * 100f)} %";
 				if (_phaseTimer >= PreloadAnimsCosmeticSec)
 				{
-					SetPhase(LoadPhase.PreloadingAudio, "Lade Audio…");
+					SetPhase(LoadPhase.PreloadingAudio, "Loading audio…");
 					BeginAudioPreload();
 				}
 				return;
@@ -178,7 +178,7 @@ public partial class SceneLoader : Control
 				_percent.Text = total > 0 ? $"{_audioFinalizedCount}/{total}" : "0/0";
 				if (total == 0 || _audioFinalizedCount >= total)
 				{
-					SetPhase(LoadPhase.SwitchingScene, "Spawne Spieler…");
+					SetPhase(LoadPhase.SwitchingScene, "Spawning player…");
 					_targetRatio = 1f;
 					_shownRatio = 1f;
 					_bar.Value = 100.0;
@@ -257,7 +257,7 @@ public partial class SceneLoader : Control
 				break;
 			case ResourceLoader.ThreadLoadStatus.Failed:
 			case ResourceLoader.ThreadLoadStatus.InvalidResource:
-				GD.PrintErr($"[SceneLoader] Laden von {TargetScene} fehlgeschlagen.");
+				GD.PrintErr($"[SceneLoader] Failed to load {TargetScene}.");
 				SetProcess(false);
 				break;
 		}
@@ -281,7 +281,7 @@ public partial class SceneLoader : Control
 		col.AddThemeConstantOverride("separation", 14);
 		center.AddChild(col);
 
-		var title = new Label { Text = "LADEN", HorizontalAlignment = HorizontalAlignment.Center };
+		var title = new Label { Text = "LOADING", HorizontalAlignment = HorizontalAlignment.Center };
 		title.AddThemeFontSizeOverride("font_size", 24);
 		title.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.95f));
 		col.AddChild(title);

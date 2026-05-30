@@ -130,7 +130,7 @@ public partial class TeamSelectionMenu : CanvasLayer
 		centreCol.AddThemeConstantOverride("separation", 20);
 		centre.AddChild(centreCol);
 
-		var title = new Label { Text = "WÄHLE DEIN TEAM", HorizontalAlignment = HorizontalAlignment.Center };
+		var title = new Label { Text = "CHOOSE YOUR TEAM", HorizontalAlignment = HorizontalAlignment.Center };
 		title.AddThemeFontSizeOverride("font_size", 30);
 		title.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.95f));
 		centreCol.AddChild(title);
@@ -151,7 +151,7 @@ public partial class TeamSelectionMenu : CanvasLayer
 		// mode without spawning a LocalPlayer. Useful for join-as-spectator (= watch others play).
 		_spectateBtn = new Button
 		{
-			Text = "Nur zuschauen (Spectate)",
+			Text = "Spectate only",
 			CustomMinimumSize = new Vector2(0, 36),
 			SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
 			MouseFilter = Control.MouseFilterEnum.Stop,
@@ -312,7 +312,7 @@ public partial class TeamSelectionMenu : CanvasLayer
 			}
 			// Add LocalPlayer entry (we're not in RemotePlayers — that's only OTHER players).
 			// Show as Spectator since by definition the local user is in the team-select phase.
-			AddRosterEntry(_spectatorList, $"{_cli?.PlayerName ?? "You"} (du)", client.OwnNetId, true);
+			AddRosterEntry(_spectatorList, $"{_cli?.PlayerName ?? "You"} (you)", client.OwnNetId, true);
 			sp++;
 		}
 		_team1Header.Text = $"{Teams.Team1Name} ({t1})";
@@ -355,7 +355,7 @@ public partial class TeamSelectionMenu : CanvasLayer
 		_team2Btn.Disabled = true;
 		if (_spectateBtn != null)
 			_spectateBtn.Disabled = true;
-		_statusLabel.Text = $"Warte auf Spawn ({Teams.DisplayName(team)})…";
+		_statusLabel.Text = $"Waiting for spawn ({Teams.DisplayName(team)})…";
 		NetMain.Instance?.Client?.SendTeamSelect(team);
 	}
 

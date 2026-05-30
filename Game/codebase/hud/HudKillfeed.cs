@@ -95,7 +95,11 @@ public partial class HudKillfeed : Control
 
 	private static string NameOf(byte netId)
 	{
-		if (NetMain.Instance?.Client?.OwnNetId == netId) return "YOU";
+		var client = NetMain.Instance?.Client;
+		if (client == null) return $"Player {netId}";
+		if (client.OwnNetId == netId) return "YOU";
+		if (client.RemotePlayers.TryGetValue(netId, out var p) && !string.IsNullOrEmpty(p.PlayerName))
+			return p.PlayerName;
 		return $"Player {netId}";
 	}
 
