@@ -112,11 +112,12 @@ uniform vec3 smoke_min_39; uniform vec3 smoke_size_39 = vec3(1.0);
 uniform float smoke_density_mul = 60.0;
 uniform int smoke_count = 0;
 
-// Distance-Falloff: ab max_distance Metern Kamera→Pixel beginnt der Shadow auszublenden, ab
-// max_distance + falloff_range ist er 0. Spart Pixel-Shader-Cost auf weit entfernten Flächen.
+// Distance-Falloff: max_distance ist die Aussengrenze (Opacity = 0), falloff_range ist die Breite
+// des sanften Übergangs DAVOR. Pixel < max_distance - falloff_range: voll. Pixel zwischen
+// max_distance - falloff_range und max_distance: smooth fade. Pixel > max_distance: 0 (skip).
 // Settings.CloudShadowDistance steuert max_distance live.
-uniform float max_distance : hint_range(20.0, 500.0) = 150.0;
-uniform float falloff_range : hint_range(5.0, 100.0) = 40.0;
+uniform float max_distance : hint_range(20.0, 500.0) = 120.0;
+uniform float falloff_range : hint_range(5.0, 200.0) = 80.0;
 
 // Rauch-Deckkraft (0..1) entlang Kamera->Flaeche — gleiche Beer-Lambert-Integration wie der
 // Fog-Renderer: integriert die ECHTE Dichte, geclippt auf die Smoke-AABB. Wo der Rauch opak
@@ -155,7 +156,7 @@ void fragment() {
 		// Godot fragment() erlaubt kein early-return → guard via outer if-Block.
 		vec3 cam_pos = INV_VIEW_MATRIX[3].xyz;
 		float dist_to_cam = length(world - cam_pos);
-		float dist_fade = 1.0 - smoothstep(max_distance, max_distance + falloff_range, dist_to_cam);
+		float dist_fade = 1.0 - smoothstep(max_distance - falloff_range, max_distance, dist_to_cam);
 		if (dist_fade > 0.0) {
 
 		// Project up to the cloud layer along the sun ray, sample noise.

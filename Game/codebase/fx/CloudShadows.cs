@@ -1,29 +1,93 @@
 using Godot;
 
 /// <summary>
-/// Drives the ground cloud-shadow overlay (cloud_shadows.gdshader). Every frame this feeds the
-/// currently active <see cref="SmokeVoxelField"/> clouds to the shader — their 3D density texture
-/// and world AABB. The shader reconstructs world position from the depth buffer; pixels that are
-/// in fact behind smoke (volumetric fog writes no depth) would otherwise paint the BACKGROUND's
-/// cloud shadow onto the smoke and make it look translucent. With the density texture the shader
-/// integrates real smoke opacity and masks those pixels precisely.
-/// The [Tool] attribute lets _Ready run in the editor so the mesh can be hidden there — the cloud
-/// shader otherwise runs in the 3D editor viewport and produces "Uniform not supplied" errors.
+/// Ground cloud-shadow overlay component. Drives <c>cloud_shadows.gdshader</c> via a
+/// <see cref="ShaderMaterial"/> material_override on this <see cref="MeshInstance3D"/>.
+/// All artistic shader-uniforms are exposed as [Export] so they can be tuned per-scene from
+/// the inspector. Sun direction is auto-derived from the bound <see cref="SunLightPath"/>
+/// so the projection stays in sync with any DirectionalLight3D rotation.
+/// Performance: every export is pushed exactly once (in _Ready) plus once per inspector edit
+/// via the property setter. _Process only feeds the per-frame smoke fields (3D density + AABB).
 /// </summary>
 [Tool]
+[GlobalClass]
 public partial class CloudShadows : MeshInstance3D
 {
 	private const int MaxSmokes = 40;
 
-	private ShaderMaterial _mat;
-	// Pre-cached StringName-Arrays für SetShaderParameter — sonst allokiert "smoke_tex_" + n pro
-	// Frame × pro Smoke × pro Param = 120+ String-Allocs/sec wenn 3 Smokes aktiv. Plus StringName
-	// (Godot-internal hashed key) ist schneller als string.
+	[Export] public NodePath SunLightPath { get; set; }
+
+	private Texture2D _cloudNoise;
+	[Export] public Texture2D CloudNoise { get => _cloudNoise; set { _cloudNoise = value; if (value != null) _mat?.SetShaderParameter(_cloudNoiseParam, value); } }
+
+	private float _cloudHeight = 20.0f;
+	[Export(PropertyHint.Range, "1,200,0.5")] public float CloudHeight { get => _cloudHeight; set { _cloudHeight = value; _mat?.SetShaderParameter(_cloudHeightParam, value); } }
+
+	private Vector2 _noiseTiling = new(3, 3);
+	[Export] public Vector2 NoiseTiling { get => _noiseTiling; set { _noiseTiling = value; _mat?.SetShaderParameter(_noiseTilingParam, value); } }
+
+	private Vector2 _windSpeed = new(0.05f, 0.05f);
+	[Export] public Vector2 WindSpeed { get => _windSpeed; set { _windSpeed = value; _mat?.SetShaderParameter(_windSpeedParam, value); } }
+
+	private float _cloudSag = 2.0f;
+	[Export(PropertyHint.Range, "0.5,4,0.01")] public float CloudSag { get => _cloudSag; set { _cloudSag = value; _mat?.SetShaderParameter(_cloudSagParam, value); } }
+
+	private float _coverage = 0.55f;
+	[Export(PropertyHint.Range, "0,1,0.01")] public float Coverage { get => _coverage; set { _coverage = value; _mat?.SetShaderParameter(_coverageParam, value); } }
+
+	private float _softness = 0.22f;
+	[Export(PropertyHint.Range, "0.01,0.6,0.01")] public float Softness { get => _softness; set { _softness = value; _mat?.SetShaderParameter(_softnessParam, value); } }
+
+	private float _shadowStrength = 0.65f;
+	[Export(PropertyHint.Range, "0,1,0.01")] public float ShadowStrength { get => _shadowStrength; set { _shadowStrength = value; _mat?.SetShaderParameter(_shadowStrengthParam, value); } }
+
+	private Color _shadowTint = new(0.02f, 0.03f, 0.06f, 1f);
+	[Export] public Color ShadowTint { get => _shadowTint; set { _shadowTint = value; _mat?.SetShaderParameter(_shadowTintParam, value); } }
+
+	private float _surfaceFalloff = 0.4f;
+	[Export(PropertyHint.Range, "0.05,1,0.01")] public float SurfaceFalloff { get => _surfaceFalloff; set { _surfaceFalloff = value; _mat?.SetShaderParameter(_surfaceFalloffParam, value); } }
+
+	private float _shadowBrightnessFloor = 0.15f;
+	[Export(PropertyHint.Range, "0,0.5,0.01")] public float ShadowBrightnessFloor { get => _shadowBrightnessFloor; set { _shadowBrightnessFloor = value; _mat?.SetShaderParameter(_shadowBrightnessFloorParam, value); } }
+
+	private float _shadowBrightnessFull = 0.3f;
+	[Export(PropertyHint.Range, "0.05,1,0.01")] public float ShadowBrightnessFull { get => _shadowBrightnessFull; set { _shadowBrightnessFull = value; _mat?.SetShaderParameter(_shadowBrightnessFullParam, value); } }
+
+	private float _maxDistance = 120f;
+	[Export(PropertyHint.Range, "20,500,1")] public float MaxDistance { get => _maxDistance; set { _maxDistance = value; _mat?.SetShaderParameter(_maxDistanceParam, value); } }
+
+	private float _falloffRange = 80f;
+	[Export(PropertyHint.Range, "5,200,1")] public float FalloffRange { get => _falloffRange; set { _falloffRange = value; _mat?.SetShaderParameter(_falloffRangeParam, value); } }
+
+	private float _smokeDensityMul = 60f;
+	[Export(PropertyHint.Range, "1,500,1")] public float SmokeDensityMul { get => _smokeDensityMul; set { _smokeDensityMul = value; _mat?.SetShaderParameter(_smokeDensityMulParam, value); } }
+
+	// Pre-cached StringNames for every parameter. Avoids string→StringName allocation on every
+	// setter call and on per-frame smoke updates (would otherwise allocate ~120 strings/sec at 60fps × 40 smokes).
+	private static readonly StringName _sunTravelDirParam = "sun_travel_dir";
+	private static readonly StringName _cloudNoiseParam = "cloud_noise";
+	private static readonly StringName _cloudHeightParam = "cloud_height";
+	private static readonly StringName _noiseTilingParam = "noise_tiling";
+	private static readonly StringName _windSpeedParam = "wind_speed";
+	private static readonly StringName _cloudSagParam = "cloud_sag";
+	private static readonly StringName _coverageParam = "coverage";
+	private static readonly StringName _softnessParam = "softness";
+	private static readonly StringName _shadowStrengthParam = "shadow_strength";
+	private static readonly StringName _shadowTintParam = "shadow_tint";
+	private static readonly StringName _surfaceFalloffParam = "surface_falloff";
+	private static readonly StringName _shadowBrightnessFloorParam = "shadow_brightness_floor";
+	private static readonly StringName _shadowBrightnessFullParam = "shadow_brightness_full";
+	private static readonly StringName _maxDistanceParam = "max_distance";
+	private static readonly StringName _falloffRangeParam = "falloff_range";
+	private static readonly StringName _smokeDensityMulParam = "smoke_density_mul";
 	private static readonly StringName[] _smokeTexParams = new StringName[MaxSmokes];
 	private static readonly StringName[] _smokeMinParams = new StringName[MaxSmokes];
 	private static readonly StringName[] _smokeSizeParams = new StringName[MaxSmokes];
 	private static readonly StringName _smokeCountParam = "smoke_count";
+
+	private ShaderMaterial _mat;
 	private int _lastSmokeCount = -1;
+
 	static CloudShadows()
 	{
 		for (int i = 0; i < MaxSmokes; i++)
@@ -34,17 +98,49 @@ public partial class CloudShadows : MeshInstance3D
 		}
 	}
 
-	/// <summary>Caches the ShaderMaterial reference and warns if no override material is set.</summary>
 	public override void _Ready()
 	{
 		_mat = MaterialOverride as ShaderMaterial;
 		if (_mat == null)
-			GD.PushWarning("[cloud_shadows] No ShaderMaterial as material_override — smoke mask inactive.");
+		{
+			GD.PushWarning("[cloud_shadows] No ShaderMaterial as material_override — component inactive.");
+			return;
+		}
+
+		DirectionalLight3D sun = SunLightPath != null && !SunLightPath.IsEmpty
+			? GetNodeOrNull<DirectionalLight3D>(SunLightPath)
+			: null;
+		if (sun != null)
+		{
+			_mat.SetShaderParameter(_sunTravelDirParam, -sun.GlobalTransform.Basis.Z);
+		}
+		else
+		{
+			GD.PushWarning("[cloud_shadows] SunLightPath not set or not a DirectionalLight3D — sun_travel_dir falls back to material default and will not track light rotation.");
+		}
+
+		PushAllExports();
 	}
 
-	/// <summary>Pushes the active smoke fields' density textures and bounds into the shader each frame.
-	/// Pre-cached StringNames + skip wenn count unverändert UND 0 aktive Smokes → 0 SetShaderParameter
-	/// Calls in der häufigsten Frame (no smokes deployed).</summary>
+	private void PushAllExports()
+	{
+		if (_cloudNoise != null) _mat.SetShaderParameter(_cloudNoiseParam, _cloudNoise);
+		_mat.SetShaderParameter(_cloudHeightParam, _cloudHeight);
+		_mat.SetShaderParameter(_noiseTilingParam, _noiseTiling);
+		_mat.SetShaderParameter(_windSpeedParam, _windSpeed);
+		_mat.SetShaderParameter(_cloudSagParam, _cloudSag);
+		_mat.SetShaderParameter(_coverageParam, _coverage);
+		_mat.SetShaderParameter(_softnessParam, _softness);
+		_mat.SetShaderParameter(_shadowStrengthParam, _shadowStrength);
+		_mat.SetShaderParameter(_shadowTintParam, _shadowTint);
+		_mat.SetShaderParameter(_surfaceFalloffParam, _surfaceFalloff);
+		_mat.SetShaderParameter(_shadowBrightnessFloorParam, _shadowBrightnessFloor);
+		_mat.SetShaderParameter(_shadowBrightnessFullParam, _shadowBrightnessFull);
+		_mat.SetShaderParameter(_maxDistanceParam, _maxDistance);
+		_mat.SetShaderParameter(_falloffRangeParam, _falloffRange);
+		_mat.SetShaderParameter(_smokeDensityMulParam, _smokeDensityMul);
+	}
+
 	public override void _Process(double delta)
 	{
 		using var _prof = MiniProfiler.SampleClient("CloudShadows._Process");
@@ -52,17 +148,16 @@ public partial class CloudShadows : MeshInstance3D
 		if (!Settings.CloudShadows) return;
 
 		var active = SmokeVoxelField.Active;
-		int n = 0;
-		for (int i = 0; i < active.Count && n < MaxSmokes; i++)
+		var n = 0;
+		for (var i = 0; i < active.Count && n < MaxSmokes; i++)
 		{
-			SmokeVoxelField f = active[i];
+			var f = active[i];
 			if (f.DensityTexture == null) continue;
 			_mat.SetShaderParameter(_smokeTexParams[n], f.DensityTexture);
 			_mat.SetShaderParameter(_smokeMinParams[n], f.GridMin);
 			_mat.SetShaderParameter(_smokeSizeParams[n], f.GridSize);
 			n++;
 		}
-		// Count nur updaten wenn geändert — der häufigste Fall ist 0 Smokes, dann skipt das alle 4 SetShaderParameter-Calls.
 		if (n != _lastSmokeCount)
 		{
 			_mat.SetShaderParameter(_smokeCountParam, n);
