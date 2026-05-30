@@ -7,10 +7,10 @@ using Godot;
 /// weapon's velocity buffer — so without a dedicated effect, weapon-motion-blur is
 /// missing in CoD-style FPS feel.
 ///
-/// All non-MB effects (heat haze, CA, sharpen, vignette, grain) stay off on this
-/// effect — those are handled by the world-side path and would double-apply to the
-/// weapon otherwise. Just the velocity-buffer reconstruction motion blur is what's
-/// useful here.
+/// All non-MB effects (CA, sharpen, vignette, grain) stay off on this effect —
+/// those are handled by the world-side path and would double-apply to the
+/// weapon otherwise. Just the velocity-buffer reconstruction motion blur is
+/// what's useful here.
 ///
 /// Lifecycle: <see cref="Attach"/> wires up the Compositor once after local player
 /// spawn. <see cref="SetEnabled"/> toggles the effect at runtime as Settings change
@@ -33,7 +33,6 @@ public static class ViewmodelMotionBlur
 		var comp = new Compositor();
 		_effect = new PostProcessEffect
 		{
-			HeatHaze = false,
 			ChromaticAberration = false,
 			Sharpening = false,
 			Vignette = false,

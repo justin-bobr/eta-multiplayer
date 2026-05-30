@@ -4,8 +4,8 @@
 // Post-process compute pass for the PostProcessEffect CompositorEffect.
 // Two passes via the `mode` push constant:
 //   mode 0 -> point-copy the colour buffer into a temp image.
-//   mode 1 -> heat haze + chromatic aberration + motion blur + sharpening +
-//             vignette + grain, writing temp -> colour buffer.
+//   mode 1 -> chromatic aberration + motion blur + sharpening + vignette + grain,
+//             writing temp -> colour buffer.
 //
 // The source is always bound as a LINEAR-sampled texture (binding 0) and the
 // destination always as a storage image (binding 1). No texture is ever bound
@@ -21,6 +21,10 @@ layout(rgba16f, set = 0, binding = 1) uniform writeonly image2D dst_image;
 layout(set = 0, binding = 2) uniform sampler2D depth_tex;
 layout(set = 0, binding = 3) uniform sampler2D velocity_tex;
 
+// Vulkan push-constants are clamped UP to a 16-byte boundary by the driver
+// (Godot reports the rounded size). With 11 trailing floats after the mat4 +
+// vec3 + float pair we land at 116 bytes — three explicit pads bring us to
+// 128 to match the pipeline's expected push-constant size.
 layout(push_constant, std430) uniform Params {
 	mat4 inv_view_proj;
 	vec3 camera_pos;
@@ -28,14 +32,14 @@ layout(push_constant, std430) uniform Params {
 	vec2 raster_size;
 	float aberration;
 	float sharpen;
-	float haze_strength;
 	float grain_strength;
-	float haze_start;        // metres
-	float haze_end;          // metres
 	float time;
 	float mode;
 	float vignette_strength;
 	float vignette_radius;
+	float _pad0;
+	float _pad1;
+	float _pad2;
 } p;
 
 // Bilinear scene-colour fetch (pass 1). src_color is bound through a LINEAR +
@@ -111,45 +115,7 @@ void main() {
 	// Pass 1: effects (temp -> colour buffer).
 	vec2 puv = (vec2(coord) + 0.5) / p.raster_size;
 	vec4 src = texture(src_color, puv);
-
-	// Reconstruct world distance from depth (for the heat haze gate).
-	float depth = texture(depth_tex, puv).r;
-	bool has_geo = depth > 0.0;
-	float dist = 0.0;
-	if (has_geo) {
-		vec4 w = p.inv_view_proj * vec4(puv * 2.0 - 1.0, depth, 1.0);
-		dist = distance(w.xyz / w.w, p.camera_pos);
-	}
-
-	// --- Heat haze: subtle desert shimmer on distant geometry only.
-	// Two octaves of value noise (second is domain-warped by the first) instead
-	// of pure sines - the old sin/sin pattern read as regular "rolling waves",
-	// real heat haze is high-frequency and irregular. Vertical-biased + slight
-	// upward drift = hot-air-rises feel. Noise is sampled in pixel-space cells
-	// so cell size is resolution-stable.
 	vec2 uv = puv;
-	if (has_geo) {
-		float gate = smoothstep(p.haze_start, p.haze_end, dist);
-		gate *= gate;  // ease-in - fades in over distance instead of snapping on
-		if (gate > 0.001) {
-			float t = p.time;
-			vec2 cell = p.raster_size / vec2(32.0, 18.0);  // elongated layers
-			vec2 ns = puv * cell;
-			ns.y -= t * 1.4;  // UV-y flipped vs world -> subtract = upward drift
-			float n1 = vnoise(ns) - 0.5;
-			float n2 = vnoise(ns * 2.3 + vec2(n1 * 1.8, t * 0.5)) - 0.5;
-			// Vertical wobble dominates (what reads as "heat shimmer"),
-			// horizontal stays small so distant edges don't slosh sideways.
-			vec2 wob = vec2(n2 * 0.35, n1 + n2 * 0.5);
-			vec2 hazed = puv + wob * p.haze_strength * gate;
-			// Reject the distortion if it would pull in NEARER geometry (the
-			// viewmodel). Reverse-Z: nearer = larger depth value. Haze stays
-			// strictly on far objects - never smears the gun in the cam.
-			if (texture(depth_tex, hazed).r < depth + 0.05) {
-				uv = hazed;
-			}
-		}
-	}
 
 	// --- Chromatic aberration: edge-weighted spectral fringe ---
 	// Real lens CA is ~zero in the centre and ramps up quadratically toward the
@@ -203,11 +169,23 @@ void main() {
 		}
 	}
 
-	// --- Sharpening: unsharp mask from 4 neighbours ---
-	vec2 px = 1.0 / p.raster_size;
-	vec3 blur = load_uv(uv + vec2(px.x, 0.0)) + load_uv(uv - vec2(px.x, 0.0))
-		+ load_uv(uv + vec2(0.0, px.y)) + load_uv(uv - vec2(0.0, px.y));
-	col += (col - blur * 0.25) * p.sharpen;
+	// --- Sharpening: luma-only unsharp mask from 4 neighbours ---
+	// Per-channel sharpening on HDR colour amplifies pre-existing chromatic offsets
+	// (from the CA pass above, lightmap noise, normal mapping) at high-contrast edges,
+	// which renders as pink/cyan fringes around sun-vs-shadow boundaries. Boosting
+	// luminance instead keeps the sharpen achromatic. The ±0.5 clamp bounds the HDR
+	// overshoot so the rgba16f buffer never receives extreme single-pass deltas from
+	// the sharpen alone (sun-lit pixels easily reach colour=5+ with light_energy=2.5
+	// — a raw per-channel boost on a sun↔shadow neighbour pair can otherwise lift one
+	// channel into a tonemap range the other channels don't reach).
+	if (p.sharpen > 0.0) {
+		vec2 px = 1.0 / p.raster_size;
+		vec3 blur4 = load_uv(uv + vec2(px.x, 0.0)) + load_uv(uv - vec2(px.x, 0.0))
+			+ load_uv(uv + vec2(0.0, px.y)) + load_uv(uv - vec2(0.0, px.y));
+		const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+		float hp = dot(col - blur4 * 0.25, LUMA) * p.sharpen;
+		col += vec3(clamp(hp, -0.5, 0.5));
+	}
 
 	// --- Vignette ---
 	float vig = 1.0 - smoothstep(p.vignette_radius * 0.4, p.vignette_radius, length(puv - vec2(0.5)));

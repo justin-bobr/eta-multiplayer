@@ -28,6 +28,11 @@ public partial class SettingsMenu : CanvasLayer
 	private OptionButton _presetOpt;
 	private HSlider _renderScaleSlider;
 	private Label _renderScaleValue;
+	private HSlider _viewmodelScaleSlider;
+	private Label _viewmodelScaleValue;
+	private HSlider _uiScaleSlider;
+	private Label _uiScaleValue;
+	private OptionButton _uiMsaaOpt;
 	private OptionButton _aaOpt;
 	private OptionButton _upscalerOpt;
 	private OptionButton _shadowsOpt;
@@ -44,9 +49,11 @@ public partial class SettingsMenu : CanvasLayer
 	private OptionButton _motionBlurOpt;
 	private OptionButton _filmGrainOpt;
 	private OptionButton _vignetteOpt;
+	private OptionButton _sharpeningOpt;
 	private OptionButton _adsDofOpt;
 	private OptionButton _adsFovZoomOpt;
 	private OptionButton _autoExposureOpt;
+	private OptionButton _teamGlowOpt;
 	private OptionButton _viewBobOpt;
 	private OptionButton _sprintSwayOpt;
 	private OptionButton _mouseInertiaOpt;
@@ -278,6 +285,12 @@ public partial class SettingsMenu : CanvasLayer
 		(_renderScaleSlider, _renderScaleValue) = AddSlider(vbox, "Render Scale", 0.5f, 1.0f, 0.05f);
 		_renderScaleSlider.ValueChanged += OnRenderScaleChanged;
 
+		(_viewmodelScaleSlider, _viewmodelScaleValue) = AddSlider(vbox, "Viewmodel Render Scale", 0.5f, 1.0f, 0.05f);
+		_viewmodelScaleSlider.ValueChanged += OnViewmodelScaleChanged;
+
+		_uiMsaaOpt = AddDropdown(vbox, "UI Quality (MSAA 2D)", new[] { "Off", "2×", "4×", "8×" });
+		_uiMsaaOpt.ItemSelected += OnUiMsaaChanged;
+
 		_aaOpt = AddDropdown(vbox, "Anti-Aliasing", new[] { "Off", "FXAA", "SMAA", "TAA" });
 		_aaOpt.ItemSelected += OnAaChanged;
 
@@ -344,6 +357,9 @@ public partial class SettingsMenu : CanvasLayer
 		_vignetteOpt = AddDropdown(vbox, "Vignette", new[] { "Off", "On" });
 		_vignetteOpt.ItemSelected += OnVignetteChanged;
 
+		_sharpeningOpt = AddDropdown(vbox, "Sharpening", new[] { "Off", "On" });
+		_sharpeningOpt.ItemSelected += OnSharpeningChanged;
+
 		_adsDofOpt = AddDropdown(vbox, "Depth of Field (ADS)", new[] { "Off", "On" });
 		_adsDofOpt.ItemSelected += OnAdsDofChanged;
 
@@ -352,6 +368,9 @@ public partial class SettingsMenu : CanvasLayer
 
 		_autoExposureOpt = AddDropdown(vbox, "Auto Exposure", new[] { "Off", "On" });
 		_autoExposureOpt.ItemSelected += OnAutoExposureChanged;
+
+		_teamGlowOpt = AddDropdown(vbox, "Team Glow (CS2-Outline)", new[] { "Off", "On" });
+		_teamGlowOpt.ItemSelected += OnTeamGlowChanged;
 
 		AddSectionHeader(vbox, "KAMERA-EFFEKTE");
 		_viewBobOpt = AddDropdown(vbox, "View Bob (Lauf-Bobbing)", new[] { "Off", "On" });
@@ -414,6 +433,9 @@ public partial class SettingsMenu : CanvasLayer
 
 		(_brightnessSlider, _brightnessValue) = AddSlider(vbox, "Brightness", 0.6f, 1.4f, 0.05f);
 		_brightnessSlider.ValueChanged += OnBrightnessChanged;
+
+		(_uiScaleSlider, _uiScaleValue) = AddSlider(vbox, "UI Scale", 0.8f, 1.5f, 0.05f);
+		_uiScaleSlider.ValueChanged += OnUiScaleChanged;
 
 		AddSectionHeader(vbox, "HUD");
 		(_hudMarginHSlider, _hudMarginHValue) = AddSlider(vbox, "HUD-Rand Horizontal", 0f, 140f, 2f);
@@ -532,6 +554,11 @@ public partial class SettingsMenu : CanvasLayer
 		_presetOpt.Selected = (int)Settings.Preset;
 		_renderScaleSlider.Value = Settings.RenderScale;
 		_renderScaleValue.Text = Mathf.RoundToInt(Settings.RenderScale * 100f) + "%";
+		_viewmodelScaleSlider.Value = Settings.ViewmodelRenderScale;
+		_viewmodelScaleValue.Text = Mathf.RoundToInt(Settings.ViewmodelRenderScale * 100f) + "%";
+		_uiScaleSlider.Value = Settings.UiScale;
+		_uiScaleValue.Text = Mathf.RoundToInt(Settings.UiScale * 100f) + "%";
+		_uiMsaaOpt.Selected = (int)Settings.UiMsaa;
 		_aaOpt.Selected = (int)Settings.AntiAliasing;
 		_upscalerOpt.Selected = (int)Settings.Upscaler;
 		_shadowsOpt.Selected = (int)Settings.Shadows;
@@ -552,9 +579,11 @@ public partial class SettingsMenu : CanvasLayer
 		_motionBlurOpt.Selected = Settings.MotionBlur ? 1 : 0;
 		_filmGrainOpt.Selected = Settings.FilmGrain ? 1 : 0;
 		_vignetteOpt.Selected = Settings.Vignette ? 1 : 0;
+		_sharpeningOpt.Selected = Settings.Sharpening ? 1 : 0;
 		_adsDofOpt.Selected = Settings.AdsDepthOfField ? 1 : 0;
 		_adsFovZoomOpt.Selected = Settings.AdsFovZoom ? 1 : 0;
 		_autoExposureOpt.Selected = Settings.AutoExposure ? 1 : 0;
+		_teamGlowOpt.Selected = Settings.TeamGlow ? 1 : 0;
 		_viewBobOpt.Selected = Settings.ViewBob ? 1 : 0;
 		_sprintSwayOpt.Selected = Settings.SprintSway ? 1 : 0;
 		_mouseInertiaOpt.Selected = Settings.MouseInertia ? 1 : 0;
@@ -590,6 +619,37 @@ public partial class SettingsMenu : CanvasLayer
 		if (_suppressEvents)
 			return;
 		Settings.RenderScale = (float)v;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Viewmodel-scale slider changed: SubViewport of the weapon viewmodel scales independently from the world. Useful when world is at 75% but iron-sight detail matters at 100%.</summary>
+	private void OnViewmodelScaleChanged(double v)
+	{
+		_viewmodelScaleValue.Text = Mathf.RoundToInt((float)v * 100f) + "%";
+		if (_suppressEvents)
+			return;
+		Settings.ViewmodelRenderScale = (float)v;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>UI-scale slider changed: drives Window.ContentScaleFactor at runtime — scales all CanvasItems (HUD, crosshair, menu) without re-resolving.</summary>
+	private void OnUiScaleChanged(double v)
+	{
+		_uiScaleValue.Text = Mathf.RoundToInt((float)v * 100f) + "%";
+		if (_suppressEvents)
+			return;
+		Settings.UiScale = (float)v;
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>UI MSAA dropdown changed: drives root Viewport.Msaa2D — smooths Control edges and text outlines.</summary>
+	private void OnUiMsaaChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.UiMsaa = (Viewport.Msaa)(int)idx;
 		MarkCustomPreset();
 		Settings.Apply(GetTree());
 	}
@@ -758,6 +818,16 @@ public partial class SettingsMenu : CanvasLayer
 		Settings.Apply(GetTree());
 	}
 
+	/// <summary>Sharpening toggle changed. Settings.Apply gates the compositor pass on the user toggle AND the no-FSR-upscaler check (FSR's RCAS already sharpens — don't stack).</summary>
+	private void OnSharpeningChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.Sharpening = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
 	/// <summary>ADS FOV zoom toggle changed.</summary>
 	private void OnAdsFovZoomChanged(long idx)
 	{
@@ -776,6 +846,17 @@ public partial class SettingsMenu : CanvasLayer
 		Settings.AutoExposure = idx == 1;
 		MarkCustomPreset();
 		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Team-glow composite toggle changed. GlowViewportSync polls Settings.TeamGlow each
+	/// _Process tick and flips the glow CanvasLayer's visibility — no Settings.Apply walk-the-tree
+	/// needed because each LocalPlayer instance owns its own glow_sync node.</summary>
+	private void OnTeamGlowChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.TeamGlow = idx == 1;
+		MarkCustomPreset();
 	}
 
 	/// <summary>ADS depth-of-field toggle changed.</summary>

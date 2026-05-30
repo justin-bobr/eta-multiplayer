@@ -2,17 +2,16 @@ using Godot;
 
 /// <summary>
 /// CompositorEffect running after all transparency. Combines all screen-space
-/// post effects (heat haze, chromatic aberration, sharpening, vignette, film
-/// grain, motion blur) into a single compute pass. Hooked into the render
-/// pipeline via a Compositor on the WorldEnvironment (compositor.tres).
-/// Requires a non-multisampled color buffer (TAA, not MSAA). Each effect can
-/// be toggled individually.
+/// post effects (chromatic aberration, sharpening, vignette, film grain,
+/// motion blur) into a single compute pass. Hooked into the render pipeline
+/// via a Compositor on the WorldEnvironment (compositor.tres). Requires a
+/// non-multisampled color buffer (TAA, not MSAA). Each effect can be toggled
+/// individually.
 /// </summary>
 [Tool]
 [GlobalClass]
 public partial class PostProcessEffect : CompositorEffect
 {
-	[Export] public bool HeatHaze = true;
 	[Export] public bool ChromaticAberration = true;
 	[Export] public bool Sharpening = true;
 	[Export] public bool Vignette = true;
@@ -22,15 +21,12 @@ public partial class PostProcessEffect : CompositorEffect
 
 	[Export(PropertyHint.Range, "0.0,0.02,0.0001")] public float Aberration = 0.0026f;
 	[Export(PropertyHint.Range, "0.0,2.0,0.01")] public float Sharpen = 0.25f;
-	[Export(PropertyHint.Range, "0.0,0.01,0.0001")] public float HazeStrength = 0.0018f;
-	[Export(PropertyHint.Range, "0.0,200.0,1.0")] public float HazeStart = 45.0f;
-	[Export(PropertyHint.Range, "10.0,400.0,1.0")] public float HazeEnd = 180.0f;
 	[Export(PropertyHint.Range, "0.0,1.0,0.01")] public float VignetteStrength = 0.18f;
 	[Export(PropertyHint.Range, "0.2,1.5,0.01")] public float VignetteRadius = 1.05f;
 	[Export(PropertyHint.Range, "0.0,0.5,0.01")] public float VignetteAdsBoost = 0.15f;
 	/// <summary>Runtime value driven by LocalAnimation: 0 = no ADS, 1 = full ADS boost.</summary>
 	public float AdsBlend = 0f;
-	[Export(PropertyHint.Range, "0.0,0.3,0.005")] public float GrainStrength = 0.07f;
+	[Export(PropertyHint.Range, "0.0,0.5,0.005")] public float GrainStrength = 0.085f;
 	[Export(PropertyHint.Range, "0.0,8.0,0.1")] public float MotionBlurStrength = 3.0f;
 
 	private RenderingDevice _rd;
@@ -191,12 +187,10 @@ public partial class PostProcessEffect : CompositorEffect
 		push[20] = size.X; push[21] = size.Y;
 		push[22] = ChromaticAberration ? Aberration : 0.0f;
 		push[23] = Sharpening ? Sharpen : 0.0f;
-		push[24] = HeatHaze ? HazeStrength : 0.0f;
-		push[25] = FilmGrain ? GrainStrength : 0.0f;
-		push[26] = HazeStart; push[27] = HazeEnd;
-		push[28] = time; push[29] = mode;
-		push[30] = Vignette ? (VignetteStrength + VignetteAdsBoost * AdsBlend) : 0.0f;
-		push[31] = VignetteRadius;
+		push[24] = FilmGrain ? GrainStrength : 0.0f;
+		push[25] = time; push[26] = mode;
+		push[27] = Vignette ? (VignetteStrength + VignetteAdsBoost * AdsBlend) : 0.0f;
+		push[28] = VignetteRadius;
 
 		byte[] pushBytes = new byte[push.Length * sizeof(float)];
 		System.Buffer.BlockCopy(push, 0, pushBytes, 0, pushBytes.Length);

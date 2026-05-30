@@ -37,6 +37,12 @@ public static class Settings
 
 	public static QualityPreset Preset = QualityPreset.High;
 	public static float RenderScale = 0.85f;
+	/// <summary>Scale of the weapon viewmodel SubViewport. Independent from the world RenderScale so the user can keep iron-sight clarity at 100% while running the world at e.g. 75%. Mode stays Bilinear because the viewmodel viewport is transparent_bg + own_world_3d (FSR on transparent BG is a known Godot hazard).</summary>
+	public static float ViewmodelRenderScale = 1.0f;
+	/// <summary>UI Content-Scale-Factor applied to the root Window. Maps directly to Window.ContentScaleFactor — runtime-changeable, scales every Control/CanvasItem (HUD, crosshair, menus). 1.0 = native UI, &lt;1 = smaller (more screen real estate), &gt;1 = larger (better readability on 4K/large monitors). Lives in the Display tab — controls size/readability, not visual quality.</summary>
+	public static float UiScale = 1.0f;
+	/// <summary>UI rendering quality — 2D MSAA on the root Viewport. Smooths jagged Control edges (rounded corners, font outlines, vector shapes) at the cost of a few percent GPU. Disabled = native, 2x/4x/8x = progressively smoother text and HUD shapes. Lives in the Graphics tab — controls visual quality, not size.</summary>
+	public static Viewport.Msaa UiMsaa = Viewport.Msaa.Disabled;
 	public static AntiAliasingMode AntiAliasing = AntiAliasingMode.Taa;
 	public static UpscalingMode Upscaler = UpscalingMode.Fsr1;
 	public static ShadowQuality Shadows = ShadowQuality.High;
@@ -56,10 +62,19 @@ public static class Settings
 	public static bool MotionBlur = true;
 	public static bool FilmGrain = true;
 	public static bool Vignette = true;
+	/// <summary>Toggle the post-process unsharp-mask pass in <c>post_process.glsl</c> (luma-only). Auto-disabled when an FSR upscaler is active because FSR1's RCAS and FSR2's built-in sharpener both run after the compositor — stacking would oversharpen. Off here forces the pass off in every mode.</summary>
+	public static bool Sharpening = true;
 	public static bool AdsDepthOfField = true;
 	public static bool AdsFovZoom = true;
 	/// <summary>Toggles Camera3D auto-exposure (CameraAttributesPractical.AutoExposureEnabled). When on, the camera adapts ISO sensitivity to scene brightness (cinematic look); when off, brightness is fixed (kompetitiv preference — bright/dark areas read identically). Scene-default is true.</summary>
 	public static bool AutoExposure = true;
+	/// <summary>Toggle the CS2-style team-glow composite (teammate body silhouette + nameplate
+	/// rendered via two SubViewports composited onto the screen). Off = the entire glow CanvasLayer
+	/// is hidden, which also halts the two SubViewport render passes (Godot stops updating viewports
+	/// whose parent canvas is invisible at WHEN_VISIBLE update mode — for our ALWAYS mode the cameras
+	/// still tick but contribute nothing on-screen). Used to A/B compare the world's look with vs.
+	/// without the glow overlay.</summary>
+	public static bool TeamGlow = true;
 	public static bool ShowDebugBar = false;
 	public static bool ShowNetGraph = false;
 
@@ -126,7 +141,7 @@ public static class Settings
 				RenderScale = 0.50f; Upscaler = UpscalingMode.Fsr1; AntiAliasing = AntiAliasingMode.Fxaa;
 				Shadows = ShadowQuality.Low; AmbientOcclusion = false;
 				Reflections = false; ReflectionProbes = ReflectionProbeQuality.Low; VolumetricFog = VolumetricFogQuality.Low;
-				Sky = false; CloudShadows = false; CloudShadowDistance = 60f; GodRays = false; LensFlare = false; DustMotes = false;
+				Sky = true; CloudShadows = false; CloudShadowDistance = 60f; GodRays = false; LensFlare = false; DustMotes = false;
 				MotionBlur = false; FilmGrain = false; Vignette = false; AdsDepthOfField = false;
 				ViewBob = false; SprintSway = false; MouseInertia = false; DirectionLean = false; CameraShake = false;
 				break;
@@ -188,6 +203,9 @@ public static class Settings
 
 		Preset = (QualityPreset)cfg.GetValue("graphics", "preset", (int)Preset).AsInt32();
 		RenderScale = (float)cfg.GetValue("graphics", "render_scale", RenderScale).AsDouble();
+		ViewmodelRenderScale = (float)cfg.GetValue("graphics", "viewmodel_render_scale", ViewmodelRenderScale).AsDouble();
+		UiScale = (float)cfg.GetValue("video", "ui_scale", UiScale).AsDouble();
+		UiMsaa = (Viewport.Msaa)cfg.GetValue("graphics", "ui_msaa", (int)UiMsaa).AsInt32();
 		AntiAliasing = (AntiAliasingMode)cfg.GetValue("graphics", "aa", (int)AntiAliasing).AsInt32();
 		Upscaler = (UpscalingMode)cfg.GetValue("graphics", "upscaler", (int)Upscaler).AsInt32();
 		Shadows = (ShadowQuality)cfg.GetValue("graphics", "shadows", (int)Shadows).AsInt32();
@@ -207,9 +225,11 @@ public static class Settings
 		MotionBlur = cfg.GetValue("graphics", "motion_blur", MotionBlur).AsBool();
 		FilmGrain = cfg.GetValue("graphics", "film_grain", FilmGrain).AsBool();
 		Vignette = cfg.GetValue("graphics", "vignette", Vignette).AsBool();
+		Sharpening = cfg.GetValue("graphics", "sharpening", Sharpening).AsBool();
 		AdsDepthOfField = cfg.GetValue("graphics", "ads_dof", AdsDepthOfField).AsBool();
 		AdsFovZoom = cfg.GetValue("graphics", "ads_fov_zoom", AdsFovZoom).AsBool();
 		AutoExposure = cfg.GetValue("graphics", "auto_exposure", AutoExposure).AsBool();
+		TeamGlow = cfg.GetValue("graphics", "team_glow", TeamGlow).AsBool();
 		ViewBob = cfg.GetValue("camera", "view_bob", ViewBob).AsBool();
 		SprintSway = cfg.GetValue("camera", "sprint_sway", SprintSway).AsBool();
 		MouseInertia = cfg.GetValue("camera", "mouse_inertia", MouseInertia).AsBool();
@@ -261,6 +281,9 @@ public static class Settings
 
 		cfg.SetValue("graphics", "preset", (int)Preset);
 		cfg.SetValue("graphics", "render_scale", RenderScale);
+		cfg.SetValue("graphics", "viewmodel_render_scale", ViewmodelRenderScale);
+		cfg.SetValue("video", "ui_scale", UiScale);
+		cfg.SetValue("graphics", "ui_msaa", (int)UiMsaa);
 		cfg.SetValue("graphics", "aa", (int)AntiAliasing);
 		cfg.SetValue("graphics", "upscaler", (int)Upscaler);
 		cfg.SetValue("graphics", "shadows", (int)Shadows);
@@ -277,9 +300,11 @@ public static class Settings
 		cfg.SetValue("graphics", "motion_blur", MotionBlur);
 		cfg.SetValue("graphics", "film_grain", FilmGrain);
 		cfg.SetValue("graphics", "vignette", Vignette);
+		cfg.SetValue("graphics", "sharpening", Sharpening);
 		cfg.SetValue("graphics", "ads_dof", AdsDepthOfField);
 		cfg.SetValue("graphics", "ads_fov_zoom", AdsFovZoom);
 		cfg.SetValue("graphics", "auto_exposure", AutoExposure);
+		cfg.SetValue("graphics", "team_glow", TeamGlow);
 		cfg.SetValue("camera", "view_bob", ViewBob);
 		cfg.SetValue("camera", "sprint_sway", SprintSway);
 		cfg.SetValue("camera", "mouse_inertia", MouseInertia);
@@ -327,17 +352,34 @@ public static class Settings
 
 		DisplayServer.WindowSetVsyncMode(VSync);
 
+		// UI Content-Scale runtime — applied to the root Window. ContentScaleFactor
+		// scales every Control / CanvasItem (HUD, crosshair, menus) uniformly without
+		// re-rendering at a different resolution. Cheaper than a UI-Viewport approach
+		// and matches CS2's "UI Scale" semantics.
+		if (tree?.Root is Window rootWindow) rootWindow.ContentScaleFactor = UiScale;
+
 		Viewport.Scaling3DModeEnum scalingMode = ResolveScalingMode();
 		bool fsr2Active = scalingMode == Viewport.Scaling3DModeEnum.Fsr2;
+		// TAA is only compatible with Bilinear (native or trivial scale). FSR2 has its own
+		// temporal pass and forces TAA off internally. FSR1 is spatial-only and doesn't see
+		// the TAA jitter pattern — the temporal history can't converge through the upscale,
+		// frames disagree, and the result is visible flicker + PCF-shadow noise that never
+		// gets averaged out. Treat both FSR modes as TAA-incompatible.
+		bool taaCompatible = scalingMode == Viewport.Scaling3DModeEnum.Bilinear;
+		// If the user picked TAA but the active upscaler can't honour it, fall back to FXAA
+		// for the screen-space pass so they still get SOME anti-aliasing instead of nothing.
+		AntiAliasingMode effectiveAa = (AntiAliasing == AntiAliasingMode.Taa && !taaCompatible)
+			? AntiAliasingMode.Fxaa
+			: AntiAliasing;
 		Viewport.ScreenSpaceAAEnum ssAa = fsr2Active
 			? Viewport.ScreenSpaceAAEnum.Disabled
-			: AntiAliasing switch
+			: effectiveAa switch
 			{
 				AntiAliasingMode.Fxaa => Viewport.ScreenSpaceAAEnum.Fxaa,
 				AntiAliasingMode.Smaa => Viewport.ScreenSpaceAAEnum.Smaa,
 				_ => Viewport.ScreenSpaceAAEnum.Disabled,
 			};
-		bool useTaa = !fsr2Active && AntiAliasing == AntiAliasingMode.Taa;
+		bool useTaa = taaCompatible && AntiAliasing == AntiAliasingMode.Taa;
 
 		if (tree?.Root is Viewport vp)
 		{
@@ -350,6 +392,10 @@ public static class Settings
 			vp.Scaling3DMode = scalingMode;
 			vp.UseTaa = useTaa;
 			vp.ScreenSpaceAA = ssAa;
+			// 2D MSAA on the root viewport — smooths Control edges (HUD/text/menu)
+			// without affecting 3D AA. Independent of Msaa3D which we keep disabled
+			// (TAA path can't coexist with 3D MSAA).
+			vp.Msaa2D = UiMsaa;
 		}
 
 		if (tree?.Root != null)
@@ -367,7 +413,7 @@ public static class Settings
 				// from scaling it down is not worth the buffer-state hazards.
 				sv.UseTaa = false;
 				sv.Msaa3D = Viewport.Msaa.Disabled;
-				sv.Scaling3DScale = 1.0f;
+				sv.Scaling3DScale = ViewmodelRenderScale;
 				sv.Scaling3DMode = Viewport.Scaling3DModeEnum.Bilinear;
 				sv.ScreenSpaceAA = Viewport.ScreenSpaceAAEnum.Disabled;
 				if (!brightnessIsIdentity && sv.GetParent() is SubViewportContainer svc)
@@ -431,17 +477,22 @@ public static class Settings
 		int dirAtlasSize = q switch
 		{
 			ShadowQuality.Off => 0,
-			ShadowQuality.Low => 1024,
-			ShadowQuality.Medium => 2048,
-			ShadowQuality.High => 4096,
-			_ => 2048,
+			ShadowQuality.Low => 2048,
+			ShadowQuality.Medium => 4096,
+			ShadowQuality.High => 8192,
+			_ => 4096,
 		};
+		// PCF-Soft-Filter mit dem Sun bei voller Energy (1.5) macht stippling-Noise
+		// die auch durch Atlas-Vergrößerung nicht weggeht — der Noise sitzt im Sample-
+		// Pattern selbst, nicht in der Texel-Auflösung. Shadows=Low fährt deshalb Hard
+		// (CS-Style: harte Texel-Kanten, KEIN Noise — kompetitiv sauber). Medium/High
+		// haben weiter PCF, aber mit höheren Sample-Counts für glatteres Result.
 		RenderingServer.ShadowQuality filterQ = q switch
 		{
-			ShadowQuality.Low => RenderingServer.ShadowQuality.SoftLow,
+			ShadowQuality.Low => RenderingServer.ShadowQuality.Hard,
 			ShadowQuality.Medium => RenderingServer.ShadowQuality.SoftMedium,
 			ShadowQuality.High => RenderingServer.ShadowQuality.SoftHigh,
-			_ => RenderingServer.ShadowQuality.SoftLow,
+			_ => RenderingServer.ShadowQuality.Hard,
 		};
 		RenderingServer.DirectionalShadowAtlasSetSize(dirAtlasSize, false);
 		RenderingServer.DirectionalSoftShadowFilterSetQuality(filterQ);
@@ -506,7 +557,13 @@ public static class Settings
 		if (FindWorldEnvironment(tree)?.Environment is not Godot.Environment env)
 			return;
 		env.SsaoEnabled = AmbientOcclusion;
+		// Reflections toggle controls BOTH screen-space reflections (SSR) and screen-space indirect
+		// lighting (SSIL). SSIL is defined per-scene in WorldEnvironment (e.g., de_dust2 ships with
+		// ssil_radius=4.0, ssil_intensity=1.2) and previously had no Settings hook, so users who
+		// turned off Reflections expecting a perf save still paid the SSIL cost. Tying both to one
+		// flag matches CS2's "Screen Space Effects" combined toggle and keeps the menu lean.
 		env.SsrEnabled = Reflections;
+		env.SsilEnabled = Reflections;
 		// VolumetricFog is the rendering substrate the smoke-grenade system writes into
 		// — never let it be toggled off at runtime. Quality (volume-grid size) IS user-
 		// toggleable, but the on/off flag is hardcoded true here. Quality-change requires
@@ -532,6 +589,7 @@ public static class Settings
 
 	private static Sky _cachedSkyResource;
 	private static Godot.Environment.BGMode _cachedBgMode = Godot.Environment.BGMode.Sky;
+	private static Godot.Environment.AmbientSource _cachedAmbientSource = Godot.Environment.AmbientSource.Bg;
 	private static bool _skyCached;
 
 	/// <summary>Toggles the individual map VFX nodes (cloud shadows, god rays, lens flare, dust
@@ -551,17 +609,25 @@ public static class Settings
 			{
 				_cachedSkyResource = env.Sky;
 				_cachedBgMode = env.BackgroundMode;
+				_cachedAmbientSource = env.AmbientLightSource;
 				_skyCached = true;
 			}
 			if (Sky)
 			{
 				env.Sky = _cachedSkyResource;
 				env.BackgroundMode = _cachedBgMode;
+				env.AmbientLightSource = _cachedAmbientSource;
 			}
 			else
 			{
+				// Sky off: clear the sky resource AND switch ambient/reflection sources off the
+				// Sky cube. The scene-default ambient_light_source = Sky (3) — when env.Sky becomes
+				// null, sampling that cube returns undefined / white texels, which shows up as
+				// blown-out walls on materials that take their ambient term from it. Force the
+				// explicit ambient_light_color path instead.
 				env.Sky = null;
 				env.BackgroundMode = Godot.Environment.BGMode.ClearColor;
+				env.AmbientLightSource = Godot.Environment.AmbientSource.Color;
 			}
 		}
 
@@ -574,6 +640,19 @@ public static class Settings
 		if (mapRoot.GetNodeOrNull("GodRays") is Node3D gr) gr.Visible = GodRays;
 		if (mapRoot.GetNodeOrNull("LensFlare") is Node3D lf) lf.Visible = LensFlare;
 		if (mapRoot.GetNodeOrNull("DustMotes") is Node3D dm) dm.Visible = DustMotes;
+
+		// Reflection Probes laufen unabhängig von SSR/SSIL — Settings.Reflections=Off
+		// schaltet nur die Screen-Space-Effekte ab, die Cubemap-Probes sampelten weiter
+		// die Outdoor-Sky-HDR und projizierten sie auch in Tunnel-Innenräume (Probes
+		// die interior=false haben). Toggle hier mit, damit Reflections=Off wirklich
+		// ALLE Reflexionen tötet — sowohl Screen-Space als auch Probe-basiert.
+		if (tree?.Root != null)
+		{
+			foreach (Node n in tree.Root.FindChildren("*", "ReflectionProbe", true, false))
+			{
+				if (n is ReflectionProbe rp) rp.Visible = Reflections;
+			}
+		}
 
 		// Two post-FX paths — only one is active at a time. FSR2 needs an unmodified
 		// color buffer for its temporal-upscale pass, so the full Compositor effect path
@@ -597,6 +676,8 @@ public static class Settings
 		// Stacking our compositor sharpening on top of that causes oversharpen halos
 		// (visible as a "weird crunch" on high-frequency content like god rays). When
 		// an FSR upscaler is active, skip our own sharpen pass — let the upscaler do it.
+		// User Sharpening toggle gates the whole thing — Off forces the pass off in
+		// every mode regardless of upscaler.
 		bool upscalerProvidesSharpen = effective != UpscalingMode.Bilinear;
 		if (we?.Compositor is Compositor comp)
 			foreach (CompositorEffect effect in comp.CompositorEffects)
@@ -608,7 +689,7 @@ public static class Settings
 					ppe.MotionBlur = MotionBlur;
 					ppe.FilmGrain = FilmGrain;
 					ppe.Vignette = Vignette;
-					ppe.Sharpening = !upscalerProvidesSharpen;
+					ppe.Sharpening = Sharpening && !upscalerProvidesSharpen;
 				}
 			}
 		if (PostCanvasFx.Instance != null)

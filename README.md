@@ -38,36 +38,10 @@ The result is a round-based competitive shooter with classic tactical pacing —
 
 ---
 
-## Known Bugs
-
-### LightmapGI not applied in exported release builds (Godot 4.6.3)
-
-**Symptom.** The world renders correctly when launched from the editor (F5) — warm-beige Dust2 walls, properly shaded indoors, baked indirect light visible. The **same scene exported to a release build** (`build-windows.cmd`) renders washed out: walls and floor become near-pure white, distant geometry loses detail, sky clips to white. Auto-exposure exacerbates it but is **not** the root cause — turning AE off still leaves the release build over-bright. The viewmodel SubViewport (separate `WorldEnvironment`) is unaffected.
-
-**Diagnosis (May 2026).** Bisected extensively. **Ruled out:**
-- Custom `PostProcessEffect` Compositor pass (no-op'd, no change).
-- `Settings.Brightness` and `settings.cfg` state (deleted, no change).
-- SDFGI (not enabled in this scene).
-- Auto-exposure alone (off in release still blown).
-- Custom engine build flags — `production=yes` removed and full module strip removed, identical result.
-- Custom export template vs. stock 4.6.3-stable template — both produce the same broken release.
-- `directional=true/false` on the LightmapGI node — rebaked both ways, identical result.
-- D3D12 vs. Vulkan rendering driver — both produce the same broken release.
-- `shader_baker/enabled` toggle in the export preset.
-- Texture-import format / BPTC packing — the `.bptc.ctexarray` is present in the PCK and loads successfully at runtime (verified via runtime diagnostic).
-- The lightmap **data resource itself** is loaded into the `LightmapGI` node at runtime (confirmed via the `[lightmap-diag] data=OK` print in `Settings.DumpLightmapGIState`).
-
-**Suspected cause.** Forward+ pipeline-selection or material-side gate that prevents the loaded `LightmapGIData` from actually being sampled in template_release engine builds. Editor-target (`target=editor`) builds work, template-target (`target=template_release`) builds do not, despite both being built from the same Godot 4.6.3-stable source. No `#ifdef TOOLS_ENABLED` gate found around the lightmap render path in a quick source audit, so the divergence is subtler. Related upstream issues: [godotengine/godot#107180](https://github.com/godotengine/godot/issues/107180), [#111125](https://github.com/godotengine/godot/pull/111125), [#73122](https://github.com/godotengine/godot/issues/73122) — none are a perfect match.
-
-**Workaround.** None found yet. The lightmap loads but doesn't contribute. Tracking. Filing a Godot bug with a minimal-reproduction project is the next planned step.
-
----
-
 ## Table of Contents
 
 - [ETA](#eta)
   - [Status](#status)
-  - [Known Bugs](#known-bugs)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
     - [Networking \& Multiplayer](#networking--multiplayer)

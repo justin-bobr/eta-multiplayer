@@ -92,63 +92,36 @@ public partial class PuppetPlayer : Node3D
 	private MeshInstance3D _serverPosDebugCapsule;
 	private CapsuleMesh _debugCapsuleMesh;
 
-	private CanvasLayer _nameplateLayer;
-	private Label _nameplateLabel;
 	private byte _lastShownHp = 255;
 	private byte _lastShownTeamSlot = 255;
 	private byte _lastAppliedTeam = 255;
 	private byte _lastAppliedLocalTeam = 255;
-	private ShaderMaterial _teamGlowOverlay;
+	private Color _cachedTeamColor = new(1f, 1f, 1f, 1f);
+	private bool _cachedTeamColorValid = false;
+	/// <summary>False until the FIRST UpdateNameAndGlow has been observed for this puppet. Forces the
+	/// TeamSlot block to run on the first call regardless of whether snap.TeamSlot equals the reset
+	/// _lastShownTeamSlot (= 255). Without this guard, if the initial snapshot has TeamSlot = 255
+	/// (server-side "no team assigned yet" sentinel), the delta check (255 != 255 = false) silently
+	/// skipped — material stayed at the default white for 2-3 s until the server finally sent a
+	/// real team-slot value. Symptom user observed: "wird grün erst nach ner Zeit wenn man davor steht".</summary>
+	private bool _hasInitialAppliedTeamColor = false;
 
-	/// <summary>Shared Inverted-Hull-Outline-Shader für Team-Glow. Pushed Vertices entlang Normal,
-	/// rendert nur Backfaces (cull_front) unshaded → CS2-Style farbiger Outline um die Silhouette.
-	/// Godot 4 wendet Skinning POST vertex() an, daher funktioniert das auch auf animierten Skin-Meshes
-	/// (im Gegensatz zu StandardMaterial3D.Grow als MaterialOverlay, das auf skinned-mesh oft fehlschlägt).
-	/// Static-cached weil der Shader-Code identisch ist über alle Puppets; nur die uniforms variieren
-	/// per ShaderMaterial-Instance.</summary>
-	private static Shader _outlineShaderCached;
-	private static Shader OutlineShader => _outlineShaderCached ??= new Shader
-	{
-		Code = @"shader_type spatial;
-// CS2-Style Wallhack-Glow als single-pass shader: sample DEPTH_TEXTURE pro Fragment, compare with
-// own view-space distance.
-//   - Fragment is BEHIND scene depth (occluded) → soft xray fill (= teammate ghost-silhouette durch Wand)
-//   - Fragment is IN FRONT (visible) → Fresnel-Rim am Silhouette-Rand (= sauberer Outline)
-// depth_test_disabled damit Fragment-Shader auch hinter der Szene läuft (sonst HW-cull).
-// depth_draw_never damit wir die Szenen-Depth nicht beschmutzen.
-render_mode unshaded, blend_mix, depth_draw_never, depth_test_disabled, shadows_disabled, cull_back;
+	/// <summary>The pre-baked single-mesh silhouette node living under the puppet's Skeleton3D
+	/// (created in puppet_player.tscn via the GlowSilhouetteMeshBaker editor tool). All puppets share
+	/// the same baked mesh + material chain (outline_hull → outline_xray → inner_fade); per-puppet
+	/// team colour is pushed via SetInstanceShaderParameter("team_color", …) on this MeshInstance3D,
+	/// so there's no per-puppet material instancing — the GPU's instance-shader-param slot does the
+	/// per-team split for free. Glow visibility is just a <see cref="GeometryInstance3D.Visible"/>
+	/// toggle.</summary>
+	private GlowSilhouetteMeshBaker _glowSilhouette;
+	/// <summary>World-space Label3D rendering "Name\nHP" parented directly to <see cref="_visual"/>
+	/// (NOT to the head bone via BoneAttachment3D — the skeleton subtree is scaled 0.01, which would
+	/// shrink the Position offset to millimetres and force counter-scale gymnastics). Layered onto
+	/// the glow text viewport ONLY — the main camera does not see it; the composite shader picks it
+	/// up from text_tex and stamps it back over the final scene with the team-colour modulate.</summary>
+	private Label3D _glowNameLabel;
 
-uniform vec4 outline_color : source_color = vec4(1.0, 0.0, 0.0, 1.0);
-uniform float rim_power : hint_range(0.5, 16.0) = 8.0;
-uniform float rim_strength : hint_range(0.0, 4.0) = 0.8;
-uniform float xray_alpha : hint_range(0.0, 1.0) = 0.35;
-uniform float depth_tolerance = 0.05;
-uniform sampler2D depth_tex : hint_depth_texture, repeat_disable, filter_nearest;
-
-void fragment() {
-	// 1) Szenen-Depth am aktuellen Screen-Pixel rauslesen + zu View-Space-Distanz unprojizieren.
-	float scene_ndc = textureLod(depth_tex, SCREEN_UV, 0.0).r;
-	vec4 view_pos = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, scene_ndc, 1.0);
-	float scene_dist = -view_pos.z / view_pos.w;
-	// 2) Aktuelle Fragment-Distanz: VERTEX in View-Space, Z negativ → -Z = positive Distanz.
-	float frag_dist = -VERTEX.z;
-	bool occluded = frag_dist > scene_dist + depth_tolerance;
-
-	// 3) Fresnel-Rim für visible Path.
-	float ndotv = max(dot(normalize(NORMAL), normalize(VIEW)), 0.0);
-	float rim = pow(1.0 - ndotv, rim_power) * rim_strength;
-
-	ALBEDO = outline_color.rgb;
-	if (occluded) {
-		// Wallhack-Ghost: weicher Color-Fill, geringe Alpha damit es nicht zu blickdicht ist.
-		ALPHA = xray_alpha * outline_color.a;
-	} else {
-		// Sichtbar: nur Silhouette-Rim, Body-Mitte transparent.
-		ALPHA = clamp(rim, 0.0, 1.0) * outline_color.a;
-	}
-}",
-	};
-	private readonly List<MeshInstance3D> _visualMeshes = new();
+	private const uint GlowTextVisualLayer = 1u << 19; // visual layer 20 = glow_text_camera cull_mask
 
 	/// <summary>Instantiates the visual child, configures animation throttling, and wires the puppet flags.</summary>
 	public override void _Ready()
@@ -203,65 +176,72 @@ void fragment() {
 		};
 		AddChild(_serverPosDebugCapsule);
 
-		// Nameplate als 2D-HUD-Overlay statt Label3D — Welt-Pos wird per-frame zur Screen-Pos projiziert
-		// via Camera3D.UnprojectPosition. Bleibt damit konstant Pixel-groß egal wie weit der Puppet weg ist
-		// (Label3D.FixedSize in Godot 4 hat invertiertes Skalierungsverhalten — fern=größer statt konstant).
-		// CanvasLayer im PuppetPlayer-Tree damit Lifecycle automatisch mit dem Puppet geht.
-		_nameplateLayer = new CanvasLayer { Layer = 5 };
-		_nameplateLabel = new Label
-		{
-			Text = string.IsNullOrEmpty(PlayerName) ? $"Player_{NetId}" : PlayerName,
-			HorizontalAlignment = HorizontalAlignment.Center,
-			VerticalAlignment = VerticalAlignment.Center,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			Visible = false,
-		};
-		_nameplateLabel.AddThemeFontSizeOverride("font_size", 12);
-		_nameplateLabel.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.95f));
-		_nameplateLabel.AddThemeConstantOverride("outline_size", 6);
-		_nameplateLabel.AddThemeColorOverride("font_shadow_color", new Color(0f, 0f, 0f, 0.85f));
-		_nameplateLabel.AddThemeConstantOverride("shadow_offset_x", 2);
-		_nameplateLabel.AddThemeConstantOverride("shadow_offset_y", 2);
-		_nameplateLabel.AddThemeConstantOverride("shadow_outline_size", 2);
-		_nameplateLayer.AddChild(_nameplateLabel);
-		AddChild(_nameplateLayer);
-
 		// Deferred — _visual's own _Ready muss erst laufen damit eventuelle dynamische Meshes
 		// (z.B. via WeaponHolder spawned weapon visuals) im Tree sind. _Ready läuft post-deferred.
-		CallDeferred(MethodName.CollectVisualMeshesDeferred);
+		// BuildGlowVisualsDeferred also spawns the Label3D nameplate on the head bone (see method).
+		CallDeferred(MethodName.BuildGlowVisualsDeferred);
 	}
 
-	private void CollectVisualMeshesDeferred()
+	/// <summary>Walks the visual subtree once, finds the pre-baked silhouette MeshInstance3D
+	/// (GlowSilhouetteMeshBaker instance, parented to the puppet's Skeleton3D in puppet_player.tscn),
+	/// resets the delta trackers, and attaches the Label3D nameplate. Per-puppet team colour is
+	/// pushed via SetInstanceShaderParameter on the silhouette in <see cref="UpdateNameAndGlow"/>;
+	/// visibility flipping happens in <see cref="ApplyTeamGlow"/>.</summary>
+	private void BuildGlowVisualsDeferred()
 	{
-		_visualMeshes.Clear();
-		CollectVisualMeshes(_visual);
-		Dbg.Print($"[PuppetPlayer netId={NetId}] collected {_visualMeshes.Count} mesh instances for team glow overlay");
+		_glowSilhouette = FindGlowSilhouette(_visual);
+		if (_glowSilhouette != null) _glowSilhouette.Visible = false;
+
+		_lastShownTeamSlot = 255;
+		_lastShownHp = 255;
+		_lastAppliedTeam = 255;
+		_lastAppliedLocalTeam = 255;
+		_hasInitialAppliedTeamColor = false;
+		_cachedTeamColorValid = false;
+
+		string baseName = string.IsNullOrEmpty(PlayerName) ? $"Player_{NetId}" : PlayerName;
+		_glowNameLabel = new Label3D
+		{
+			Name = "glow_name_label",
+			Text = baseName,
+			Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+			NoDepthTest = true,
+			FixedSize = false,
+			FontSize = 64,
+			OutlineSize = 12,
+			Modulate = Colors.White,
+			OutlineModulate = new Color(0f, 0f, 0f, 1f),
+			PixelSize = 0.0025f,
+			Position = new Vector3(0f, _visual.StandHeight + 0.25f, 0f),
+			Layers = GlowTextVisualLayer,
+			Visible = false,
+		};
+		_visual.AddChild(_glowNameLabel);
+
+		Dbg.Print($"[PuppetPlayer netId={NetId}] glow visuals built: silhouette={(_glowSilhouette != null)} + Label3D");
+
+		// If a snapshot is already buffered (network arrived before this deferred call ran), fire
+		// UpdateNameAndGlow immediately so team_color + glow visibility are correct on the first
+		// frame the silhouette renders. Without this, the glow appeared default-white for several
+		// seconds until the next _Process tick crossed the delta-tracker reset (user observation:
+		// "weiß für 5 sekunden bevor grün greift").
+		if (_buf.Count > 0) UpdateNameAndGlow(_buf[_buf.Count - 1].Snap);
 	}
 
-	// Nur diese Mesh-Name-Prefixes kriegen den Team-Glow-Overlay. Alles andere (PlateCarrier, Pouches,
-	// Belt, HeadGear, Banger, Gun) wird ausgelassen — sonst kriegt jedes einzelne Equipment-Mesh
-	// seinen eigenen Fresnel-Rand und der Char sieht aus wie ein neon-explodiertes Weihnachtsbäumchen.
-	// Nur die Body-Layer (Haut + Klamotten unter dem Equipment) konturen die Silhouette sauber.
-	private static readonly string[] GlowMeshNamePrefixes =
+	/// <summary>Depth-first search for the GlowSilhouetteMeshBaker MeshInstance3D the editor tool
+	/// baked into puppet_player.tscn. We don't hard-code a path because the user may have nested
+	/// it under a different node than the Skeleton3D root (e.g. a "GlowGroup" container, a costume
+	/// variant subtree). Returns the first match — only one silhouette per puppet is expected.</summary>
+	private static GlowSilhouetteMeshBaker FindGlowSilhouette(Node root)
 	{
-		"SK_Shirt", "SK_Shorts", "SK_Pants", "SK_Sleeve", "SK_Gloves",
-		"SK_HeadGear", "SK_Head_", "SK_Body", "SK_Skin",
-	};
-
-	private static bool IsGlowMesh(string nodeName)
-	{
-		if (string.IsNullOrEmpty(nodeName)) return false;
-		for (int i = 0; i < GlowMeshNamePrefixes.Length; i++)
-			if (nodeName.StartsWith(GlowMeshNamePrefixes[i])) return true;
-		return false;
-	}
-
-	/// <summary>Walks the visual subtree once and caches body-only MeshInstance3D's so the team-glow
-	/// overlay only outlines the body silhouette (not vest/pouches/helmet/gun). See <see cref="GlowMeshNamePrefixes"/>.</summary>
-	private void CollectVisualMeshes(Node node)
-	{
-		if (node is MeshInstance3D mi && IsGlowMesh(mi.Name)) _visualMeshes.Add(mi);
-		for (int i = 0; i < node.GetChildCount(); i++) CollectVisualMeshes(node.GetChild(i));
+		if (root == null) return null;
+		if (root is GlowSilhouetteMeshBaker baker) return baker;
+		for (int i = 0; i < root.GetChildCount(); i++)
+		{
+			var found = FindGlowSilhouette(root.GetChild(i));
+			if (found != null) return found;
+		}
+		return null;
 	}
 
 	/// <summary>5 klare Grundfarben — blau/grün/rot/lila/gelb. Reicht für ein 5-vs-5 Match (= ein
@@ -281,94 +261,62 @@ void fragment() {
 	/// so each player has one persistent visual identity. Skips greyscale on purpose.</summary>
 	public static Color PlayerColor(byte netId) => PlayerPalette[netId % PlayerPalette.Length];
 
-	/// <summary>Pushes the latest snapshot HP/Team/TeamSlot into the name label and applies the per-player
-	/// glow overlay. Color = palette[teamSlot] (unique within team, can repeat across teams). Glow + Label
-	/// nur wenn puppet.Team == localSelf.Team UND nicht Deathmatch. Nameplate wird via UnprojectPosition
-	/// 2D-projiziert (= konstante Pixel-Größe, kein Distanz-Skaling).</summary>
+	/// <summary>Pushes the latest snapshot HP/Team/TeamSlot into the Label3D nameplate and the shared
+	/// body-ID material. Glow + label nur wenn puppet.Team == localSelf.Team UND nicht Deathmatch.
+	/// TeamSlot/Hp/Team are delta-checked so we don't re-allocate strings or push uniform changes
+	/// every frame. The Label3D billboards itself in 3D so no per-frame projection math is needed.</summary>
 	private void UpdateNameAndGlow(SnapshotPlayer snap)
 	{
-		if (_nameplateLabel == null) return;
-
 		var localSnap = NetMain.Instance?.Client?.LastSelfSnap;
 		bool localTeamKnown = localSnap.HasValue;
 		byte localTeam = localTeamKnown ? localSnap.Value.Team : (byte)255;
 		bool isDeathmatch = snap.Team == (byte)Team.Deathmatch;
 		bool isTeammate = localTeamKnown && !isDeathmatch && snap.Team == localTeam;
+		// Spectator mode: local player has no team yet (still in lobby / joined as spectator) OR
+		// is dead (Hp == 0 → in death-cam / spectating remaining teammates and enemies). In both
+		// cases reveal the glow on EVERY puppet, not just teammates — matches CS2 spectator UX.
+		bool localIsSpectating = !localTeamKnown || localSnap.Value.Hp == 0;
 
-		UpdateNameplateScreenPos(isTeammate);
-
-		// Color-Override nur bei TeamSlot-Wechsel — AddThemeColorOverride alloziert ein Variant
-		// und macht ein Godot-Theme-Update jedes Mal. TeamSlot ist persistent für die Session,
-		// changed praktisch nie nach erstem Snapshot.
-		if (_lastShownTeamSlot != snap.TeamSlot)
+		if (!_hasInitialAppliedTeamColor || _lastShownTeamSlot != snap.TeamSlot)
 		{
+			_hasInitialAppliedTeamColor = true;
 			_lastShownTeamSlot = snap.TeamSlot;
-			_nameplateLabel.AddThemeColorOverride("font_color", PlayerColor(snap.TeamSlot));
+			var color = PlayerColor(snap.TeamSlot);
+			_cachedTeamColor = new Color(color.R, color.G, color.B, 1f);
+			_cachedTeamColorValid = true;
+			if (_glowNameLabel != null) _glowNameLabel.Modulate = new Color(color.R, color.G, color.B, 0.5f);
 		}
-		if (_lastShownHp != snap.Hp)
+		if (_lastShownHp != snap.Hp && _glowNameLabel != null)
 		{
 			_lastShownHp = snap.Hp;
 			string baseName = string.IsNullOrEmpty(PlayerName) ? $"Player_{NetId}" : PlayerName;
-			_nameplateLabel.Text = $"{baseName}\n{snap.Hp} HP";
+			_glowNameLabel.Text = $"{baseName}\n{snap.Hp} HP";
 		}
 
-		if (_lastAppliedTeam != snap.Team || _lastAppliedLocalTeam != localTeam)
+		bool wantGlow = (isTeammate || localIsSpectating) && Settings.TeamGlow;
+		if (_lastAppliedTeam != snap.Team || _lastAppliedLocalTeam != localTeam || wantGlow != _glowCurrentlyOn)
 		{
 			_lastAppliedTeam = snap.Team;
 			_lastAppliedLocalTeam = localTeam;
-			ApplyTeamGlow(isTeammate, PlayerColor(snap.TeamSlot));
+			ApplyTeamGlow(wantGlow);
 		}
 	}
 
-	/// <summary>Projects the puppet's head world-position to screen-space via the active Camera3D and
-	/// positions the 2D Nameplate-Label there. Label size is FontSize (= konstant pixel-basiert),
-	/// Position folgt der projizierten Kopf-Position. Returns early wenn cam fehlt oder Puppet hinter Cam ist.</summary>
-	private void UpdateNameplateScreenPos(bool isTeammate)
-	{
-		if (!isTeammate) { _nameplateLabel.Visible = false; return; }
-		var cam = GetViewport()?.GetCamera3D();
-		if (cam == null) { _nameplateLabel.Visible = false; return; }
-		Vector3 headWorld = _visual.GlobalPosition + new Vector3(0f, _visual.StandHeight + 0.2f, 0f);
-		if (cam.IsPositionBehind(headWorld)) { _nameplateLabel.Visible = false; return; }
-		Vector2 screen = cam.UnprojectPosition(headWorld);
-		Vector2 size = _nameplateLabel.Size;
-		_nameplateLabel.Position = new Vector2(screen.X - size.X * 0.5f, screen.Y - size.Y);
-		_nameplateLabel.Visible = true;
-	}
+	private bool _glowCurrentlyOn;
 
-	private void ApplyTeamGlow(bool enabled, Color teamColor)
+	/// <summary>Toggles the pre-baked silhouette MeshInstance3D + Label3D nameplate. The silhouette's
+	/// material chain (outline_hull → outline_distance → N fade-tail shells) is already attached at
+	/// scene-bake time; flipping Visible is the entire on/off mechanism. Settings.TeamGlow gates
+	/// the whole thing so the user can A/B compare from the Settings menu without recompile.
+	/// Spectator-mode visibility (alive teammates only vs. all-puppets-when-dead) is decided in
+	/// <see cref="UpdateNameAndGlow"/> via the localIsSpectating clause.</summary>
+	private void ApplyTeamGlow(bool enabled)
 	{
-		if (!enabled)
-		{
-			int cleared = 0;
-			foreach (var m in _visualMeshes) if (GodotObject.IsInstanceValid(m))
-			{
-				m.MaterialOverlay = null;
-				m.IgnoreOcclusionCulling = false;
-				cleared++;
-			}
-			Dbg.Print($"[PuppetPlayer netId={NetId}] team glow OFF — cleared {cleared} meshes (puppetTeam={_lastAppliedTeam} localTeam={_lastAppliedLocalTeam})");
-			return;
-		}
-		if (_teamGlowOverlay == null)
-		{
-			_teamGlowOverlay = new ShaderMaterial { Shader = OutlineShader };
-			_teamGlowOverlay.SetShaderParameter("outline_width", 0.025f);
-		}
-		_teamGlowOverlay.SetShaderParameter("outline_color", new Color(teamColor.R, teamColor.G, teamColor.B, 1f));
-		int applied = 0;
-		foreach (var m in _visualMeshes)
-		{
-			if (!GodotObject.IsInstanceValid(m)) continue;
-			m.MaterialOverlay = _teamGlowOverlay;
-			// Occlusion-Culling per Layer-20-Occluder würde sonst die ganze Mesh-Submission killen
-			// wenn der Puppet hinter ner Wand steht — kein Material läuft → kein Glow. Für Teammates
-			// brauchen wir den Mesh IMMER eingereicht, damit der Fresnel-Rim sichtbar ist sobald
-			// die Camera (auch nur knapp) den Char sieht (z.B. um eine Ecke).
-			m.IgnoreOcclusionCulling = true;
-			applied++;
-		}
-		Dbg.Print($"[PuppetPlayer netId={NetId}] team glow ON color=({teamColor.R:F2},{teamColor.G:F2},{teamColor.B:F2}) applied to {applied} meshes (inverted-hull outline)");
+		_glowCurrentlyOn = enabled;
+		if (_glowSilhouette != null && GodotObject.IsInstanceValid(_glowSilhouette))
+			_glowSilhouette.Visible = enabled;
+		if (_glowNameLabel != null) _glowNameLabel.Visible = enabled;
+		Dbg.Print($"[PuppetPlayer netId={NetId}] team glow {(enabled ? "ON" : "OFF")} — silhouette toggled (puppetTeam={_lastAppliedTeam} localTeam={_lastAppliedLocalTeam})");
 	}
 
 	/// <summary>Update jeden Frame: rote Server-Position-Debug-Capsule auf die NEUESTE Server-Pos
@@ -599,13 +547,45 @@ void fragment() {
 			UpdateSpectateTpsCollision((float)delta);
 
 		UpdateServerPosDebugCapsule();
-		// Skip nameplate + team-glow work on far-off / off-frustum puppets — the label
-		// is invisible to the player anyway, no reason to project + theme-update it.
+		if (_cachedTeamColorValid && _glowSilhouette != null && GodotObject.IsInstanceValid(_glowSilhouette))
+			_glowSilhouette.SetInstanceShaderParameter("team_color", _cachedTeamColor);
+
+		// Per-frame frustum gate on the silhouette. We could rely on Godot's automatic frustum
+		// culling at render time (it would still skip the mesh-submit when fully off-camera), but
+		// we ALSO want the upstream Visible flag to flip so the per-instance shader-parameter
+		// push above becomes a no-op for off-screen puppets — saves a tiny per-frame CPU cost
+		// over a 10-puppet match. Tests six representative AABB points (feet, head, four sides
+		// at mid height): if ANY one is inside the active 3D camera's frustum, the puppet is
+		// considered visible (matches the user request: "auch wenn nur ein stück in meiner
+		// kamera ist"). Through-wall visibility is preserved via IgnoreOcclusionCulling = true
+		// on the baked silhouette node — the frustum check only gates true off-camera puppets.
+		if (_glowCurrentlyOn && _glowSilhouette != null && GodotObject.IsInstanceValid(_glowSilhouette))
+		{
+			bool wantVisible = SilhouetteInActiveCameraFrustum();
+			if (_glowSilhouette.Visible != wantVisible) _glowSilhouette.Visible = wantVisible;
+		}
+
 		if (_lodTier != PuppetLodTier.Off)
 			UpdateNameAndGlow(_buf[_buf.Count - 1].Snap);
-		else if (_nameplateLabel != null && _nameplateLabel.Visible)
-			_nameplateLabel.Visible = false;
 	}
+
+	private bool SilhouetteInActiveCameraFrustum()
+	{
+		var cam = GetViewport()?.GetCamera3D();
+		if (cam == null || _visual == null) return true;
+		Vector3 pos = _visual.GlobalPosition;
+		float h = _visual.StandHeight;
+		float r = _visual.CapsuleRadius;
+		float hHalf = h * 0.5f;
+		if (cam.IsPositionInFrustum(pos)) return true;
+		if (cam.IsPositionInFrustum(pos + new Vector3(0f, h, 0f))) return true;
+		if (cam.IsPositionInFrustum(pos + new Vector3(r, hHalf, 0f))) return true;
+		if (cam.IsPositionInFrustum(pos + new Vector3(-r, hHalf, 0f))) return true;
+		if (cam.IsPositionInFrustum(pos + new Vector3(0f, hHalf, r))) return true;
+		if (cam.IsPositionInFrustum(pos + new Vector3(0f, hHalf, -r))) return true;
+		return false;
+	}
+
 
 	/// <summary>Activates the camera matching the current <see cref="SpectateMode"/>.</summary>
 	private void ApplySpectateMode()
