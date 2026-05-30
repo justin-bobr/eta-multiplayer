@@ -225,8 +225,23 @@ void fragment() {
     // use_color_alpha: TextureAlpha aus dem Color-Alpha-Kanal (Blender: g_tColor.Alpha → TextureAlpha).
     float tex_alpha_0 = use_color_alpha ? c0.a : texture_alpha_0;
     float tex_alpha_1 = use_color_alpha ? c1.a : texture_alpha_1;
-    blend *= mix(tex_alpha_0, tex_alpha_1, 0.5) * 2.0;
-    blend = clamp(blend, 0.0, 1.0);
+    if (use_color_alpha) {
+        // Per-pixel alpha aus den Color-Texturen. Bei zwei opaken Layern (typischer Sign-Overlay-
+        // Fall: Wand + Decal beide weitgehend voll-Alpha) wäre `blend *= (a0+a1)` ≈ blend*2 mit
+        // anschliessendem clamp ein knallharter Step am Sigmoid-Output — das ist exakt der "harte
+        // Cut" beim Sign-Material. Stattdessen weighted-mix der Layer-Alphas: Layer-N gewinnt
+        // wo sein Alpha hoch ist UND der Blend-Mask in seine Richtung zeigt, mit sauberem Verlauf
+        // dazwischen. Matched die Source-2 csgo_complex-Graph-Semantik + Blender-Preview.
+        float w0 = (1.0 - blend) * tex_alpha_0;
+        float w1 = blend * tex_alpha_1;
+        float wsum = w0 + w1;
+        blend = wsum > 0.0001 ? (w1 / wsum) : 0.0;
+    } else {
+        // Statische Uniform-Alphas — Legacy-Multiplikator beibehalten weil die existierenden
+        // .tres-Files mit Defaults a0=1, a1=0 darauf rechnen (Summe=1 → blend *= 1, kein Effekt).
+        blend *= mix(tex_alpha_0, tex_alpha_1, 0.5) * 2.0;
+        blend = clamp(blend, 0.0, 1.0);
+    }
 
     // === TintMask sampeln (Source-2 TextureTintMask) — RGB, ApplyTint nutzt R + G ===
     // use_tint_mask=false → vec3(1) → voller Tint überall (kein Maskeneffekt).
