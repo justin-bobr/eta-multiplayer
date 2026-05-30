@@ -470,6 +470,15 @@ public class MovementController
 		}
 	}
 
+	/// <summary>Sub-tick fire-press view yaw — captured when the subtick driver sees the Fire-bit rising
+	/// edge inside an event. If <see cref="SubtickFireViewValid"/> is true, the live <c>BuildFireInput</c>
+	/// path uses this instead of the tick-end <c>Rotation.Y</c>, so a fire-press at <c>TFraction=0.5</c>
+	/// while the mouse is mid-flick aims at the crosshair position from the press moment, not the tick
+	/// boundary. Reset to invalid at the top of every <see cref="Step"/>.</summary>
+	public float SubtickFireViewYaw;
+	public float SubtickFireViewPitch;
+	public bool SubtickFireViewValid;
+
 	/// <summary>Last frame's body-local WishDir (used by the mantle intent check).</summary>
 	public Vector3 LastWishDir { get; private set; }
 	public bool ActuallySprinting { get; private set; }
@@ -636,6 +645,7 @@ public class MovementController
 	{
 		DidJumpThisFrame = false;
 		DidWallJumpThisFrame = false;
+		SubtickFireViewValid = false;
 
 		if (input.Events == null || input.Events.Length == 0)
 		{
@@ -683,6 +693,12 @@ public class MovementController
 				InputBits rising = state & ~prev;
 				if ((rising & InputBits.Jump) != 0) pendingJump = true;
 				if ((rising & InputBits.Crouch) != 0) pendingCrouch = true;
+				if ((rising & InputBits.Fire) != 0 && !SubtickFireViewValid)
+				{
+					SubtickFireViewYaw = ev.ViewYaw;
+					SubtickFireViewPitch = ev.ViewPitch;
+					SubtickFireViewValid = true;
+				}
 				wishDir = WishDirFromBits(state);
 				yaw = ev.ViewYaw;
 				pitch = ev.ViewPitch;
