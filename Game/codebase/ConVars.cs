@@ -110,6 +110,37 @@ public class SvConVars
 	public float GrenadeChargeToFull = 0.7f;
 	public float GrenadeMinCharge = 0.12f;
 
+	// === Anti-Cheat (server-authoritative input + position validation) ===
+	/// <summary>Master toggle for all anti-cheat detection. When false, no detection runs, no violations
+	/// are registered, no kicks. Leave on at all times; granular tuning happens through the thresholds below.</summary>
+	public bool AntiCheatEnabled = true;
+	/// <summary>Automatically disconnect peers that exceed <see cref="AntiCheatKickThreshold"/> violations
+	/// inside <see cref="AntiCheatViolationWindowMs"/>. Default off — production servers turn this on
+	/// once thresholds are tuned. With this off, violations are only logged + counted.</summary>
+	public bool AntiCheatAutoKick = false;
+	/// <summary>Sliding window (ms) for grouping violations. 10 s default = a peer that triggers 5
+	/// violations in 10 s gets kicked (when AutoKick is on). Older violations age out.</summary>
+	public int AntiCheatViolationWindowMs = 10_000;
+	/// <summary>Violations-within-window threshold that triggers a kick.</summary>
+	public int AntiCheatKickThreshold = 5;
+	/// <summary>Per-peer cap on InputPackets processed in one server tick. Real-world clients at 128 Hz
+	/// average 1 packet per server tick, but LiteNetLib batches + network jitter regularly deliver
+	/// 3-5 packets in one server-tick window during normal play (especially around route changes / brief
+	/// stalls). 8 covers all realistic legit bursts; sustained floods at this rate would still light up
+	/// the violation counter within a second. Anything above is dropped + counted as a violation.</summary>
+	public int MaxClientPacketsPerServerTick = 8;
+	/// <summary>Max plausible angular yaw rate in rad/s. 250 ≈ 14000 °/s. Pro flicks peak around 5000 °/s,
+	/// so 250 leaves headroom for legit play but flags snap-aim bots (instantaneous ≥ 20000 °/s).</summary>
+	public float MaxClientYawRateRadPerSec = 250f;
+	/// <summary>How many ticks the client's <c>TickIndex</c> may legitimately run AHEAD of the server's
+	/// current tick. Network jitter + client-side timing usually puts the client ~ RTT/2 ticks ahead, so
+	/// 64 covers up to ~500 ms RTT at 128 Hz. TickIndex past this bound = spoof or clock-attack.</summary>
+	public int MaxClientTickAheadOfServer = 64;
+	/// <summary>Max plausible position-delta per server-tick (m/s). Any server-simulated translation faster
+	/// than this counts as a violation. 25 m/s covers sprint + diagonals + slide-boost + small knockback
+	/// margins; sustained motion above is either a physics-engine bug or a bypassed clamp.</summary>
+	public float MaxClientPositionDeltaMps = 25f;
+
 	// === Server-Debug-Visualization (server-weit, alle Clients sehen den gleichen Toggle-State) ===
 	// Default OFF — Toggle per Console: `sv_debug_hitboxes 1` etc. Wird über ConVarSync-Packet vom
 	// Server zu allen Clients broadcastet, persistiert über Reconnects (Initial-Sync nach SpawnAck).

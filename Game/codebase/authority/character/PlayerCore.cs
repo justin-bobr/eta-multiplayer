@@ -1302,6 +1302,16 @@ public partial class PlayerCore : ServerBaseCharacter
 		// warum Hipfire-Pattern auf der Wand woanders saß als Client-Prediction sagte).
 		uint fireTick = (IsServerAgent && NetInputSource.HasValue) ? NetInputSource.Value.TickIndex : _currentTick;
 
+		// Subtick aim: if Movement.Step captured a Fire-rising-edge inside a subtick event, that event's
+		// view yaw/pitch IS the aim direction at the moment of the press. Without this, BuildFireInput
+		// would use Rotation.Y / HeadPitch.Rotation.X = end-of-tick view = aim that drifted up to 16 ms
+		// of mouse-rotation past the actual press. At fast flick speeds (360°/s) that is ~5° = ~2.5 m
+		// lateral offset on a 30 m target — esports-visible.
+		float fireYaw = _movement.SubtickFireViewValid ? _movement.SubtickFireViewYaw : Rotation.Y;
+		float firePitch = _movement.SubtickFireViewValid
+			? _movement.SubtickFireViewPitch
+			: (HeadPitch != null ? HeadPitch.Rotation.X : 0f);
+
 		return new FireInput
 		{
 			TickIndex = fireTick,
@@ -1313,8 +1323,8 @@ public partial class PlayerCore : ServerBaseCharacter
 			Weapon = weapon,
 			Speed = _movement.HorizontalSpeed,
 			ShooterPosition = shootOrigin,
-			ViewYaw = Rotation.Y,
-			ViewPitch = HeadPitch != null ? HeadPitch.Rotation.X : 0f,
+			ViewYaw = fireYaw,
+			ViewPitch = firePitch,
 			Dt = dt,
 		};
 	}
@@ -1793,6 +1803,11 @@ public partial class PlayerCore : ServerBaseCharacter
 				if (Input.IsActionPressed(InputActions.Back)) wish.Z += 1f;
 				if (Input.IsActionPressed(InputActions.Left)) wish.X -= 1f;
 				if (Input.IsActionPressed(InputActions.Right)) wish.X += 1f;
+				// Normalise diagonal WASD so the wire-form magnitude is always ≤ 1. The MovementController
+				// normalises internally anyway, but sending √2 = 1.414 on diagonal triggers the server's
+				// anti-cheat magnitude check (which is meant to flag malicious oversized inputs, not legit
+				// diagonals). One Normalize() here removes the false-positive spam.
+				if (wish.LengthSquared() > 1f) wish = wish.Normalized();
 			}
 			sprintHeld    = !blocked && Input.IsActionPressed(InputActions.Sprint);
 			shiftHeld     = !blocked && Input.IsActionPressed(InputActions.Shift);

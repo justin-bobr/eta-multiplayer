@@ -299,11 +299,35 @@ public class NetServer
 	/// (otherwise a headshot can miss when the animation is slightly desynced).</summary>
 	private void PushPositionsToRewind()
 	{
+		float maxMps = Mathf.Max(0.1f, ConVars.Sv.MaxClientPositionDeltaMps);
+		float tickRate = Mathf.Max(1f, _cli.TickRate);
 		foreach (var s in AllPeers)
 		{
 			if (s.ServerAgent == null) continue;
-			s.Rewind.Push(_serverTick, s.ServerAgent.AuthorityPosition);
+			Vector3 pos = s.ServerAgent.AuthorityPosition;
+			s.Rewind.Push(_serverTick, pos);
 			if (s.ServerAgent is PlayerCore pc) pc.PushBoneHistory(_serverTick);
+
+			// Position-delta validation. Catches:
+			//   - physics-engine glitches where MoveAndSlide returns nonsense (>20 m/s sustained)
+			//   - server-side teleport bugs that should never happen in legit play
+			//   - future-proofs against client-claimed positions if the arch ever changes
+			// Skip bots (not on the input pipeline, motion comes from AI) and respawn-frame teleports.
+			if (!s.IsBot && ConVars.Sv.AntiCheatEnabled && s.HasValidatedPos && _serverTick > s.LastValidatedTick && !s.ServerAgent.IsFrozen)
+			{
+				uint dTick = _serverTick - s.LastValidatedTick;
+				float secs = (float)dTick / tickRate;
+				float distance = pos.DistanceTo(s.LastValidatedPos);
+				float mps = distance / Mathf.Max(0.0001f, secs);
+				// 1.0 m epsilon = absorb single-tick step-up + small knockback without false positives
+				if (distance > maxMps * secs + 1.0f)
+				{
+					RegisterAntiCheatViolation(s, $"position-delta {distance:F2}m in {dTick}t ({mps:F1} m/s)");
+				}
+			}
+			s.LastValidatedPos = pos;
+			s.LastValidatedTick = _serverTick;
+			s.HasValidatedPos = true;
 		}
 	}
 
@@ -1225,10 +1249,71 @@ public class NetServer
 	///
 	/// The snapshot-ack lives at packet level (one value applies to all bundled inputs). max()-guard
 	/// against out-of-order inputs on the unreliable channel.</summary>
+	/// <summary>Signed shortest-arc delta between two yaw values in radians, wrapping correctly across the
+	/// 0/2π discontinuity. Returned value is in [-π, π].</summary>
+	private static float ShortestYawDelta(float a, float b)
+	{
+		float d = a - b;
+		while (d > Mathf.Pi) d -= Mathf.Tau;
+		while (d < -Mathf.Pi) d += Mathf.Tau;
+		return d;
+	}
+
+	/// <summary>Records an anti-cheat violation for <paramref name="state"/>. Pushes the timestamp into the
+	/// sliding-window ring, increments the lifetime counter, and triggers <see cref="DoAntiCheatKick"/> if
+	/// the window count exceeds <see cref="SvConVars.AntiCheatKickThreshold"/> AND
+	/// <see cref="SvConVars.AntiCheatAutoKick"/> is on. <paramref name="reason"/> is logged for forensics.</summary>
+	private void RegisterAntiCheatViolation(PeerState state, string reason)
+	{
+		if (!ConVars.Sv.AntiCheatEnabled) return;
+		long now = (long)Time.GetTicksMsec();
+		state.RecentViolationMs[state.RecentViolationHead] = now;
+		state.RecentViolationHead = (state.RecentViolationHead + 1) % state.RecentViolationMs.Length;
+		state.AntiCheatViolations++;
+
+		int windowMs = Mathf.Max(1000, ConVars.Sv.AntiCheatViolationWindowMs);
+		int recent = 0;
+		for (int i = 0; i < state.RecentViolationMs.Length; i++)
+		{
+			if (state.RecentViolationMs[i] > 0 && now - state.RecentViolationMs[i] <= windowMs) recent++;
+		}
+
+		// Anti-cheat events ALWAYS log (not gated on Dbg.Enabled / sv_debug etc) — these are forensic
+		// records that must show up in any operator's stdout / server log without extra opt-in flags.
+		// Server admins need to be able to grep the log file for "[anti-cheat]" after a match without
+		// pre-arranging debug mode.
+		GD.Print($"[anti-cheat] netId={state.NetId} name=\"{state.PlayerName}\" {reason} (lifetime={state.AntiCheatViolations}, recent={recent}/{ConVars.Sv.AntiCheatKickThreshold})");
+
+		if (ConVars.Sv.AntiCheatAutoKick && !state.AntiCheatKicked && recent >= ConVars.Sv.AntiCheatKickThreshold)
+		{
+			state.AntiCheatKicked = true;
+			GD.PushWarning($"[anti-cheat] KICK netId={state.NetId} name=\"{state.PlayerName}\" — {recent} violations in {windowMs}ms window");
+			state.Peer?.Disconnect();
+		}
+	}
+
 	private void HandleInput(NetPeer peer, NetPacketReader r)
 	{
 		if (!_peers.TryGetValue(peer, out var state))
 		{
+			return;
+		}
+
+		// Per-server-tick packet rate cap. A real client sends ~1 packet per server tick at 128 Hz;
+		// 3+ inside one tick = jitter burst (legit) or flood (cheat / DoS). Read header + drop body
+		// without further work; counted as a violation only on the first overflow per tick window so
+		// natural bursts don't pile up violations.
+		if (state.LastPacketCountServerTick != _serverTick)
+		{
+			state.LastPacketCountServerTick = _serverTick;
+			state.PacketsThisServerTick = 0;
+		}
+		state.PacketsThisServerTick++;
+		int maxPackets = Mathf.Max(1, ConVars.Sv.MaxClientPacketsPerServerTick);
+		if (state.PacketsThisServerTick > maxPackets)
+		{
+			if (state.PacketsThisServerTick == maxPackets + 1)
+				RegisterAntiCheatViolation(state, $"packet-flood {state.PacketsThisServerTick} pkts in 1 tick");
 			return;
 		}
 
@@ -1255,9 +1340,35 @@ public class NetServer
 				float inv = 1f / Mathf.Sqrt(wishLen2);
 				pkt.WishX *= inv;
 				pkt.WishZ *= inv;
-				state.AntiCheatViolations++;
+				RegisterAntiCheatViolation(state, $"wish magnitude {Mathf.Sqrt(wishLen2):F2}");
 			}
 			pkt.ViewPitch = Mathf.Clamp(pkt.ViewPitch, -Mathf.Pi * 0.5f, Mathf.Pi * 0.5f);
+
+			// TickIndex bounds — a client running far ahead of the server is either clock-attacking or
+			// flat-out lying (lag-comp rewind + fire-RNG seed both use TickIndex; spoofing affects shot
+			// determinism). Reject the body; legit clients won't trip this thanks to MaxClientTickAheadOfServer.
+			if (pkt.TickIndex > _serverTick + (uint)Mathf.Max(0, ConVars.Sv.MaxClientTickAheadOfServer))
+			{
+				RegisterAntiCheatViolation(state, $"tick-too-future client={pkt.TickIndex} server={_serverTick}");
+				continue;
+			}
+
+			// View yaw angular velocity — the cheapest snap-aim-bot tell. Compare against the last sample
+			// (could be from this packet's prior bodies or a prior packet) using shortest-arc delta.
+			if (state.HasViewYawSample && pkt.TickIndex > state.LastViewYawSampleTick)
+			{
+				uint dTick = pkt.TickIndex - state.LastViewYawSampleTick;
+				float secs = (float)dTick / Mathf.Max(1f, _cli.TickRate);
+				float dYaw = Mathf.Abs(ShortestYawDelta(pkt.ViewYaw, state.LastViewYawSample));
+				float rate = dYaw / Mathf.Max(0.0001f, secs);
+				if (rate > ConVars.Sv.MaxClientYawRateRadPerSec)
+				{
+					RegisterAntiCheatViolation(state, $"yaw-rate {Mathf.RadToDeg(rate):F0}°/s over {dTick}t");
+				}
+			}
+			state.LastViewYawSample = pkt.ViewYaw;
+			state.LastViewYawSampleTick = pkt.TickIndex;
+			state.HasViewYawSample = true;
 
 			uint last = state.LastInputTick;
 			if (last != 0 && pkt.TickIndex <= last && (last - pkt.TickIndex) < 256u)
@@ -1587,6 +1698,10 @@ public class NetServer
 		rot.Y = spawnYaw;
 		agent.Rotation = rot;
 		agent.Velocity = Vector3.Zero;
+		// Server-driven teleport. Anti-cheat position-delta would false-positive on the spawn jump
+		// otherwise (dead spot → spawn pad is usually 30-100 m). Reset the baseline so the next tick
+		// is treated as the first sample.
+		s.HasValidatedPos = false;
 		agent.Movement.Stamina = ConVars.Sv.MaxStamina;
 		agent.Movement.ResetSpawnConsumables();
 		if (agent is PlayerCore lcRespawn)
@@ -1635,6 +1750,27 @@ public class PeerState
 	public uint LastInputTick;
 	public ulong InputPacketsReceived;
 	public int AntiCheatViolations;
+
+	// Anti-cheat state — see NetServer.RegisterAntiCheatViolation for the bookkeeping.
+	/// <summary>Number of InputPackets accepted from this peer during the current server tick. Reset to 0
+	/// when <see cref="LastPacketCountServerTick"/> changes. Used for the per-peer packet flood cap.</summary>
+	public int PacketsThisServerTick;
+	public uint LastPacketCountServerTick;
+	/// <summary>Last validated ViewYaw + the tick it came from — basis for the angular-velocity check.</summary>
+	public float LastViewYawSample;
+	public uint LastViewYawSampleTick;
+	public bool HasViewYawSample;
+	/// <summary>Last validated server-simulated position + its tick — basis for the position-delta check.
+	/// Updated in PushPositionsToRewind after a validation pass.</summary>
+	public Vector3 LastValidatedPos;
+	public uint LastValidatedTick;
+	public bool HasValidatedPos;
+	/// <summary>Ring of recent violation timestamps (Time.GetTicksMsec()). 8-entry ring is plenty for the
+	/// sliding-window check; older entries fall outside the window naturally.</summary>
+	public readonly long[] RecentViolationMs = new long[8];
+	public int RecentViolationHead;
+	/// <summary>True once auto-kick has fired — prevents repeated kicks while disconnect propagates.</summary>
+	public bool AntiCheatKicked;
 
 	public ServerBaseCharacter ServerAgent;
 

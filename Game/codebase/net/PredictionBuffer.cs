@@ -6,9 +6,12 @@ using Godot;
 /// authoritative snapshot with <c>ackedInputTick = N</c>, the stored position at tick N is compared
 /// against the server position at tick N to compute the mispredict drift.
 ///
-/// Fixed-size circular ring (<see cref="Capacity"/> = 256 ticks ≈ 2 s @ 128 Hz). Entries past capacity
-/// overwrite the oldest in O(1) — no <c>List.RemoveAt(0)</c> shift like the old impl. Lookups use
-/// binary search since ticks are monotonically increasing.
+/// Fixed-size circular ring (<see cref="Capacity"/> = 512 ticks ≈ 4 s @ 128 Hz). Sized for the 99.9%
+/// ping outlier: high-ping (150 ms+) players with occasional 300 ms spikes get their reconciliation
+/// entry from inside the buffer instead of silently rolling out and rubber-banding on every snapshot.
+/// Entries past capacity overwrite the oldest in O(1) — no <c>List.RemoveAt(0)</c> shift. Lookups use
+/// binary search since ticks are monotonically increasing. Memory cost: 512 × ~600 B = ~300 KB per
+/// LocalPlayer — fits comfortably in L2 cache.
 /// </summary>
 public class PredictionBuffer
 {
@@ -22,7 +25,7 @@ public class PredictionBuffer
 		public Vector3 PostVel;
 	}
 
-	private const int Capacity = 256;
+	private const int Capacity = 512;
 	private readonly Entry[] _buf = new Entry[Capacity];
 	private int _head;
 	private int _count;
