@@ -43,11 +43,10 @@ public static class GrenadeTrajectory
 		{
 			query.From = pos;
 			query.To = pos + move / moveLen * (moveLen + Radius);
-			var hit = space.IntersectRay(query);
-			if (hit.Count > 0)
+			if (space.IntersectRayInto(query, _sharedResult))
 			{
-				Vector3 n = (Vector3)hit["normal"];
-				pos = (Vector3)hit["position"] + n * Radius;
+				Vector3 n = _sharedResult.GetNormal();
+				pos = _sharedResult.GetPosition() + n * Radius;
 				Vector3 vn = n * vel.Dot(n);
 				Vector3 vt = vel - vn;
 				vel = vt * BounceFriction - vn * Restitution;
@@ -75,9 +74,8 @@ public static class GrenadeTrajectory
 		normal = Vector3.Up;
 		query.From = pos;
 		query.To = pos + Vector3.Down * (Radius + 0.08f);
-		var hit = space.IntersectRay(query);
-		if (hit.Count == 0) return false;
-		normal = (Vector3)hit["normal"];
+		if (!space.IntersectRayInto(query, _sharedResult)) return false;
+		normal = _sharedResult.GetNormal();
 		return true;
 	}
 
@@ -91,6 +89,9 @@ public static class GrenadeTrajectory
 	// Godot.Collections.Array<Rid> pro Aufruf = 2 Allocs × 60+ Hz.
 	private static PhysicsRayQueryParameters3D _predictQuery;
 	private static readonly Godot.Collections.Array<Rid> _predictExclude = new();
+	// Shared result holder for Advance() + IsGrounded() — static is safe because grenade
+	// trajectory simulation is single-threaded (game loop / aim-guide prediction).
+	private static readonly PhysicsRayQueryResult3D _sharedResult = new();
 
 	public static void Predict(PhysicsDirectSpaceState3D space, Vector3 origin, Vector3 vel,
 		Rid ownerExclude, List<Vector3> pathOut, out Vector3 landing, out Vector3 landingNormal)

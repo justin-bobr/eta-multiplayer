@@ -408,6 +408,7 @@ public partial class FootstepAudio : Node3D
 	// (both are RefCounted -> ObjectDB churn) at ~2 Hz per remote player. With N enemies stepping
 	// that is 2N allocations/sec just from occlusion - now zero after first use.
 	private PhysicsRayQueryParameters3D _occlusionQuery;
+	private readonly PhysicsRayQueryResult3D _occlusionResult = new();
 
 	/// <summary>
 	/// Raycast from the audio listener (active camera) to the sound source. A hit well before the
@@ -430,10 +431,9 @@ public partial class FootstepAudio : Node3D
 		_occlusionQuery.From = ear;
 		_occlusionQuery.To = sourcePos;
 		_occlusionQuery.CollisionMask = OcclusionMask;
-		var hit = space.IntersectRay(_occlusionQuery);
-		if (hit.Count == 0)
+		if (!space.IntersectRayInto(_occlusionQuery, _occlusionResult))
 			return false;
-		float hitDist = ear.DistanceTo((Vector3)hit["position"]);
+		float hitDist = ear.DistanceTo(_occlusionResult.GetPosition());
 		return hitDist < full - 1.0f;
 	}
 

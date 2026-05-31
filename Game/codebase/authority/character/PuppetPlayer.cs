@@ -824,6 +824,7 @@ public partial class PuppetPlayer : Node3D
 	private Vector3 _spectateTpsRestLocal;
 	private bool _spectateTpsRestCached;
 	private PhysicsRayQueryParameters3D _spectateRayQuery;
+	private readonly PhysicsRayQueryResult3D _spectateRayResult = new();
 	private const float SpectateWallMargin = 0.15f;
 	private const float SpectateSmoothRate = 12f;
 	private const uint SpectateCollisionMask = 1u;
@@ -857,12 +858,11 @@ public partial class PuppetPlayer : Node3D
 		Vector3 pivot = head.GlobalPosition;
 		_spectateRayQuery.From = pivot;
 		_spectateRayQuery.To = worldDesired;
-		var hit = space.IntersectRay(_spectateRayQuery);
 
 		Vector3 targetLocal;
-		if (hit.Count > 0)
+		if (space.IntersectRayInto(_spectateRayQuery, _spectateRayResult))
 		{
-			Vector3 hitPos = (Vector3)hit["position"];
+			Vector3 hitPos = _spectateRayResult.GetPosition();
 			Vector3 dir = worldDesired - pivot;
 			float desiredDist = dir.Length();
 			if (desiredDist > 0.001f)

@@ -60,37 +60,84 @@ if not exist "%GODOT_SRC%\SConstruct" (
 )
 
 REM ----------------------------------------------------------------------------
-REM Apply local engine patches from Source/patches/. We run `git apply --check`
-REM first to detect already-applied patches (re-running the script must be a no-op
-REM on a clean source tree). Patches that fail --check AND fail to apply cleanly
-REM are a hard error - the source tree has drifted and someone needs to look.
+REM Apply local engine patches from Source/patches/.
+REM
+REM We fingerprint the patch set (SHA1 + filename for each .patch, sorted) and
+REM store it in Source/.applied-patches.txt. On every run we recompute and
+REM compare:
+REM   match    -> tree already in the expected patched state; skip reset and
+REM               apply. This preserves source mtimes so scons cached object
+REM               files stay valid (incremental rebuilds stay fast).
+REM   mismatch -> a patch was added, removed, or its content changed. Hard-reset
+REM               Source/godot to HEAD, then apply the CURRENT set of patches
+REM               fresh. Without the reset, a removed patch would leave its
+REM               changes in the tree forever - the apply loop only iterates
+REM               over patches that currently exist.
+REM
+REM `git clean -fd` removes untracked files but respects .gitignore, so the
+REM scons build cache under bin/ and .sconsign.dblite survive the reset.
 REM ----------------------------------------------------------------------------
 set "PATCH_DIR=%~dp0Source\patches"
-if exist "%PATCH_DIR%\*.patch" (
-    echo.
-    echo === Applying engine patches from Source/patches/ ===
-    pushd "%GODOT_SRC%"
-    for %%P in ("%PATCH_DIR%\*.patch") do (
-        REM Try --reverse --check first: succeeds = patch is already applied, skip it.
-        git apply --reverse --check "%%P" >nul 2>&1
-        if errorlevel 1 (
-            REM Not yet applied - apply it.
-            git apply --whitespace=nowarn "%%P"
-            if errorlevel 1 (
-                echo [ERR] git apply failed for %%~nxP
-                echo The source tree may have drifted from what the patch expects.
-                echo Inspect the patch and reconcile manually.
-                popd
-                exit /b 1
-            )
-            echo [patch] applied %%~nxP
-        ) else (
-            echo [patch] already applied: %%~nxP
-        )
-    )
-    popd
-    echo.
+set "PATCH_STATE=%~dp0Source\.applied-patches.txt"
+set "PATCH_STATE_NEW=%~dp0Source\.applied-patches.new"
+
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p=@(Get-ChildItem '%PATCH_DIR%\*.patch' -ErrorAction SilentlyContinue | Sort-Object Name); if($p.Count -gt 0){ $p | ForEach-Object { '{0} {1}' -f (Get-FileHash $_.FullName -Algorithm SHA1).Hash, $_.Name } | Set-Content -Path '%PATCH_STATE_NEW%' -Encoding ASCII } else { Set-Content -Path '%PATCH_STATE_NEW%' -Value '' -Encoding ASCII -NoNewline }"
+if errorlevel 1 (
+    echo [ERR] Failed to compute patch fingerprint via PowerShell
+    exit /b 1
 )
+
+if not exist "%PATCH_STATE%" goto :patches_need_reapply
+fc /b "%PATCH_STATE%" "%PATCH_STATE_NEW%" >nul 2>&1
+if errorlevel 1 goto :patches_need_reapply
+
+echo.
+echo [patch] no patch changes since last build - skipping reset and apply
+del "%PATCH_STATE_NEW%" >nul 2>&1
+goto :patches_done
+
+:patches_need_reapply
+echo.
+echo === Patches changed - hard-resetting Source/godot and re-applying ===
+REM IMPORTANT: every git invocation here MUST use `git -C "%GODOT_SRC%"` so it
+REM operates on the INNER godot repo only. The workspace at %~dp0 is itself a
+REM git repo (git-in-git), and a bare `git reset --hard` here without -C/cwd
+REM scoping could in theory escape to the outer project repo and wipe user
+REM code. The -C form makes the target explicit and impossible to misread.
+git -C "%GODOT_SRC%" reset --hard HEAD
+if errorlevel 1 goto :patch_reset_failed
+git -C "%GODOT_SRC%" clean -fd
+if errorlevel 1 goto :patch_clean_failed
+
+if exist "%PATCH_DIR%\*.patch" (
+    for %%P in ("%PATCH_DIR%\*.patch") do (
+        git -C "%GODOT_SRC%" apply --whitespace=nowarn "%%P"
+        if errorlevel 1 (
+            echo [ERR] git apply failed for %%~nxP
+            echo The source tree may have drifted from what the patch expects.
+            echo Inspect the patch and reconcile manually.
+            exit /b 1
+        )
+        echo [patch] applied %%~nxP
+    )
+) else (
+    echo [patch] no patches present - tree is now vanilla
+)
+
+move /y "%PATCH_STATE_NEW%" "%PATCH_STATE%" >nul
+goto :patches_done
+
+:patch_reset_failed
+echo.
+echo [ERR] git reset --hard HEAD failed in %GODOT_SRC%
+exit /b 1
+:patch_clean_failed
+echo.
+echo [ERR] git clean -fd failed in %GODOT_SRC%
+exit /b 1
+
+:patches_done
+echo.
 
 REM ----------------------------------------------------------------------------
 REM Pre-flight 2: winget available? Needed for auto-install.

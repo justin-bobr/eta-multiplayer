@@ -22,6 +22,10 @@ Downloads/
 Source/godot
 Source/godot/*
 
+# Fingerprint of patches currently applied to Source/godot, written by
+# build-engine.cmd. Machine-local state - never share via git.
+Source/.applied-patches.txt
+
 # Generic OS / IDE noise just in case the workspace root is opened as a folder.
 Thumbs.db
 desktop.ini

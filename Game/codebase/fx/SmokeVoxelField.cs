@@ -254,6 +254,7 @@ void fog() {
 	// Wiederverwendete Query — Flood-Fill macht potentiell tausende Casts in einem Burst beim Smoke-
 	// Spawn. Allokierte vorher ein neues PhysicsRayQueryParameters3D pro Call.
 	private PhysicsRayQueryParameters3D _floodQuery;
+	private readonly PhysicsRayQueryResult3D _floodResult = new();
 
 	/// <summary>Returns true if a raycast from <paramref name="from"/> to <paramref name="to"/> hits map geometry.</summary>
 	private bool RayHits(PhysicsDirectSpaceState3D space, Vector3 from, Vector3 to)
@@ -265,7 +266,7 @@ void fog() {
 		_floodQuery.From = from;
 		_floodQuery.To = to;
 		_floodQuery.CollisionMask = MapMask;
-		return space.IntersectRay(_floodQuery).Count > 0;
+		return space.IntersectRayInto(_floodQuery, _floodResult);
 	}
 
 	/// <summary>Allocates the 3D density texture and creates the FogVolume + shader material that render the smoke.</summary>

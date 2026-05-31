@@ -56,6 +56,7 @@ public partial class ShellPool : Node3D
 	private int _overflowCursor;
 	private float _autoFloorOffset;
 	private readonly PhysicsRayQueryParameters3D _floorRayQuery = new();
+	private readonly PhysicsRayQueryResult3D _floorRayResult = new();
 
 	/// <summary>Per-shell simulation state held in the pool array.</summary>
 	private struct ShellEntry
@@ -208,13 +209,12 @@ public partial class ShellPool : Node3D
 						_floorRayQuery.From = prevPos;
 						_floorRayQuery.To = s.Position + Vector3.Down * 0.02f;
 						_floorRayQuery.Exclude = _excludedColliders;
-						var hit = space.IntersectRay(_floorRayQuery);
-						if (hit.Count > 0 && hit.ContainsKey("position") && hit.ContainsKey("normal"))
+						if (space.IntersectRayInto(_floorRayQuery, _floorRayResult))
 						{
-							Vector3 hitNormal = (Vector3)hit["normal"];
+							Vector3 hitNormal = _floorRayResult.GetNormal();
 							if (hitNormal.Y > FloorNormalThreshold)
 							{
-								Vector3 floorHit = (Vector3)hit["position"];
+								Vector3 floorHit = _floorRayResult.GetPosition();
 								s.Position = new Vector3(floorHit.X, floorHit.Y + _autoFloorOffset, floorHit.Z);
 								float impactSpeed = Mathf.Abs(s.Velocity.Y);
 								if (impactSpeed > MinBounceSpeed)

@@ -178,12 +178,11 @@ public partial class LocalPlayer : PlayerCore
 		_rayQuery.From = pivot;
 		_rayQuery.To = worldDesired;
 		_rayQuery.CollisionMask = TpsCamCollisionMask;
-		var hit = space.IntersectRay(_rayQuery);
 
 		Vector3 targetLocal;
-		if (hit.Count > 0)
+		if (space.IntersectRayInto(_rayQuery, _rayResult))
 		{
-			Vector3 hitPos = (Vector3)hit["position"];
+			Vector3 hitPos = _rayResult.GetPosition();
 			Vector3 dir = worldDesired - pivot;
 			float desiredDist = dir.Length();
 			if (desiredDist > 0.001f)

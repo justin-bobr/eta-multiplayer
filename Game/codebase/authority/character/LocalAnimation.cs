@@ -820,12 +820,16 @@ public partial class LocalAnimation : Node3D
 
 		Vector3 endpoint = origin + dir * TracerMaxRange;
 		var space = GetWorld3D().DirectSpaceState;
-		var query = PhysicsRayQueryParameters3D.Create(origin, endpoint);
-		query.CollideWithBodies = true;
-		query.CollideWithAreas = false;
-		var hit = space.IntersectRay(query);
-		if (hit.Count > 0 && hit.ContainsKey("position"))
-			endpoint = (Vector3)hit["position"];
+		if (_tracerQuery == null)
+		{
+			_tracerQuery = PhysicsRayQueryParameters3D.Create(origin, endpoint);
+			_tracerQuery.CollideWithBodies = true;
+			_tracerQuery.CollideWithAreas = false;
+		}
+		_tracerQuery.From = origin;
+		_tracerQuery.To = endpoint;
+		if (space.IntersectRayInto(_tracerQuery, _tracerResult))
+			endpoint = _tracerResult.GetPosition();
 
 		// MultiMesh-Pool statt per-shot Node3D+CylinderMesh+StandardMaterial3D: erste First-Fire-Kost
 		// von ~5.6ms (Mesh/Material/Node allocation + GPU upload) → ~0.05ms (just write Transform +
@@ -837,6 +841,9 @@ public partial class LocalAnimation : Node3D
 	}
 
 	private bool _shellPoolRegistered;
+
+	private PhysicsRayQueryParameters3D _tracerQuery;
+	private readonly PhysicsRayQueryResult3D _tracerResult = new();
 
 	/// <summary>Registers the owning CharacterBody3D with the global ShellPool so shells exclude the player body. Idempotent.</summary>
 	private void RegisterPlayerWithShellPool()

@@ -185,6 +185,7 @@ public static class Hitscan
 	// PhysicsRayQueryParameters3D UND Godot.Collections.Array<Rid> bei Single-Exclude — addiert sich
 	// schnell bei mehreren Hitscans pro Tick × N Players). Single-threaded Game-Logic, daher safe.
 	private static PhysicsRayQueryParameters3D _sharedQuery;
+	private static readonly PhysicsRayQueryResult3D _sharedResult = new();
 	private static readonly Godot.Collections.Array<Rid> _emptyExcludes = new();
 	private static readonly Godot.Collections.Array<Rid> _singleExcludeScratch = new();
 
@@ -242,15 +243,14 @@ public static class Hitscan
 			Direction = direction,
 			Material = "default",
 		};
-		var result = space.IntersectRay(query);
-		if (result.Count == 0)
+		if (!space.IntersectRayInto(query, _sharedResult))
 			return info;
 		info.Hit = true;
-		info.Position = (Vector3)result["position"];
-		info.Normal = (Vector3)result["normal"];
-		info.Collider = result["collider"].As<Node3D>();
+		info.Position = _sharedResult.GetPosition();
+		info.Normal = _sharedResult.GetNormal();
+		info.Collider = _sharedResult.GetCollider() as Node3D;
 		info.Distance = origin.DistanceTo(info.Position);
-		int faceIndex = result.ContainsKey("face_index") ? (int)result["face_index"] : -1;
+		int faceIndex = _sharedResult.GetFaceIndex();
 		info.Material = DetectMaterialPerFace(info.Collider, faceIndex);
 		if (info.Material == "default")
 			info.Material = DetectMaterialPerGroup(info.Collider);

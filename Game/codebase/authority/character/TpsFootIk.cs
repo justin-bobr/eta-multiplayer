@@ -122,6 +122,7 @@ public class TpsFootIk
 	// Vorher: new Godot.Collections.Array<Rid> + PhysicsRayQueryParameters3D.Create() = 2 Allocs pro
 	// Foot pro Frame.
 	private PhysicsRayQueryParameters3D _snapQuery;
+	private readonly PhysicsRayQueryResult3D _snapResult = new();
 	private readonly Godot.Collections.Array<Rid> _snapExclude = new();
 
 	/// <summary>Raycasts down and snaps the world position to the hit, adding FootGroundOffset
@@ -141,9 +142,8 @@ public class TpsFootIk
 		_snapQuery.From = from;
 		_snapQuery.To = to;
 		_snapQuery.CollisionMask = GroundMask;
-		var hit = space.IntersectRay(_snapQuery);
-		bool didHit = hit.Count > 0;
-		Vector3 endPoint = didHit ? (Vector3)hit["position"] : to;
+		bool didHit = space.IntersectRayInto(_snapQuery, _snapResult);
+		Vector3 endPoint = didHit ? _snapResult.GetPosition() : to;
 		if (didHit)
 			worldPos.Y = endPoint.Y + FootGroundOffset;
 		if (EnableDebugMarkers)

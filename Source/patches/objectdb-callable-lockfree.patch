@@ -1,0 +1,120 @@
+From: ETA project local patch
+Subject: [PATCH] Lockfree ObjectDB read for Callable::callp
+
+Problem
+-------
+ObjectDB::get_instance (core/object/object.h:1106) acquires
+`spin_lock.lock()` on every call. The lock guards add_instance /
+remove_instance from the lookup, so writers (Object construction
+and destruction) can't race a torn read of the slot validator.
+
+Callable::callp (core/variant/callable.cpp:59) is on the dispatch
+path for every signal emission and every deferred-call invocation.
+Each call resolves the target ObjectID via ObjectDB::get_instance,
+paying one spin_lock acquire/release pair.
+
+On a 128-tick authoritative server, that's hundreds of atomic
+lock/unlock pairs per physics tick (one per receiver per signal,
+times all the signals fired in that tick). The lock is uncontended
+in single-threaded game logic but the atomic ops still issue
+memory fences and dirty cache lines.
+
+Fix
+---
+1. Add a sibling ObjectDB::get_instance_unchecked() that skips
+   the lock. Same _ALWAYS_INLINE_ body, just without the spin_lock
+   pair around the validator check and slot read.
+
+2. Make Callable::callp call the unchecked variant for the
+   standard (non-custom) Callable path. That's the hot one — the
+   custom path (CallableCustom*) never touches ObjectDB.
+
+3. The unchecked variant is gated behind DEV_ASSERT(Thread::is_main_thread()).
+   In DEV_ENABLED builds, any callp() invocation from a worker
+   thread fires the assert and we know the safety assumption broke.
+   Release and DEBUG builds skip the assertion and ship the lockfree
+   path directly.
+
+The unchecked variant is intentionally a separate function — the
+locked get_instance stays for the many other callers that need
+its safety. Only Callable::callp opts in.
+
+Caveats
+-------
+- Resource loader workers can spawn Objects on worker threads. As
+  long as those Objects never become the target of a Callable
+  whose callp runs concurrently with their construction/destruction,
+  we're safe. In practice the game's worker-spawned resources
+  don't participate in signal dispatch from worker threads.
+- If a DEV_ASSERT fires on Thread::is_main_thread(), switch the
+  caller back to the locked get_instance() and audit the threading
+  for that emission site.
+
+Verified
+--------
+TODO — run a 30+ minute bot-match in a DEV_ENABLED build to look
+for the assert firing. Then run a release build through the same
+scenario and compare frame-time tail (99th percentile physics
+tick time from the [SPIKE] log lines in NetMain).
+
+Patch
+-----
+
+--- a/core/object/object.h
++++ b/core/object/object.h
+@@ -35,6 +35,7 @@
+ #include "core/object/message_queue.h"
+ #include "core/object/object_id.h"
+ #include "core/os/spin_lock.h"
++#include "core/os/thread.h"
+ #include "core/templates/hash_map.h"
+ #include "core/templates/hash_set.h"
+ #include "core/templates/list.h"
+@@ -1125,6 +1126,30 @@ public:
+ 		return object;
+ 	}
+
++	// Unlocked variant — skips the spin_lock acquire/release. The lock guards
++	// add_instance / remove_instance, so this is only safe when the caller can
++	// guarantee no Object is being created or destroyed on another thread at
++	// the moment of the read. For game-loop signal emission and deferred-message
++	// dispatch (the hot callers) that holds: the writers run on the main thread
++	// alongside us. DEV builds assert main-thread invocation as a guardrail;
++	// release builds skip the check for max throughput. If you see the assert
++	// fire, switch the caller back to the locked get_instance().
++	_ALWAYS_INLINE_ static Object *get_instance_unchecked(ObjectID p_instance_id) {
++		DEV_ASSERT(Thread::is_main_thread());
++		uint64_t id = p_instance_id;
++		uint32_t slot = id & OBJECTDB_SLOT_MAX_COUNT_MASK;
++
++		ERR_FAIL_COND_V(slot >= slot_max, nullptr);
++
++		uint64_t validator = (id >> OBJECTDB_SLOT_MAX_COUNT_BITS) & OBJECTDB_VALIDATOR_MASK;
++
++		if (unlikely(object_slots[slot].validator != validator)) {
++			return nullptr;
++		}
++
++		return object_slots[slot].object;
++	}
++
+ 	template <typename T>
+ 	_ALWAYS_INLINE_ static T *get_instance(ObjectID p_instance_id) {
+ 		return Object::cast_to<T>(get_instance(p_instance_id));
+--- a/core/variant/callable.cpp
++++ b/core/variant/callable.cpp
+@@ -56,7 +56,13 @@ void Callable::callp(const Variant **p_arguments, int p_argcount, Variant &r_ret
+ 		}
+ 		custom->call(p_arguments, p_argcount, r_return_value, r_call_error);
+ 	} else {
+-		Object *obj = ObjectDB::get_instance(ObjectID(object));
++		// Lockfree ObjectDB read — Callable::callp dispatch runs on the same
++		// thread that owns object lifetimes (main thread for game-loop signal
++		// emission and deferred-message dispatch). Skips the spin_lock pair
++		// that ObjectDB::get_instance otherwise issues per call; with hundreds
++		// of signal invocations per physics tick that's measurable. DEV builds
++		// assert main-thread invocation inside get_instance_unchecked.
++		Object *obj = ObjectDB::get_instance_unchecked(ObjectID(object));
+ #ifdef DEBUG_ENABLED
+ 		if (!obj) {
+ 			r_call_error.error = CallError::CALL_ERROR_INSTANCE_IS_NULL;

@@ -74,6 +74,9 @@ public partial class WeaponAudio : Node3D
 
 	private Node[] _pool;
 	private int _poolCursor;
+
+	private PhysicsRayQueryParameters3D _occlusionQuery;
+	private readonly PhysicsRayQueryResult3D _occlusionResult = new();
 	private readonly RandomNumberGenerator _rng = new();
 
 	private static readonly Dictionary<string, AudioStream> _clipCache = new();
@@ -277,10 +280,15 @@ public partial class WeaponAudio : Node3D
 
 		var space = GetWorld3D()?.DirectSpaceState;
 		if (space == null) return false;
-		var query = PhysicsRayQueryParameters3D.Create(ear, sourcePos, OcclusionMask);
-		var hit = space.IntersectRay(query);
-		if (hit.Count == 0) return false;
-		float hitDist = ear.DistanceTo((Vector3)hit["position"]);
+		if (_occlusionQuery == null)
+		{
+			_occlusionQuery = PhysicsRayQueryParameters3D.Create(ear, sourcePos, OcclusionMask);
+		}
+		_occlusionQuery.From = ear;
+		_occlusionQuery.To = sourcePos;
+		_occlusionQuery.CollisionMask = OcclusionMask;
+		if (!space.IntersectRayInto(_occlusionQuery, _occlusionResult)) return false;
+		float hitDist = ear.DistanceTo(_occlusionResult.GetPosition());
 		return hitDist < full - 1.0f;
 	}
 

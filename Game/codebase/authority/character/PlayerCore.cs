@@ -231,6 +231,7 @@ public partial class PlayerCore : ServerBaseCharacter
 	protected ulong _prevTickStartUsec;
 
 	protected PhysicsRayQueryParameters3D _rayQuery;
+	protected readonly PhysicsRayQueryResult3D _rayResult = new();
 	protected Godot.Collections.Array<Rid> _selfExclude;
 	/// <summary>Rate-limit timestamp (msec) for the "[stepup] BLOCKED — obstacle height" diagnostic log. The diagnostic raycast runs once per second max while diagnostic logging is enabled, so walking along a wall doesn't spam the log every physics tick.</summary>
 	private ulong _lastStepupBlockedLogMs;
@@ -1486,10 +1487,9 @@ public partial class PlayerCore : ServerBaseCharacter
 				_rayQuery.From = from;
 				_rayQuery.To = from + Vector3.Down * maxDist;
 				_rayQuery.CollisionMask = uint.MaxValue;
-				var hit = space.IntersectRay(_rayQuery);
-				if (hit.Count > 0)
+				if (space.IntersectRayInto(_rayQuery, _rayResult))
 				{
-					float distToGround = Mathf.Max(0f, from.Y - ((Vector3)hit["position"]).Y);
+					float distToGround = Mathf.Max(0f, from.Y - _rayResult.GetPosition().Y);
 					float timeToGround = (-fallSpeed + Mathf.Sqrt(fallSpeed * fallSpeed + 2f * g * distToGround)) / g;
 					if (timeToGround <= leadTime)
 					{
@@ -1987,10 +1987,9 @@ public partial class PlayerCore : ServerBaseCharacter
 				Vector3 dbgProbeFrom = startTrans.Origin + inputDir * (CapsuleRadius + 0.1f) + Vector3.Up * 5f;
 				_rayQuery.From = dbgProbeFrom;
 				_rayQuery.To = dbgProbeFrom + Vector3.Down * 10f;
-				var topHit = GetWorld3D().DirectSpaceState.IntersectRay(_rayQuery);
-				if (topHit.Count > 0)
+				if (GetWorld3D().DirectSpaceState.IntersectRayInto(_rayQuery, _rayResult))
 				{
-					float h = ((Vector3)topHit["position"]).Y - startTrans.Origin.Y;
+					float h = _rayResult.GetPosition().Y - startTrans.Origin.Y;
 					if (h > StepMaxHeight && h < 2.0f)
 						Dbg.Print($"[stepup] BLOCKED — obstacle height ≈ {h:F2}m → crouch-jump (up to ~{MantleMinHeight:F1}m) or mantle (up to {MantleMaxHeight:F2}m) required.");
 				}
@@ -2006,8 +2005,7 @@ public partial class PlayerCore : ServerBaseCharacter
 		var space = GetWorld3D().DirectSpaceState;
 		_rayQuery.From = probeFrom;
 		_rayQuery.To = probeFrom + new Vector3(0f, -(StepMaxHeight + 0.35f), 0f);
-		var downHit = space.IntersectRay(_rayQuery);
-		if (downHit.Count == 0)
+		if (!space.IntersectRayInto(_rayQuery, _rayResult))
 		{
 			if (Dbg.Enabled && Time.GetTicksMsec() - _lastStepupBlockedLogMs > 1000)
 			{
@@ -2018,7 +2016,7 @@ public partial class PlayerCore : ServerBaseCharacter
 			_stepupLastBlockedTick = _currentTick;
 			return;
 		}
-		float actualStep = ((Vector3)downHit["position"]).Y - startTrans.Origin.Y;
+		float actualStep = _rayResult.GetPosition().Y - startTrans.Origin.Y;
 		// Micro-step floating-point noise (|step| < 5cm) is silent — the alternative was
 		// log-spamming every physics tick when the player walks along a wall edge with
 		// sub-cm collision jitter. Out-of-range obstacles (negative = down-ledge, > StepMax
@@ -2073,12 +2071,11 @@ public partial class PlayerCore : ServerBaseCharacter
 		_rayQuery.CollisionMask = 1u;
 		_rayQuery.From = chest;
 		_rayQuery.To = chest + forward * MantleReach;
-		var fwdResult = space.IntersectRay(_rayQuery);
-		if (fwdResult.Count == 0) return;
+		if (!space.IntersectRayInto(_rayQuery, _rayResult)) return;
 
-		Vector3 fwdNormal = (Vector3)fwdResult["normal"];
+		Vector3 fwdNormal = _rayResult.GetNormal();
 		if (Mathf.Abs(fwdNormal.Y) > 0.4f) return;
-		Vector3 fwdHit = (Vector3)fwdResult["position"];
+		Vector3 fwdHit = _rayResult.GetPosition();
 
 		Vector3 topPos = default;
 		float heightDiff = 0f;
@@ -2089,10 +2086,9 @@ public partial class PlayerCore : ServerBaseCharacter
 			Vector3 above = fwdHit + forward * fwdOff + new Vector3(0f, MantleMaxHeight, 0f);
 			_rayQuery.From = above;
 			_rayQuery.To = above + new Vector3(0f, -MantleMaxHeight * 1.5f, 0f);
-			var dh = space.IntersectRay(_rayQuery);
-			if (dh.Count == 0) continue;
-			if (((Vector3)dh["normal"]).Y < 0.7f) continue;
-			Vector3 p = (Vector3)dh["position"];
+			if (!space.IntersectRayInto(_rayQuery, _rayResult)) continue;
+			if (_rayResult.GetNormal().Y < 0.7f) continue;
+			Vector3 p = _rayResult.GetPosition();
 			float hd = p.Y - GlobalPosition.Y;
 			if (hd < MantleMinHeight || hd > MantleMaxHeight)
 			{
@@ -2128,12 +2124,11 @@ public partial class PlayerCore : ServerBaseCharacter
 		Vector3 inwardProbe = topPos + forward * (CapsuleRadius * 0.5f) + new Vector3(0f, 0.3f, 0f);
 		_rayQuery.From = inwardProbe;
 		_rayQuery.To = inwardProbe + new Vector3(0f, -0.6f, 0f);
-		var inHit = space.IntersectRay(_rayQuery);
-		if (inHit.Count > 0
-			&& ((Vector3)inHit["normal"]).Y >= 0.7f
-			&& Mathf.Abs(((Vector3)inHit["position"]).Y - topPos.Y) < 0.15f)
+		if (space.IntersectRayInto(_rayQuery, _rayResult)
+			&& _rayResult.GetNormal().Y >= 0.7f
+			&& Mathf.Abs(_rayResult.GetPosition().Y - topPos.Y) < 0.15f)
 		{
-			landingPos = (Vector3)inHit["position"];
+			landingPos = _rayResult.GetPosition();
 		}
 
 		Dbg.Print($"[mantle] FIRED (climb) heightDiff={heightDiff:F2}m | topY={topPos.Y:F2} playerY={GlobalPosition.Y:F2} → target=({landingPos.X:F2},{landingPos.Y:F2},{landingPos.Z:F2})");
