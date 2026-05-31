@@ -22,6 +22,8 @@ Downloads/
 Source/godot
 Source/godot/*
 
+godot-pr-temp
+
 # Fingerprint of patches currently applied to Source/godot, written by
 # build-engine.cmd. Machine-local state - never share via git.
 Source/.applied-patches.txt

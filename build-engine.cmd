@@ -248,11 +248,34 @@ if not exist "%GODOT_SRC%\modules\mono\glue\GodotSharp\GodotSharp\Generated" (
         exit /b 1
     )
 )
-if not exist "%GODOT_SRC%\bin\GodotSharp" (
+REM Check on Api/ specifically, not the GodotSharp/ parent: a previous build that
+REM failed half-way through (e.g. MSBuild error for GodotSharpEditor) leaves Tools/
+REM in place while Api/ is missing, and the old `if not exist bin\GodotSharp` check
+REM saw the orphaned Tools/ and skipped build_assemblies entirely — re-runs were
+REM stuck failing forever. Checking the actual output that the next step needs
+REM (Api/) auto-recovers from those half-built states.
+if not exist "%GODOT_SRC%\bin\GodotSharp\Api" (
     echo.
     echo [mono] building managed assemblies...
+    REM Wipe any stale partial output so build_assemblies starts from a clean slate.
+    if exist "%GODOT_SRC%\bin\GodotSharp" rmdir /s /q "%GODOT_SRC%\bin\GodotSharp"
+
+    REM Make sure the local nupkg feed directory exists BEFORE build_assemblies pushes
+    REM into it. Godot.NET.Sdk's MSBuild target only creates intermediate dirs on its
+    REM build output path, not the push target.
+    if not exist "%ENGINE_DIR%\GodotSharp\Tools\nupkgs" mkdir "%ENGINE_DIR%\GodotSharp\Tools\nupkgs"
+
+    REM --push-nupkgs-local kicks in two MSBuild properties inside build_assemblies.py:
+    REM   /p:ClearNuGetLocalCache=true   -> auto-purges ~/.nuget/packages/godot*/<version>
+    REM   /p:PushNuGetToLocalSource=...  -> copies the freshly-built .nupkg files to <path>
+    REM This is the OFFICIAL workflow (docs.godotengine.org -> compiling_with_dotnet).
+    REM Without this, NuGet keeps a vanilla GodotSharp 4.6.3 from nuget.org in the user
+    REM cache and the project's PackageReference resolves to that, so any C# type added
+    REM by an engine patch (e.g. PhysicsRayQueryResult3D) is missing at compile time
+    REM with a CS0246 "type not found" - even though Engine\GodotSharp\Api\...\.dll has it.
+    REM Game\NuGet.config maps Godot* packages to the same path so the patched nupkgs win.
     pushd "%GODOT_SRC%"
-    python modules\mono\build_scripts\build_assemblies.py --godot-output-dir=bin
+    python modules\mono\build_scripts\build_assemblies.py --godot-output-dir=bin --push-nupkgs-local "%ENGINE_DIR%\GodotSharp\Tools\nupkgs"
     popd
 )
 REM Verify by output existence rather than capturing errorlevel inside the
