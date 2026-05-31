@@ -1,0 +1,51 @@
+From: ETA project local patch
+Subject: [PATCH] Avoid per-frame Array allocation in _process_compositor_effects
+
+Problem
+-------
+RendererSceneRenderRD::_process_compositor_effects() allocated a fresh
+`Array arr = { p_callback_type, p_render_data }` for every CompositorEffect
+on every frame, then dispatched via `Callable::callv(arr)`. At 240 FPS with
+the three callback stages (Pre-Opaque / Post-Opaque / Post-Transparent) and
+any handful of effects registered, this produced ~50 managed objects per
+frame on the C#-binding side (Array + 2 Variants + downstream marshalling
+wrappers) which surfaced as a ~12k ObjectDB sawtooth correlated with
+periodic 30 ms Gen1/Gen2 GC frame spikes traced to the
+"Process Post Transparent Compositor Effects" timestamp.
+
+Fix
+---
+Replace the Array+callv dispatch with a direct Callable::call(a, b). The
+underlying C++/script dispatch is identical; the Array wrapper is what
+allocated. Zero behavioural change for compositor-effect callbacks; pure
+allocation removal.
+
+Verified
+--------
+ObjectDB-Profiler shows the per-frame oscillation drop from ~12k to <500
+between two snapshots taken 30 s apart with an active PostProcessEffect
+on a 4K + 240Hz client.
+
+Patch
+-----
+
+--- a/servers/rendering/renderer_rd/renderer_scene_render_rd.cpp
++++ b/servers/rendering/renderer_rd/renderer_scene_render_rd.cpp
+@@ -308,11 +308,12 @@ void RendererSceneRenderRD::_process_compositor_effects(RS::CompositorEffectCall
+
+ 	Vector<RID> re_rids = comp_storage->compositor_get_compositor_effects(p_render_data->compositor, p_callback_type, true);
+
+-	for (RID rid : re_rids) {
+-		Callable callback = comp_storage->compositor_effect_get_callback(rid);
+-		Array arr = { p_callback_type, p_render_data };
+-		callback.callv(arr);
+-	}
++	// ETA local patch: replaced `Array arr = {...}; callback.callv(arr)` with direct
++	// `callback.call(a, b)`. The Array allocation was per-frame, per-effect, per-stage.
++	for (RID rid : re_rids) {
++		Callable callback = comp_storage->compositor_effect_get_callback(rid);
++		callback.call(p_callback_type, p_render_data);
++	}
+ }
+
+ void RendererSceneRenderRD::_render_buffers_ensure_screen_texture(const RenderDataRD *p_render_data) {

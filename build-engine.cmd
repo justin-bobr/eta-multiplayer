@@ -1,22 +1,33 @@
 @echo off
 REM ============================================================================
-REM  Build custom Godot export templates with module-strip.
-REM  NOT the editor - that is fetched separately via setup-editor.cmd.
+REM  Build custom Godot editor AND export templates from Source/godot/.
 REM
 REM  Layout:
-REM    D:\Godot\Source\godot\   Godot source tree, auto-cloned
-REM    D:\Godot\Engine\         Stock editor binaries
-REM    D:\Godot\Engine\Templates\   Custom-built templates land here
+REM    D:\Godot\Source\godot\          Godot source tree, auto-cloned
+REM    D:\Godot\Source\patches\        Local engine patches applied before build
+REM    D:\Godot\Engine\Editor.exe      Patched editor lands here (replaces stock)
+REM    D:\Godot\Engine\Editor_console.exe
+REM    D:\Godot\Engine\GodotSharp\     Patched .NET runtime assemblies
+REM    D:\Godot\Engine\Templates\      Custom-built export templates
 REM
 REM  What this script does automatically:
 REM    1. git clone the Godot source if missing
 REM    2. winget install Python if missing
 REM    3. pip install scons if missing
 REM    4. winget install VS 2022 Build Tools if missing
-REM    5. scons build with aggressive module strip for FPS shooter
-REM    6. Copy resulting templates to Engine\Templates
+REM    5. D3D12 SDK deps install
+REM    6. Generate Mono glue + C# assemblies (uses stock Editor_console.exe
+REM       on first run; subsequent runs use the just-built patched editor)
+REM    7. scons build EDITOR (full, no module strip)
+REM    8. Copy editor to Engine\Editor.exe + Editor_console.exe + GodotSharp\
+REM    9. scons build TEMPLATE with aggressive module strip for FPS shooter
+REM   10. Copy template to Engine\Templates
 REM
-REM  Duration: 30-60 min initial. Re-build with cache: 5-10 min.
+REM  Local patches in Source/patches/*.patch are auto-applied to Source/godot
+REM  before scons runs (re-running this script is idempotent: --reverse --check
+REM  detects already-applied patches and skips them).
+REM
+REM  Duration: 60-90 min initial (editor + template). Re-build with cache: 5-15 min.
 REM ============================================================================
 setlocal
 cd /d "%~dp0"
@@ -45,6 +56,39 @@ if not exist "%GODOT_SRC%\SConstruct" (
         exit /b 1
     )
     echo [setup] Source ready at %GODOT_SRC%
+    echo.
+)
+
+REM ----------------------------------------------------------------------------
+REM Apply local engine patches from Source/patches/. We run `git apply --check`
+REM first to detect already-applied patches (re-running the script must be a no-op
+REM on a clean source tree). Patches that fail --check AND fail to apply cleanly
+REM are a hard error - the source tree has drifted and someone needs to look.
+REM ----------------------------------------------------------------------------
+set "PATCH_DIR=%~dp0Source\patches"
+if exist "%PATCH_DIR%\*.patch" (
+    echo.
+    echo === Applying engine patches from Source/patches/ ===
+    pushd "%GODOT_SRC%"
+    for %%P in ("%PATCH_DIR%\*.patch") do (
+        REM Try --reverse --check first: succeeds = patch is already applied, skip it.
+        git apply --reverse --check "%%P" >nul 2>&1
+        if errorlevel 1 (
+            REM Not yet applied - apply it.
+            git apply --whitespace=nowarn "%%P"
+            if errorlevel 1 (
+                echo [ERR] git apply failed for %%~nxP
+                echo The source tree may have drifted from what the patch expects.
+                echo Inspect the patch and reconcile manually.
+                popd
+                exit /b 1
+            )
+            echo [patch] applied %%~nxP
+        ) else (
+            echo [patch] already applied: %%~nxP
+        )
+    )
+    popd
     echo.
 )
 
@@ -173,6 +217,116 @@ if not exist "%GODOT_SRC%\bin\GodotSharp\Api" (
     exit /b 1
 )
 
+REM ============================================================================
+REM EDITOR BUILD - full editor with mono, no module strip.
+REM
+REM Why we build our own editor in addition to the template:
+REM   * We carry local engine patches in Source/patches/ (e.g. the
+REM     compositor-allocation fix) that the stock editor doesn't have.
+REM   * Patches are auto-applied above before this build step runs.
+REM
+REM Module strip is NOT applied here - editor needs the full set (asset import,
+REM gltf, csg, gridmap, etc.). Only the template build strips down.
+REM ============================================================================
+echo.
+echo === GODOT EDITOR BUILD - full, mono, patched ===
+pushd "%GODOT_SRC%"
+python -m SCons platform=windows target=editor production=yes module_mono_enabled=yes
+set "SCONS_EDITOR_RC=%errorlevel%"
+popd
+
+if not "%SCONS_EDITOR_RC%"=="0" (
+    echo.
+    echo [ERR] editor scons build failed with rc=%SCONS_EDITOR_RC%
+    exit /b 1
+)
+
+echo.
+echo [Copy] godot.windows.editor.x86_64.mono.exe -^> Engine\Editor.exe
+REM Windows blocks overwriting a running executable. Previously this `copy /Y`
+REM failed silently (>nul suppressed the "file in use" stderr message) so the
+REM script claimed success while Editor.exe stayed at the OLD build and only
+REM Editor_console.exe got refreshed - exactly the symptom Stefan reported.
+REM We now check errorlevel after each copy and bail out with a clear
+REM instruction. The earlier `tasklist` pre-check produced false positives
+REM (`Editor.exe` is a common process name on Windows - VS, other tools, even
+REM the OS itself can have processes that match), so the pre-check was removed.
+REM We restructured with goto-labels because CMD's `if errorlevel` evaluation
+REM inside nested parenthesised blocks is parse-time, not run-time, and would
+REM not behave as expected.
+copy /Y "%GODOT_SRC%\bin\godot.windows.editor.x86_64.mono.exe" "%ENGINE_DIR%\Editor.exe" >nul 2>&1
+if errorlevel 1 goto :editor_copy_failed
+
+if exist "%GODOT_SRC%\bin\godot.windows.editor.x86_64.mono.console.exe" (
+    echo [Copy] godot.windows.editor.x86_64.mono.console.exe -^> Engine\Editor_console.exe
+    copy /Y "%GODOT_SRC%\bin\godot.windows.editor.x86_64.mono.console.exe" "%ENGINE_DIR%\Editor_console.exe" >nul 2>&1
+    if errorlevel 1 goto :editor_console_copy_failed
+)
+goto :editor_copy_ok
+
+:editor_copy_failed
+echo.
+echo [ERR] copy of Editor.exe failed.
+echo Source: %GODOT_SRC%\bin\godot.windows.editor.x86_64.mono.exe
+echo Target: %ENGINE_DIR%\Editor.exe
+echo Most common cause: the Godot Editor is currently running, which locks
+echo the .exe. Close all Godot Editor windows and re-run build-engine.cmd.
+echo Other causes: source file missing, target dir not writable.
+exit /b 1
+
+:editor_console_copy_failed
+echo.
+echo [ERR] copy of Editor_console.exe failed - the file is most likely in use.
+echo Close Editor_console.exe and re-run build-engine.cmd.
+exit /b 1
+
+:editor_copy_ok
+REM GodotSharp folder MUST sit next to the editor exe - contains the .NET runtime
+REM hostfxr, the generated GodotSharp.dll, and the API XML docs. Without it the
+REM editor cannot load any C# project.
+REM
+REM Same failure mode as the Editor.exe copy: if any Godot host process has the
+REM managed runtime DLLs loaded, rmdir fails on the locked file and the
+REM subsequent xcopy then only fills in the missing pieces around a
+REM partially-old tree -> the editor picks up a mismatched mix of Api XML,
+REM GodotSharp.dll, and native runtime libs. The flow uses flat GOTO-labels
+REM because CMD's `if errorlevel` inside nested parenthesised blocks is
+REM unreliable - same lesson we learned with the Editor.exe copy.
+REM
+REM Note: rmdir reports errorlevel for "file in use" but ALSO for "path not
+REM found" (errorlevel 2). We handle the not-found case explicitly via
+REM `if exist` so the only failure path is the in-use case.
+if not exist "%GODOT_SRC%\bin\GodotSharp" goto :godotsharp_copy_ok
+if not exist "%ENGINE_DIR%\GodotSharp" goto :godotsharp_xcopy
+rmdir /s /q "%ENGINE_DIR%\GodotSharp"
+if errorlevel 1 goto :godotsharp_remove_failed
+
+:godotsharp_xcopy
+xcopy /E /I /Y "%GODOT_SRC%\bin\GodotSharp" "%ENGINE_DIR%\GodotSharp" >nul
+if errorlevel 1 goto :godotsharp_copy_failed
+goto :godotsharp_copy_ok
+
+:godotsharp_remove_failed
+echo.
+echo [ERR] Could not delete %ENGINE_DIR%\GodotSharp before re-copying.
+echo This usually means a Godot host process still has the managed runtime DLLs
+echo (GodotSharp.dll, hostfxr.dll, etc.) loaded. Close ALL Godot windows
+echo (Editor.exe + Editor_console.exe + any running client/server build) and
+echo re-run build-engine.cmd.
+exit /b 1
+
+:godotsharp_copy_failed
+echo.
+echo [ERR] xcopy of GodotSharp folder failed.
+echo Source: %GODOT_SRC%\bin\GodotSharp
+echo Target: %ENGINE_DIR%\GodotSharp
+echo Most likely cause: a Godot host process has runtime DLLs loaded - close
+echo it and re-run. Otherwise verify the source folder exists and the target
+echo is writable.
+exit /b 1
+
+:godotsharp_copy_ok
+
 echo.
 echo === GODOT TEMPLATE BUILD - custom, stripped, mono ===
 echo Source:    %GODOT_SRC%
@@ -283,10 +437,35 @@ if exist "%GODOT_SRC%\bin\godot.windows.template_release.x86_64.mono.exe" (
     copy /Y "%GODOT_SRC%\bin\godot.windows.template_release.x86_64.exe" "%TEMPLATES_DIR%\windows_release.x86_64.exe" >nul
 )
 REM Also copy the GodotSharp folder which is the managed runtime that the template loads.
-if exist "%GODOT_SRC%\bin\GodotSharp" (
-    if exist "%TEMPLATES_DIR%\GodotSharp" rmdir /s /q "%TEMPLATES_DIR%\GodotSharp"
-    xcopy /E /I /Y "%GODOT_SRC%\bin\GodotSharp" "%TEMPLATES_DIR%\GodotSharp" >nul
-)
+REM Flat goto-flow + errorlevel checks for the same reasons as the editor-side
+REM copy above. Templates\GodotSharp is much less likely to be locked (templates
+REM are not executed directly during editor work) but we keep the structure
+REM consistent so future "silent failed copy" bugs get caught early.
+if not exist "%GODOT_SRC%\bin\GodotSharp" goto :templates_godotsharp_ok
+if not exist "%TEMPLATES_DIR%\GodotSharp" goto :templates_godotsharp_xcopy
+rmdir /s /q "%TEMPLATES_DIR%\GodotSharp"
+if errorlevel 1 goto :templates_godotsharp_remove_failed
+
+:templates_godotsharp_xcopy
+xcopy /E /I /Y "%GODOT_SRC%\bin\GodotSharp" "%TEMPLATES_DIR%\GodotSharp" >nul
+if errorlevel 1 goto :templates_godotsharp_copy_failed
+goto :templates_godotsharp_ok
+
+:templates_godotsharp_remove_failed
+echo.
+echo [ERR] Could not delete %TEMPLATES_DIR%\GodotSharp before re-copying.
+echo A process likely has the runtime DLLs loaded - close any running game
+echo client/server that uses the export template and re-run.
+exit /b 1
+
+:templates_godotsharp_copy_failed
+echo.
+echo [ERR] xcopy of Templates\GodotSharp failed.
+echo Source: %GODOT_SRC%\bin\GodotSharp
+echo Target: %TEMPLATES_DIR%\GodotSharp
+exit /b 1
+
+:templates_godotsharp_ok
 
 echo.
 echo === BUILD OK ===

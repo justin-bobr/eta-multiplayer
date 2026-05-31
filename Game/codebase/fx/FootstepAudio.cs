@@ -94,27 +94,43 @@ public partial class FootstepAudio : Node3D
 	public override void _Ready()
 	{
 		BuildLibrary();
-		// Auto-discover materials by scanning the scene tree for nodes tagged with any
-		// of the material group names known to the library. Avoids the "first step on
-		// material X = 40ms cold-load" hitch by kicking off the threaded import at
-		// spawn, when the user is in the loading screen anyway. Materials in
-		// PreloadGroups (inspector override) are additionally loaded even if not in
-		// the current map — useful for grenade-bounce sounds that travel cross-area.
-		SceneTree tree = GetTree();
-		if (tree != null)
-		{
-			foreach (var kv in _lib)
-			{
-				string mat = kv.Key;
-				if (tree.GetNodesInGroup(mat).Count > 0)
-					EnsureMaterialLoaded(mat);
-			}
-		}
+		// Phase 1: enqueue every material the library knows about. Each EnsureMaterialLoaded fires
+		// ResourceLoader.LoadThreadedRequest for the clips and appends them to _pending. Since
+		// SceneLoader.PreloadingAudio already threaded-loaded everything to terminal status before the
+		// scene switched, these requests are no-ops (cached) and the background side is already done.
+		foreach (var kv in _lib)
+			EnsureMaterialLoaded(kv.Key);
 		foreach (string mat in PreloadGroups)
 			if (!string.IsNullOrEmpty(mat))
 				EnsureMaterialLoaded(mat);
+
+		// Phase 2: sync-drain everything that is already background-Loaded. LoadThreadedGet on a
+		// terminal-status path is fast (decoded buffer → AudioStream instantiation, ~sub-ms each), but
+		// _Process's 2/frame throttle would have spread 2000+ clips over ~18 s of gameplay → most
+		// surfaces silent for the first 18 s. Doing it here under the fade-in mask trades that for a
+		// ~1 s spawn-time hitch which is invisible because WorldFadeOverlay is opaque-black. Anything
+		// genuinely still InProgress (network resource, very slow disk) stays in _pending for
+		// _Process to drain at 2/frame as a fallback.
+		int finalizedNow = 0;
+		for (int i = _pending.Count - 1; i >= 0; i--)
+		{
+			string path = _pending[i];
+			var status = ResourceLoader.LoadThreadedGetStatus(path);
+			if (status == ResourceLoader.ThreadLoadStatus.InProgress) continue;
+			_pending.RemoveAt(i);
+			if (status == ResourceLoader.ThreadLoadStatus.Loaded
+				&& ResourceLoader.LoadThreadedGet(path) is AudioStream stream)
+			{
+				_clipCache[path] = stream;
+				finalizedNow++;
+			}
+			else
+			{
+				GD.PushWarning($"[FootstepAudio] clip load failed: {path} ({status})");
+			}
+		}
 		SetProcess(_pending.Count > 0);
-		Dbg.Print($"[FootstepAudio] auto-discovered + preloaded queue: {_pending.Count} clips pending");
+		Dbg.Print($"[FootstepAudio] materials={_lib.Count} | finalized-now={finalizedNow} | still-pending={_pending.Count} (will drain via _Process @ 2/frame)");
 	}
 
 	/// <summary>Groups <see cref="ClipPaths"/> by material (folder) and action (filename token).</summary>

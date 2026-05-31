@@ -1,4 +1,5 @@
 using Godot;
+using System;
 
 /// <summary>Shadow quality preset. Off disables all directional and positional shadows globally — single biggest GPU win on dust-style maps (sun-shadow alone can be 30–50% of frame budget at 1080p).</summary>
 public enum ShadowQuality { Off, Low, Medium, High }
@@ -30,6 +31,11 @@ public static class Settings
 
 	public static DisplayServer.WindowMode WindowMode = DisplayServer.WindowMode.Windowed;
 	public static Vector2I Resolution = new(1920, 1080);
+	/// <summary>Monitor index the game window lives on (0 = primary). Clamped to actual screen count
+	/// on load — bogus indices from a multi-monitor setup that has since been unplugged fall back
+	/// to 0. Resolution-dropdown candidates are filtered against THIS monitor's native size, not the
+	/// monitor the window happens to currently be on.</summary>
+	public static int MonitorIndex = 0;
 	public static DisplayServer.VSyncMode VSync = DisplayServer.VSyncMode.Enabled;
 	public static int FpsCap = 0;
 	public static int MenuFpsCap = 60;
@@ -52,6 +58,13 @@ public static class Settings
 	public static VolumetricFogQuality VolumetricFog = VolumetricFogQuality.Medium;
 	public static bool Sky = true;
 	public static bool CloudShadows = true;
+	/// <summary>Master switch for the compute-shader post-process pass (chromatic aberration, sharpen,
+	/// vignette, film grain, motion blur). Disabling kills the entire <see cref="PostProcessEffect"/>
+	/// compositor effect — useful for diagnosing periodic frame spikes traced to the "Post Transparent
+	/// Compositor Effects" stage in the Visual Profiler. The individual feature toggles below
+	/// (ChromaticAberration, Sharpening, Vignette, FilmGrain, MotionBlur) gate sub-effects but the
+	/// compute pass itself still runs; this master kills the dispatch entirely.</summary>
+	public static bool PostProcessing = true;
 	/// <summary>Max distance in metres up to which cloud shadows render. Beyond that
 	/// the shader fades out (no pixel-shader cost). 0 = only the immediate camera
 	/// vicinity, 250+ = entire map. Default 120m = sweet spot between look and perf.</summary>
@@ -62,6 +75,7 @@ public static class Settings
 	public static bool MotionBlur = true;
 	public static bool FilmGrain = true;
 	public static bool Vignette = true;
+	public static bool ChromaticAberration = true;
 	/// <summary>Toggle the post-process unsharp-mask pass in <c>post_process.glsl</c> (luma-only). Auto-disabled when an FSR upscaler is active because FSR1's RCAS and FSR2's built-in sharpener both run after the compositor — stacking would oversharpen. Off here forces the pass off in every mode.</summary>
 	public static bool Sharpening = true;
 	public static bool AdsDepthOfField = true;
@@ -197,6 +211,9 @@ public static class Settings
 		int rx = cfg.GetValue("video", "res_x", Resolution.X).AsInt32();
 		int ry = cfg.GetValue("video", "res_y", Resolution.Y).AsInt32();
 		Resolution = new Vector2I(rx, ry);
+		MonitorIndex = cfg.GetValue("video", "monitor", MonitorIndex).AsInt32();
+		int screenCount = DisplayServer.GetScreenCount();
+		if (MonitorIndex < 0 || MonitorIndex >= screenCount) MonitorIndex = 0;
 		VSync = (DisplayServer.VSyncMode)cfg.GetValue("video", "vsync", (int)VSync).AsInt32();
 		FpsCap = cfg.GetValue("video", "fps_cap", FpsCap).AsInt32();
 		MenuFpsCap = cfg.GetValue("video", "menu_fps_cap", MenuFpsCap).AsInt32();
@@ -213,11 +230,9 @@ public static class Settings
 		Reflections = cfg.GetValue("graphics", "reflections", Reflections).AsBool();
 		ReflectionProbes = (ReflectionProbeQuality)cfg.GetValue("graphics", "reflection_probes", (int)ReflectionProbes).AsInt32();
 		VolumetricFog = (VolumetricFogQuality)cfg.GetValue("graphics", "volumetric_fog", (int)VolumetricFog).AsInt32();
-		// Legacy migration: older builds wrote VolumetricFog=Off when the slider was at
-		// "Off". The smoke-grenade renderer needs the fog volume so we clamp to Low here.
-		if (VolumetricFog == VolumetricFogQuality.Off) VolumetricFog = VolumetricFogQuality.Low;
 		Sky = cfg.GetValue("graphics", "sky", Sky).AsBool();
 		CloudShadows = cfg.GetValue("graphics", "cloud_shadows", CloudShadows).AsBool();
+		PostProcessing = cfg.GetValue("graphics", "post_processing", PostProcessing).AsBool();
 		CloudShadowDistance = (float)cfg.GetValue("graphics", "cloud_shadow_distance", CloudShadowDistance).AsDouble();
 		GodRays = cfg.GetValue("graphics", "god_rays", GodRays).AsBool();
 		LensFlare = cfg.GetValue("graphics", "lens_flare", LensFlare).AsBool();
@@ -225,6 +240,7 @@ public static class Settings
 		MotionBlur = cfg.GetValue("graphics", "motion_blur", MotionBlur).AsBool();
 		FilmGrain = cfg.GetValue("graphics", "film_grain", FilmGrain).AsBool();
 		Vignette = cfg.GetValue("graphics", "vignette", Vignette).AsBool();
+		ChromaticAberration = cfg.GetValue("graphics", "chromatic_aberration", ChromaticAberration).AsBool();
 		Sharpening = cfg.GetValue("graphics", "sharpening", Sharpening).AsBool();
 		AdsDepthOfField = cfg.GetValue("graphics", "ads_dof", AdsDepthOfField).AsBool();
 		AdsFovZoom = cfg.GetValue("graphics", "ads_fov_zoom", AdsFovZoom).AsBool();
@@ -275,6 +291,7 @@ public static class Settings
 		cfg.SetValue("video", "window_mode", (int)WindowMode);
 		cfg.SetValue("video", "res_x", Resolution.X);
 		cfg.SetValue("video", "res_y", Resolution.Y);
+		cfg.SetValue("video", "monitor", MonitorIndex);
 		cfg.SetValue("video", "vsync", (int)VSync);
 		cfg.SetValue("video", "fps_cap", FpsCap);
 		cfg.SetValue("video", "menu_fps_cap", MenuFpsCap);
@@ -293,6 +310,7 @@ public static class Settings
 		cfg.SetValue("graphics", "volumetric_fog", (int)VolumetricFog);
 		cfg.SetValue("graphics", "sky", Sky);
 		cfg.SetValue("graphics", "cloud_shadows", CloudShadows);
+		cfg.SetValue("graphics", "post_processing", PostProcessing);
 		cfg.SetValue("graphics", "cloud_shadow_distance", CloudShadowDistance);
 		cfg.SetValue("graphics", "god_rays", GodRays);
 		cfg.SetValue("graphics", "lens_flare", LensFlare);
@@ -300,6 +318,7 @@ public static class Settings
 		cfg.SetValue("graphics", "motion_blur", MotionBlur);
 		cfg.SetValue("graphics", "film_grain", FilmGrain);
 		cfg.SetValue("graphics", "vignette", Vignette);
+		cfg.SetValue("graphics", "chromatic_aberration", ChromaticAberration);
 		cfg.SetValue("graphics", "sharpening", Sharpening);
 		cfg.SetValue("graphics", "ads_dof", AdsDepthOfField);
 		cfg.SetValue("graphics", "ads_fov_zoom", AdsFovZoom);
@@ -331,11 +350,161 @@ public static class Settings
 	/// produces "Uniforms were never supplied for set 1" errors out of Godot's
 	/// TAA/velocity pipeline. Those parts are deferred to <see cref="Apply"/> later
 	/// once PlayerCore spawns and the world is loaded.</summary>
+	/// <summary>
+	/// Atomic window-mode + resolution apply.
+	///
+	///   • Windowed                    → WindowSetSize(Resolution)
+	///   • Fullscreen (Borderless)     → desktop scanout stays native; Resolution is ignored at this
+	///                                   layer (sub-native via RenderScale + FSR pipeline)
+	///   • ExclusiveFullscreen + native res    → plain Godot ExclusiveFullscreen, no Win32 intervention
+	///   • ExclusiveFullscreen + sub-native    → Win32 <see cref="Win32Display.TrySetMode"/> first
+	///                                           (programmes the monitor scanout like CS2 / CoD), then
+	///                                           hand off to Godot's ExclusiveFullscreen which inherits
+	///                                           the new mode. CDS_FULLSCREEN flag → Windows auto-
+	///                                           restores the desktop mode on Alt-Tab and on process
+	///                                           exit, no extra hooks needed for the happy path.
+	///                                           Falls back to native-res Exclusive if the monitor
+	///                                           does not advertise the picked mode.
+	/// </summary>
+	private static void ApplyWindowModeAndResolution()
+	{
+		DisplayServer.WindowMode current = DisplayServer.WindowGetMode();
+
+		int screenCount = DisplayServer.GetScreenCount();
+		if (MonitorIndex < 0 || MonitorIndex >= screenCount) MonitorIndex = 0;
+
+		// Early-out: if the current state already matches the target (same mode + same monitor +
+		// same effective resolution), skip the whole mode-cycle. Settings.Apply gets called multiple
+		// times during normal flow (boot, settings-menu changes, post-map-load to push graphics
+		// tunables), and without this guard each call triggers an unnecessary black-flash mode
+		// change even though nothing display-relevant changed.
+		if (IsDisplayStateAlreadyCorrect(current)) return;
+
+		DisplayServer.WindowSetCurrentScreen(MonitorIndex);
+
+		if (WindowMode == DisplayServer.WindowMode.ExclusiveFullscreen)
+		{
+			Vector2I native = GetMonitorNativeResolution(MonitorIndex);
+			bool isSubNative = Resolution.X < native.X || Resolution.Y < native.Y;
+
+			// Strict order to avoid the "monitor at 1080p but Godot's swap-chain still 4K → game
+			// renders only the top-left quadrant" issue:
+			//   1. Drop to Windowed (releases ExclusiveFullscreen lock — WindowSetSize is no-op
+			//      while in Exclusive). Skip if we're already Windowed at boot.
+			//   2. SetCurrentScreen(MonitorIndex) AGAIN — going to Windowed often snaps the window
+			//      back to the previous Exclusive monitor instead of obeying our pre-set.
+			//   3. WindowSetSize(Resolution) → Godot's internal framebuffer / viewport matches.
+			//   4. Win32/Linux mode-change → monitor scanout matches.
+			//   5. SetCurrentScreen(MonitorIndex) AGAIN — paranoia before re-entering exclusive,
+			//      because WindowSetMode(ExclusiveFullscreen) tends to snap to whichever monitor
+			//      Godot internally last associated with exclusive mode.
+			//   6. WindowSetMode(ExclusiveFullscreen) → Godot enters exclusive at the now-matched
+			//      size on the now-matched monitor.
+			if (current == DisplayServer.WindowMode.ExclusiveFullscreen || current == DisplayServer.WindowMode.Fullscreen)
+				DisplayServer.WindowSetMode(DisplayServer.WindowMode.Windowed);
+			DisplayServer.WindowSetCurrentScreen(MonitorIndex);
+			DisplayServer.WindowSetSize(Resolution);
+
+			if (isSubNative)
+			{
+				bool ok = false;
+				if (Win32Display.IsSupported)
+				{
+					long hwndLong = DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle, 0);
+					ok = Win32Display.TrySetMode(new IntPtr(hwndLong), Resolution.X, Resolution.Y);
+				}
+				else if (LinuxDisplay.IsSupported)
+				{
+					ok = LinuxDisplay.TrySetMode(MonitorIndex, Resolution.X, Resolution.Y);
+				}
+				if (!ok)
+					GD.PushWarning($"[Settings] native mode-change to {Resolution.X}×{Resolution.Y} unavailable on this platform; using Exclusive Fullscreen at native res instead.");
+			}
+			else
+			{
+				ReleaseNativeOverrideIfHeld();
+			}
+
+			DisplayServer.WindowSetCurrentScreen(MonitorIndex);
+			DisplayServer.WindowSetMode(DisplayServer.WindowMode.ExclusiveFullscreen);
+		}
+		else
+		{
+			// Leaving Exclusive (or never entered) → release any held native override eagerly.
+			// Win32's CDS_FULLSCREEN auto-restores on focus loss too, but the user explicitly switched
+			// modes here so do it immediately.
+			ReleaseNativeOverrideIfHeld();
+
+			if (WindowMode == DisplayServer.WindowMode.Windowed)
+			{
+				if (current != DisplayServer.WindowMode.Windowed)
+					DisplayServer.WindowSetMode(DisplayServer.WindowMode.Windowed);
+				if (DisplayServer.WindowGetSize() != Resolution)
+					DisplayServer.WindowSetSize(Resolution);
+			}
+			else
+			{
+				// Borderless Fullscreen — desktop scanout stays native; size is ignored at this layer.
+				if (current != WindowMode)
+					DisplayServer.WindowSetMode(WindowMode);
+			}
+		}
+	}
+
+	/// <summary>Releases whichever native-backend mode override is currently held. Safe to call when
+	/// none is held (no-op). Single place so Apply paths don't have to know the backend.</summary>
+	private static void ReleaseNativeOverrideIfHeld()
+	{
+		if (Win32Display.HasAppliedMode) Win32Display.Reset();
+		if (LinuxDisplay.HasAppliedMode) LinuxDisplay.Reset();
+	}
+
+	/// <summary>True if the live display state already matches what Apply would set up — same
+	/// WindowMode, same monitor, same effective resolution. Returning true here makes Apply a
+	/// fast no-op which keeps map-load Apply calls from re-triggering an unnecessary monitor
+	/// mode-change with its associated black flash.</summary>
+	private static bool IsDisplayStateAlreadyCorrect(DisplayServer.WindowMode current)
+	{
+		if (current != WindowMode) return false;
+		if (DisplayServer.WindowGetCurrentScreen() != MonitorIndex) return false;
+
+		if (WindowMode == DisplayServer.WindowMode.ExclusiveFullscreen)
+		{
+			Vector2I native = GetMonitorNativeResolution(MonitorIndex);
+			bool isSubNative = Resolution.X < native.X || Resolution.Y < native.Y;
+			if (isSubNative)
+			{
+				// A sub-native target only matches if we currently hold an override at exactly that res.
+				if (Win32Display.HasAppliedMode && Win32Display.AppliedResolution == Resolution) return true;
+				if (LinuxDisplay.HasAppliedMode && LinuxDisplay.AppliedResolution == Resolution) return true;
+				return false;
+			}
+			// Native target only matches if no override is held (i.e. scanout = native).
+			return !Win32Display.HasAppliedMode && !LinuxDisplay.HasAppliedMode;
+		}
+		if (WindowMode == DisplayServer.WindowMode.Windowed)
+		{
+			return DisplayServer.WindowGetSize() == Resolution;
+		}
+		// Borderless Fullscreen — desktop always at native, resolution not applicable.
+		return true;
+	}
+
+	/// <summary>Best-available PHYSICAL native resolution for a monitor: Win32 / xrandr first,
+	/// Godot's DPI-scaled <c>ScreenGetSize</c> as last resort.</summary>
+	private static Vector2I GetMonitorNativeResolution(int monitorIndex)
+	{
+		Vector2I r = Win32Display.IsSupported
+			? Win32Display.GetNativeResolution(monitorIndex)
+			: LinuxDisplay.IsSupported
+				? LinuxDisplay.GetNativeResolution(monitorIndex)
+				: Vector2I.Zero;
+		return r == Vector2I.Zero ? DisplayServer.ScreenGetSize(monitorIndex) : r;
+	}
+
 	public static void ApplyDisplay()
 	{
-		DisplayServer.WindowSetMode(WindowMode);
-		if (WindowMode == DisplayServer.WindowMode.Windowed)
-			DisplayServer.WindowSetSize(Resolution);
+		ApplyWindowModeAndResolution();
 		DisplayServer.WindowSetVsyncMode(VSync);
 		if (!SettingsMenu.IsAnyOpen) Engine.MaxFps = FpsCap;
 		ConVars.Cl.MouseSensitivity = MouseSensitivity;
@@ -346,10 +515,7 @@ public static class Settings
 	/// <summary>Applies loaded/changed values to Godot + ConVars. Safe to call multiple times.</summary>
 	public static void Apply(SceneTree tree)
 	{
-		DisplayServer.WindowSetMode(WindowMode);
-		if (WindowMode == DisplayServer.WindowMode.Windowed)
-			DisplayServer.WindowSetSize(Resolution);
-
+		ApplyWindowModeAndResolution();
 		DisplayServer.WindowSetVsyncMode(VSync);
 
 		// UI Content-Scale runtime — applied to the root Window. ContentScaleFactor
@@ -564,12 +730,13 @@ public static class Settings
 		// flag matches CS2's "Screen Space Effects" combined toggle and keeps the menu lean.
 		env.SsrEnabled = Reflections;
 		env.SsilEnabled = Reflections;
-		// VolumetricFog is the rendering substrate the smoke-grenade system writes into
-		// — never let it be toggled off at runtime. Quality (volume-grid size) IS user-
-		// toggleable, but the on/off flag is hardcoded true here. Quality-change requires
-		// a level reload to take effect (volume_size is read once at scene-load via
-		// ProjectSettings.SetSetting from Load(), not via RenderingServer at runtime).
-		env.VolumetricFogEnabled = true;
+		// VolumetricFog is the rendering substrate the smoke-grenade system writes into. The
+		// "Off" quality option disables the volume here for performance-diagnosis sessions —
+		// known suspect for periodic Gen2 GC spikes via RDTextureFormat churn in the temporal-
+		// reprojection pass. Smokes thrown while Off renders nothing (FogVolumes only display
+		// inside an enabled VolumetricFog). Quality change (volume-grid size) requires a level
+		// reload because volume_size is read once at scene-load via ProjectSettings.
+		env.VolumetricFogEnabled = VolumetricFog != VolumetricFogQuality.Off;
 		// Adjustment slots (Brightness/Contrast/Saturation/Color-Correction-LUT) are
 		// the scene's responsibility. de_dust2 ships with adjustment_brightness=1.25,
 		// adjustment_saturation=1.4 + a colour-correction LUT — these define the
@@ -685,11 +852,12 @@ public static class Settings
 				if (effect == null) continue;
 				if (effect is PostProcessEffect ppe)
 				{
-					ppe.Enabled = !useFullCanvas;
+					ppe.Enabled = PostProcessing && !useFullCanvas;
 					ppe.MotionBlur = MotionBlur;
 					ppe.FilmGrain = FilmGrain;
 					ppe.Vignette = Vignette;
 					ppe.Sharpening = Sharpening && !upscalerProvidesSharpen;
+					ppe.ChromaticAberration = ChromaticAberration;
 				}
 			}
 		if (PostCanvasFx.Instance != null)

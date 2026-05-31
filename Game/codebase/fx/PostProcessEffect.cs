@@ -34,6 +34,47 @@ public partial class PostProcessEffect : CompositorEffect
 	private Rid _pipeline;
 	private Rid _sampler;
 	private Rid _linearSampler;
+
+	// Pre-allocated render objects — the previous "new RDUniform { ... } × 4" per frame produced
+	// ~1000 RefCounted allocations/sec at 240 FPS, visible as a periodic ~30-40 ms GC stall every
+	// few seconds (Gen1/Gen2 collection). The RDUniforms get reused via ClearIds/AddId; the wrapping
+	// Array<RDUniform> and the push-constant byte buffer are sized once and reused.
+	private RDUniform _srcUniform;
+	private RDUniform _dstUniform;
+	private RDUniform _depthUniform;
+	private RDUniform _velocityUniform;
+	private Godot.Collections.Array<RDUniform> _uniformList;
+	private readonly float[] _pushFloats = new float[32];
+	private readonly byte[] _pushBytes1 = new byte[32 * sizeof(float)];
+	private readonly byte[] _pushBytes2 = new byte[32 * sizeof(float)];
+
+	// Storage-bit check cache. _rd.TextureGetFormat() allocates a fresh RDTextureFormat per call,
+	// which the ObjectDB profiler flagged as a top sawtooth contributor. The previous one-slot
+	// cache (_lastCheckedColor) missed EVERY FRAME on a double-/triple-buffered viewport because
+	// Godot rotates the resolved-colour RID between TAA history slots: A → B → A → B → ... so
+	// `color != _lastCheckedColor` was true every frame and TextureGetFormat was called every
+	// frame. Dictionary keyed by RID id retains the result for each rotating buffer; after
+	// 2-3 frames of warm-up the lookup is a pure hash hit and TextureGetFormat stops firing.
+	private readonly System.Collections.Generic.Dictionary<ulong, bool> _storageCheckCache
+		= new System.Collections.Generic.Dictionary<ulong, bool>(4);
+
+	// Manual UniformSet cache — bypasses Godot's <see cref="UniformSetCacheRD.GetCache"/> helper
+	// which internally hashes the Array<RDUniform> contents on every call (allocates Variant
+	// wrappers for the comparison). Even with stable inputs the helper produced ~2 k Object/cycle
+	// ObjectDB growth attributable to this path. We instead cache by the texture-RID tuple that
+	// actually identifies the set: (src, dst). depth + velocity stay constant per frame so they
+	// don't need to be in the key.
+	//
+	// The previous `if (color != _setCacheKeyedColor) FlushSetCache()` guard was DEFECTIVE for the
+	// same reason as the storage check: colour rotates A → B per TAA buffer, so the flush fired
+	// every frame, both UniformSets were destroyed + recreated per frame, and the RD-driver
+	// descriptor-pool churn on the GPU side produced the second sawtooth tier visible in the
+	// ObjectDB profiler under "PostProcessEffect". Now we just trust UniformSetIsValid() per
+	// lookup: when a viewport rebuild invalidates the RIDs the next call detects it and refreshes
+	// only that entry. The dictionary grows by one entry per rotating-buffer phase (typically 2-3)
+	// then stays put.
+	private readonly System.Collections.Generic.Dictionary<(ulong src, ulong dst), Rid> _setCache
+		= new System.Collections.Generic.Dictionary<(ulong, ulong), Rid>(4);
 	private readonly StringName _context = "PostProcessFX";
 	private readonly StringName _tempName = "temp_color";
 	// Release-build diagnostic: wir hatten den Fall dass im exportierten Build alles zu hell aussah,
@@ -42,6 +83,7 @@ public partial class PostProcessEffect : CompositorEffect
 	// für den vollen Lifecycle (Constructor → Init → erster RenderCallback). One-shot via Interlocked
 	// damit Multi-View / Multi-Frame nicht den Log floodet.
 	private int _firstRenderLogged;
+
 
 	/// <summary>Configures the effect callback slot, requests required render targets, and queues compute init.</summary>
 	public PostProcessEffect()
@@ -56,7 +98,6 @@ public partial class PostProcessEffect : CompositorEffect
 			RenderingServer.CallOnRenderThread(Callable.From(InitializeCompute));
 		}
 	}
-
 	/// <summary>Loads the compute shader and creates the pipeline plus samplers on the render thread.</summary>
 	private void InitializeCompute()
 	{
@@ -94,7 +135,14 @@ public partial class PostProcessEffect : CompositorEffect
 			RepeatU = RenderingDevice.SamplerRepeatMode.ClampToEdge,
 			RepeatV = RenderingDevice.SamplerRepeatMode.ClampToEdge,
 		});
+
+		_srcUniform = new RDUniform { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 0 };
+		_dstUniform = new RDUniform { UniformType = RenderingDevice.UniformType.Image, Binding = 1 };
+		_depthUniform = new RDUniform { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 2 };
+		_velocityUniform = new RDUniform { UniformType = RenderingDevice.UniformType.SamplerWithTexture, Binding = 3 };
+		_uniformList = new Godot.Collections.Array<RDUniform> { _srcUniform, _dstUniform, _depthUniform, _velocityUniform };
 	}
+
 
 	/// <summary>Frees GPU resources (shader, pipeline, samplers) when the effect is being destroyed.
 	/// _pipeline was missing here — caused a "1 RID of type Compute was leaked" warning on shutdown.</summary>
@@ -113,6 +161,18 @@ public partial class PostProcessEffect : CompositorEffect
 		}
 	}
 
+	/// <summary>True when at least one sub-effect is actively contributing. When everything is off,
+	/// the two compute passes would still run two full-resolution texture copies (color→temp→color)
+	/// that produce a bit-identical buffer to the input — pure GPU-time waste. This short-circuit
+	/// skips the entire dispatch + sync chain, eliminating the periodic 30 ms spike traced to the
+	/// "Post Transparent Compositor Effects" stage in the Visual Profiler when all toggles are off.</summary>
+	private bool AnyEffectActive =>
+		(ChromaticAberration && Aberration > 0f) ||
+		(Sharpening && Sharpen > 0f) ||
+		(FilmGrain && GrainStrength > 0f) ||
+		(Vignette && (VignetteStrength + VignetteAdsBoost * AdsBlend) > 0f) ||
+		(MotionBlur && MotionBlurStrength > 0f);
+
 	/// <summary>Per-view render entry point: copies scene colour to a temp buffer then runs the effects pass back to colour.</summary>
 	public override void _RenderCallback(int effectCallbackType, RenderData renderData)
 	{
@@ -122,6 +182,8 @@ public partial class PostProcessEffect : CompositorEffect
 				GD.PrintErr($"[PostProcessFX] _RenderCallback early-return: rd={(_rd != null)} pipeline.valid={_pipeline.IsValid} — post-pass is silently OFF this run");
 			return;
 		}
+		if (!AnyEffectActive)
+			return;
 		if (renderData.GetRenderSceneBuffers() is not RenderSceneBuffersRD buffers)
 			return;
 		if (renderData.GetRenderSceneData() is not RenderSceneDataRD sceneData)
@@ -133,8 +195,10 @@ public partial class PostProcessEffect : CompositorEffect
 		if (size.X == 0 || size.Y == 0)
 			return;
 
-		uint xGroups = ((uint)size.X - 1) / 8 + 1;
-		uint yGroups = ((uint)size.Y - 1) / 8 + 1;
+		// Must match the shader's layout(local_size_x = 16, local_size_y = 16) declaration —
+		// changing one without the other leaves an unrendered strip on the right/bottom edges.
+		uint xGroups = ((uint)size.X + 15) / 16;
+		uint yGroups = ((uint)size.Y + 15) / 16;
 		float time = (Time.GetTicksMsec() % 100000UL) / 1000.0f;
 		uint views = buffers.GetViewCount();
 		Vector3 camPos = sceneData.GetCamTransform().Origin;
@@ -143,8 +207,13 @@ public partial class PostProcessEffect : CompositorEffect
 		{
 			Rid color = buffers.GetColorLayer(view);
 
-			if ((_rd.TextureGetFormat(color).UsageBits
-				& RenderingDevice.TextureUsageBits.StorageBit) == 0)
+			if (!_storageCheckCache.TryGetValue(color.Id, out bool isStorage))
+			{
+				isStorage = (_rd.TextureGetFormat(color).UsageBits
+					& RenderingDevice.TextureUsageBits.StorageBit) != 0;
+				_storageCheckCache[color.Id] = isStorage;
+			}
+			if (!isStorage)
 				return;
 
 			Rid depth = buffers.GetDepthLayer(view);
@@ -168,71 +237,129 @@ public partial class PostProcessEffect : CompositorEffect
 			Projection viewMatrix = new Projection(sceneData.GetCamTransform().AffineInverse());
 			Projection invViewProj = (sceneData.GetViewProjection(view) * viewMatrix).Inverse();
 
-			RunPass(color, temp, depth, velocity, invViewProj, camPos, size, xGroups, yGroups, time, 0.0f, 0.0f);
-			RunPass(temp, color, depth, velocity, invViewProj, camPos, size, xGroups, yGroups, time, 1.0f + GrainMode, motionBlur);
+			RunBothPasses(color, temp, depth, velocity, invViewProj, camPos, size, xGroups, yGroups, time, motionBlur);
 		}
 	}
 
-	/// <summary>Dispatches a single compute pass with the given source/dest bindings and push constants.</summary>
-	private void RunPass(Rid src, Rid dst, Rid depth, Rid velocity, Projection invViewProj, Vector3 camPos,
-		Vector2I size, uint xGroups, uint yGroups, float time, float mode, float motionBlur)
+	/// <summary>Dispatches both compute passes (mode 0 colour→temp, mode 1 temp→colour) inside a
+	/// SINGLE ComputeListBegin/End with a memory barrier in between. Halves the number of
+	/// ComputeList* C#-binding calls vs running two separate lists — Godot's binding marshals
+	/// every call through a Variant wrapper which allocates managed objects, and the resulting
+	/// per-frame churn is the dominant remaining source of the ObjectDB sawtooth when any effect
+	/// is active. Per-pass push constants live in their own pre-allocated byte buffer so the
+	/// command list captures the right snapshot for each dispatch.</summary>
+	private void RunBothPasses(Rid color, Rid temp, Rid depth, Rid velocity, Projection invViewProj,
+		Vector3 camPos, Vector2I size, uint xGroups, uint yGroups, float time, float motionBlur)
 	{
-		float[] push = new float[32];
-		push[0] = invViewProj.X.X; push[1] = invViewProj.X.Y; push[2] = invViewProj.X.Z; push[3] = invViewProj.X.W;
-		push[4] = invViewProj.Y.X; push[5] = invViewProj.Y.Y; push[6] = invViewProj.Y.Z; push[7] = invViewProj.Y.W;
-		push[8] = invViewProj.Z.X; push[9] = invViewProj.Z.Y; push[10] = invViewProj.Z.Z; push[11] = invViewProj.Z.W;
-		push[12] = invViewProj.W.X; push[13] = invViewProj.W.Y; push[14] = invViewProj.W.Z; push[15] = invViewProj.W.W;
-		push[16] = camPos.X; push[17] = camPos.Y; push[18] = camPos.Z;
-		push[19] = motionBlur;
-		push[20] = size.X; push[21] = size.Y;
-		push[22] = ChromaticAberration ? Aberration : 0.0f;
-		push[23] = Sharpening ? Sharpen : 0.0f;
-		push[24] = FilmGrain ? GrainStrength : 0.0f;
-		push[25] = time; push[26] = mode;
-		push[27] = Vignette ? (VignetteStrength + VignetteAdsBoost * AdsBlend) : 0.0f;
-		push[28] = VignetteRadius;
+		// Fill the shared push-constant fields once. mode + motionBlur are the only fields that
+		// differ between the two passes (mode=0 copy, mode=1 effects pass) — set per-pass below.
+		_pushFloats[0] = invViewProj.X.X;
+		_pushFloats[1] = invViewProj.X.Y;
+		_pushFloats[2] = invViewProj.X.Z;
+		_pushFloats[3] = invViewProj.X.W;
+		_pushFloats[4] = invViewProj.Y.X;
+		_pushFloats[5] = invViewProj.Y.Y;
+		_pushFloats[6] = invViewProj.Y.Z;
+		_pushFloats[7] = invViewProj.Y.W;
+		_pushFloats[8] = invViewProj.Z.X;
+		_pushFloats[9] = invViewProj.Z.Y;
+		_pushFloats[10] = invViewProj.Z.Z;
+		_pushFloats[11] = invViewProj.Z.W;
+		_pushFloats[12] = invViewProj.W.X;
+		_pushFloats[13] = invViewProj.W.Y;
+		_pushFloats[14] = invViewProj.W.Z;
+		_pushFloats[15] = invViewProj.W.W;
+		_pushFloats[16] = camPos.X;
+		_pushFloats[17] = camPos.Y;
+		_pushFloats[18] = camPos.Z;
+		_pushFloats[20] = size.X;
+		_pushFloats[21] = size.Y;
+		_pushFloats[22] = ChromaticAberration ? Aberration : 0.0f;
+		_pushFloats[23] = Sharpening ? Sharpen : 0.0f;
+		_pushFloats[24] = FilmGrain ? GrainStrength : 0.0f;
+		_pushFloats[25] = time;
+		_pushFloats[27] = Vignette ? (VignetteStrength + VignetteAdsBoost * AdsBlend) : 0.0f;
+		_pushFloats[28] = VignetteRadius;
 
-		byte[] pushBytes = new byte[push.Length * sizeof(float)];
-		System.Buffer.BlockCopy(push, 0, pushBytes, 0, pushBytes.Length);
+		// Pass 1: mode=0, motionBlur=0 (just a copy color→temp; the effects branch is skipped).
+		_pushFloats[19] = 0.0f;
+		_pushFloats[26] = 0.0f;
+		System.Buffer.BlockCopy(_pushFloats, 0, _pushBytes1, 0, _pushBytes1.Length);
 
-		var srcUniform = new RDUniform
-		{
-			UniformType = RenderingDevice.UniformType.SamplerWithTexture,
-			Binding = 0,
-		};
-		srcUniform.AddId(_linearSampler);
-		srcUniform.AddId(src);
-		var dstUniform = new RDUniform
-		{
-			UniformType = RenderingDevice.UniformType.Image,
-			Binding = 1,
-		};
-		dstUniform.AddId(dst);
-		var depthUniform = new RDUniform
-		{
-			UniformType = RenderingDevice.UniformType.SamplerWithTexture,
-			Binding = 2,
-		};
-		depthUniform.AddId(_sampler);
-		depthUniform.AddId(depth);
-		var velocityUniform = new RDUniform
-		{
-			UniformType = RenderingDevice.UniformType.SamplerWithTexture,
-			Binding = 3,
-		};
-		velocityUniform.AddId(_sampler);
-		velocityUniform.AddId(velocity);
-
-		Rid uniformSet = UniformSetCacheRD.GetCache(_shader, 0,
-			new Godot.Collections.Array<RDUniform> { srcUniform, dstUniform, depthUniform, velocityUniform });
-		if (!uniformSet.IsValid)
+		Rid set1 = GetOrCreateSet(color, temp, depth, velocity);
+		if (!set1.IsValid)
 			return;
 
+		// Pass 2: mode=1+grain, real motionBlur, src=temp, dst=color.
+		_pushFloats[19] = motionBlur;
+		_pushFloats[26] = 1.0f + GrainMode;
+		System.Buffer.BlockCopy(_pushFloats, 0, _pushBytes2, 0, _pushBytes2.Length);
+
+		Rid set2 = GetOrCreateSet(temp, color, depth, velocity);
+		if (!set2.IsValid)
+			return;
+
+		// Single command list, both dispatches in order, barrier between so pass 2 sees pass 1's
+		// writes to temp. Pipeline is bound once (same shader for both passes).
 		long list = _rd.ComputeListBegin();
 		_rd.ComputeListBindComputePipeline(list, _pipeline);
-		_rd.ComputeListBindUniformSet(list, uniformSet, 0);
-		_rd.ComputeListSetPushConstant(list, pushBytes, (uint)pushBytes.Length);
+
+		_rd.ComputeListBindUniformSet(list, set1, 0);
+		_rd.ComputeListSetPushConstant(list, _pushBytes1, (uint)_pushBytes1.Length);
 		_rd.ComputeListDispatch(list, xGroups, yGroups, 1);
+
+		_rd.ComputeListAddBarrier(list);
+
+		_rd.ComputeListBindUniformSet(list, set2, 0);
+		_rd.ComputeListSetPushConstant(list, _pushBytes2, (uint)_pushBytes2.Length);
+		_rd.ComputeListDispatch(list, xGroups, yGroups, 1);
+
 		_rd.ComputeListEnd();
+	}
+
+	/// <summary>Updates the four pooled RDUniforms with the given texture RIDs, then either returns
+	/// the cached UniformSet for the (src, dst) pair or creates+caches a fresh one. The actual GPU-
+	/// side allocation only happens on the first frame each (src, dst) combo is seen — typically
+	/// the TAA-rotation produces 2-3 stable combos, so steady state is a few cached sets and zero
+	/// new allocations per frame after warm-up. Stale entries (RIDs freed by viewport rebuild) are
+	/// detected per lookup via UniformSetIsValid and the dead key is dropped before refreshing.</summary>
+	private Rid GetOrCreateSet(Rid src, Rid dst, Rid depth, Rid velocity)
+	{
+		var key = (src.Id, dst.Id);
+		if (_setCache.TryGetValue(key, out var cached))
+		{
+			if (_rd.UniformSetIsValid(cached))
+				return cached;
+			_setCache.Remove(key);
+		}
+
+		_srcUniform.ClearIds();
+		_srcUniform.AddId(_linearSampler);
+		_srcUniform.AddId(src);
+		_dstUniform.ClearIds();
+		_dstUniform.AddId(dst);
+		_depthUniform.ClearIds();
+		_depthUniform.AddId(_sampler);
+		_depthUniform.AddId(depth);
+		_velocityUniform.ClearIds();
+		_velocityUniform.AddId(_sampler);
+		_velocityUniform.AddId(velocity);
+
+		Rid fresh = _rd.UniformSetCreate(_uniformList, _shader, 0);
+		_setCache[key] = fresh;
+		return fresh;
+	}
+
+	/// <summary>Frees every cached UniformSet on the render device and clears the dictionary. Called
+	/// when the colour-buffer RID changes (viewport rebuild) — the previous UniformSets reference
+	/// the now-defunct RIDs and would crash if reused.</summary>
+	private void FlushSetCache()
+	{
+		foreach (var kvp in _setCache)
+		{
+			if (kvp.Value.IsValid && _rd.UniformSetIsValid(kvp.Value))
+				_rd.FreeRid(kvp.Value);
+		}
+		_setCache.Clear();
 	}
 }

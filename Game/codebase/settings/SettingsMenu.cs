@@ -24,6 +24,11 @@ public partial class SettingsMenu : CanvasLayer
 
 	private Control _root;
 	private bool _isOpen;
+	/// <summary>Mouse mode snapshot taken when the menu opens. Restored on close so opening Settings
+	/// from the main menu (cursor already visible) doesn't trap the cursor on close, and opening
+	/// in-game (cursor captured) restores capture on close. The menu itself always forces Visible
+	/// while open so the user can click dropdowns.</summary>
+	private Input.MouseModeEnum _mouseModeBeforeOpen = Input.MouseModeEnum.Visible;
 
 	private OptionButton _presetOpt;
 	private HSlider _renderScaleSlider;
@@ -42,6 +47,7 @@ public partial class SettingsMenu : CanvasLayer
 	private OptionButton _volumetricFogOpt;
 	private OptionButton _skyOpt;
 	private OptionButton _cloudShadowsOpt;
+	private OptionButton _postProcessingOpt;
 	private OptionButton _cloudShadowDistOpt;
 	private OptionButton _godRaysOpt;
 	private OptionButton _lensFlareOpt;
@@ -50,6 +56,7 @@ public partial class SettingsMenu : CanvasLayer
 	private OptionButton _filmGrainOpt;
 	private OptionButton _vignetteOpt;
 	private OptionButton _sharpeningOpt;
+	private OptionButton _chromaticAberrationOpt;
 	private OptionButton _adsDofOpt;
 	private OptionButton _adsFovZoomOpt;
 	private OptionButton _autoExposureOpt;
@@ -62,6 +69,7 @@ public partial class SettingsMenu : CanvasLayer
 	private OptionButton _showDebugBarOpt;
 	private OptionButton _showNetGraphOpt;
 	private OptionButton _windowModeOpt;
+	private OptionButton _monitorOpt;
 	private OptionButton _resolutionOpt;
 	private OptionButton _vsyncOpt;
 	private OptionButton _fpsCapOpt;
@@ -97,49 +105,90 @@ public partial class SettingsMenu : CanvasLayer
 		PullStateFromSettings();
 	}
 
-	/// <summary>Generates the resolution list (filtered by monitor) and the FPS-cap list (based on refresh rate).</summary>
+	/// <summary>Generates the resolution + fps-cap dropdown contents for the currently-selected
+	/// monitor (<see cref="Settings.MonitorIndex"/>). Called once on _Ready and again whenever the
+	/// user picks a different monitor from the dropdown.
+	///
+	/// Resolution source priority:
+	///   1. Native backend enumeration (<see cref="Win32Display.EnumModes"/> /
+	///      <see cref="LinuxDisplay.EnumModes"/>) — returns the EXACT list the monitor advertises
+	///      via EDID / xrandr (CS2-style: every supported 16:9 / 16:10 / 4:3 / 21:9 mode shows up).
+	///      Also gives true PHYSICAL pixels even when Windows DPI-scaling is on (Godot's
+	///      <c>ScreenGetSize</c> returns scaled coords → can mis-report a 4K monitor as 2560×1440).
+	///   2. Fallback: a hardcoded common-modes candidate list filtered by Godot's reported native.
+	///      Only hit on platforms without a native backend (macOS / Wayland) or when
+	///      EnumModes returns empty (very unusual).</summary>
 	private void BuildDynamicLists()
 	{
-		Vector2I native = DisplayServer.ScreenGetSize();
-		int maxW = native.X,
-			maxH = native.Y;
+		int screenCount = DisplayServer.GetScreenCount();
+		int idx = Settings.MonitorIndex;
+		if (idx < 0 || idx >= screenCount) idx = 0;
 
-		var candidates = new List<Vector2I>
+		Vector2I[] enumerated = Win32Display.IsSupported
+			? Win32Display.EnumModes(idx)
+			: LinuxDisplay.IsSupported ? LinuxDisplay.EnumModes(idx) : System.Array.Empty<Vector2I>();
+
+		if (enumerated.Length > 0)
 		{
-			new(1280, 720),
-			new(1366, 768),
-			new(1600, 900),
-			new(1920, 1080),
-			new(2560, 1440),
-			new(3840, 2160),
-			new(1280, 800),
-			new(1440, 900),
-			new(1680, 1050),
-			new(1920, 1200),
-			new(2560, 1600),
-			new(2560, 1080),
-			new(3440, 1440),
-			new(3840, 1600),
-			new(5120, 2160),
-		};
-		var resList = new List<Vector2I>();
-		foreach (var r in candidates)
-			if (r.X <= maxW && r.Y <= maxH)
-				resList.Add(r);
-		if (!resList.Contains(native))
-			resList.Add(native);
-		resList.Sort((a, b) => (a.X * a.Y).CompareTo(b.X * b.Y));
-		_resolutions = resList.ToArray();
+			_resolutions = enumerated;
+		}
+		else
+		{
+			Vector2I native = DisplayServer.ScreenGetSize(idx);
+			int maxW = native.X, maxH = native.Y;
+			var candidates = new List<Vector2I>
+			{
+				new(640, 480),    new(800, 600),    new(1024, 768),   new(1280, 1024),  // 4:3
+				new(1280, 720),   new(1366, 768),   new(1600, 900),   new(1920, 1080),  // 16:9
+				new(2560, 1440),  new(3840, 2160),
+				new(1280, 800),   new(1440, 900),   new(1680, 1050),  new(1920, 1200),  // 16:10
+				new(2560, 1600),
+				new(2560, 1080),  new(3440, 1440),  new(3840, 1600),  new(5120, 2160),  // 21:9 / 32:9
+			};
+			var resList = new List<Vector2I>();
+			foreach (var r in candidates)
+				if (r.X <= maxW && r.Y <= maxH)
+					resList.Add(r);
+			if (!resList.Contains(native)) resList.Add(native);
+			resList.Sort((a, b) => (a.X * a.Y).CompareTo(b.X * b.Y));
+			_resolutions = resList.ToArray();
+		}
 
-		int hz = (int)Mathf.Round(DisplayServer.ScreenGetRefreshRate());
-		if (hz <= 0)
-			hz = 60;
+		int hz = (int)Mathf.Round(DisplayServer.ScreenGetRefreshRate(idx));
+		if (hz <= 0) hz = 60;
 		var capsSet = new HashSet<int> { 30, 60, hz, hz * 2 };
 		var capsList = new List<int>(capsSet);
 		capsList.Sort();
 		capsList.Insert(0, 0);
 		_fpsCaps = capsList.ToArray();
 	}
+
+	/// <summary>"1920×1080 (16:9)" — adds the canonical aspect-ratio tag, CS2-style. Unknown ratios
+	/// (some weird ultrawide modes) drop the tag rather than show a hideous decimal fraction.</summary>
+	private static string FormatResolutionLabel(Vector2I r)
+	{
+		string aspect = AspectRatioTag(r);
+		return aspect != null ? $"{r.X}×{r.Y} ({aspect})" : $"{r.X}×{r.Y}";
+	}
+
+	private static string AspectRatioTag(Vector2I r)
+	{
+		if (r.Y == 0) return null;
+		int g = Gcd(r.X, r.Y);
+		int ax = r.X / g, ay = r.Y / g;
+		// Snap to canonical ratios so e.g. 1366×768 (= 683:384) still reads "16:9".
+		float ratio = (float)r.X / r.Y;
+		if (Mathf.Abs(ratio - 16f / 9f) < 0.02f) return "16:9";
+		if (Mathf.Abs(ratio - 16f / 10f) < 0.02f) return "16:10";
+		if (Mathf.Abs(ratio - 4f / 3f) < 0.02f) return "4:3";
+		if (Mathf.Abs(ratio - 5f / 4f) < 0.02f) return "5:4";
+		if (Mathf.Abs(ratio - 21f / 9f) < 0.03f) return "21:9";
+		if (Mathf.Abs(ratio - 32f / 9f) < 0.03f) return "32:9";
+		if (ax <= 32 && ay <= 32) return $"{ax}:{ay}";
+		return null;
+	}
+
+	private static int Gcd(int a, int b) { while (b != 0) { int t = b; b = a % b; a = t; } return a; }
 
 	/// <summary>Handles the toggle key to open/close the menu.</summary>
 	public override void _UnhandledInput(InputEvent @event)
@@ -157,15 +206,19 @@ public partial class SettingsMenu : CanvasLayer
 	/// <summary>Closes the menu programmatically.</summary>
 	public void Close() => SetOpen(false);
 
-	/// <summary>Opens or closes the menu, manages mouse mode and the menu/game FPS cap swap.</summary>
+	/// <summary>Opens or closes the menu, manages mouse mode and the menu/game FPS cap swap. Mouse
+	/// mode uses snapshot+restore so the menu doesn't have to know whether it was opened from the
+	/// main menu (cursor visible) or in-game (cursor captured) — it just remembers what was active
+	/// and puts it back on close.</summary>
 	private void SetOpen(bool open)
 	{
 		_isOpen = open;
 		IsAnyOpen = open;
 		_root.Visible = open;
-		Input.MouseMode = open ? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
 		if (open)
 		{
+			_mouseModeBeforeOpen = Input.MouseMode;
+			Input.MouseMode = Input.MouseModeEnum.Visible;
 			Engine.MaxFps = Settings.MenuFpsCap;
 			// Disconnect button is only meaningful while connected to a server. The DisconnectScreen
 			// already shows after a disconnect, so the button is also hidden on the loading screen
@@ -174,7 +227,10 @@ public partial class SettingsMenu : CanvasLayer
 				_disconnectBtn.Visible = NetMain.Instance?.Client?.Connected == true;
 		}
 		else
+		{
+			Input.MouseMode = _mouseModeBeforeOpen;
 			Engine.MaxFps = Settings.FpsCap;
+		}
 	}
 
 	/// <summary>Constructs the full menu layout (panel, tabs, save/close row).</summary>
@@ -350,11 +406,11 @@ public partial class SettingsMenu : CanvasLayer
 		);
 		_reflectionProbesOpt.ItemSelected += OnReflectionProbesChanged;
 
-		// "Off" intentionally NOT exposed — VolumetricFog is the substrate the smoke-
-		// grenade rendering writes into, disabling it would make smokes invisible. UI
-		// indices 0/1/2 map directly to Low/Medium/High; the underlying enum still has
-		// VolumetricFogQuality.Off at index 0 for legacy compat, so we offset by 1.
-		_volumetricFogOpt = AddDropdown(vbox, "Volumetric Fog", new[] { "Low (64³)", "Medium (96³)", "High (160³)" });
+		// "Off" exposed for performance-diagnosis sessions (volumetric-fog system is a known
+		// suspect for periodic Gen2 GC spikes via RDTextureFormat churn in the temporal-reprojection
+		// pass). Caveat: with Off, smoke-grenade FogVolumes render nothing — the smoke voxel system
+		// depends on Volumetric Fog as its rendering substrate. UI indices 0..3 map 1:1 to the enum.
+		_volumetricFogOpt = AddDropdown(vbox, "Volumetric Fog", new[] { "Off (smokes invisible)", "Low (64³)", "Medium (96³)", "High (160³)" });
 		_volumetricFogOpt.ItemSelected += OnVolumetricFogChanged;
 
 		_skyOpt = AddDropdown(vbox, "Sky", new[] { "Off", "On" });
@@ -362,6 +418,12 @@ public partial class SettingsMenu : CanvasLayer
 
 		_cloudShadowsOpt = AddDropdown(vbox, "Cloud Shadows", new[] { "Off", "On" });
 		_cloudShadowsOpt.ItemSelected += OnCloudShadowsChanged;
+
+		// Master toggle for the compute-shader post-process compositor effect. Off = whole dispatch
+		// is skipped — diagnostic switch for the "Post Transparent Compositor Effects" frame spike
+		// trace that points here.
+		_postProcessingOpt = AddDropdown(vbox, "Post Processing", new[] { "Off", "On" });
+		_postProcessingOpt.ItemSelected += OnPostProcessingChanged;
 
 		_cloudShadowDistOpt = AddDropdown(
 			vbox,
@@ -389,6 +451,9 @@ public partial class SettingsMenu : CanvasLayer
 
 		_vignetteOpt = AddDropdown(vbox, "Vignette", new[] { "Off", "On" });
 		_vignetteOpt.ItemSelected += OnVignetteChanged;
+
+		_chromaticAberrationOpt = AddDropdown(vbox, "Chromatic Aberration", new[] { "Off", "On" });
+		_chromaticAberrationOpt.ItemSelected += OnChromaticAberrationChanged;
 
 		_sharpeningOpt = AddDropdown(vbox, "Sharpening", new[] { "Off", "On" });
 		_sharpeningOpt.ItemSelected += OnSharpeningChanged;
@@ -443,9 +508,16 @@ public partial class SettingsMenu : CanvasLayer
 		);
 		_windowModeOpt.ItemSelected += OnWindowModeChanged;
 
+		// Monitor dropdown — populated with one entry per attached display. Single-monitor setups
+		// still show the dropdown (with one entry) for consistency. Resolution dropdown rebuilds
+		// itself when the user picks a different monitor so the listed options always match what
+		// THAT monitor can natively scan out.
+		_monitorOpt = AddDropdown(vbox, "Monitor", BuildMonitorLabels());
+		_monitorOpt.ItemSelected += OnMonitorChanged;
+
 		string[] resStrings = new string[_resolutions.Length];
 		for (int i = 0; i < _resolutions.Length; i++)
-			resStrings[i] = $"{_resolutions[i].X}×{_resolutions[i].Y}";
+			resStrings[i] = FormatResolutionLabel(_resolutions[i]);
 		_resolutionOpt = AddDropdown(vbox, "Resolution", resStrings);
 		_resolutionOpt.ItemSelected += OnResolutionChanged;
 
@@ -549,6 +621,21 @@ public partial class SettingsMenu : CanvasLayer
 		_suppressEvents = true;
 
 		_windowModeOpt.Selected = WindowModeToIndex(Settings.WindowMode);
+		// Sync MonitorIndex with where the window ACTUALLY is right now, not whatever the config
+		// file last persisted. The OS / user / window manager may have moved the window between
+		// sessions — the dropdown should reflect the visible truth on screen, not stale config.
+		// If the active monitor changed since last save, also rebuild the resolution list so the
+		// dropdown matches what THIS monitor can do.
+		int actualMonitor = DisplayServer.WindowGetCurrentScreen();
+		if (actualMonitor != Settings.MonitorIndex)
+		{
+			Settings.MonitorIndex = actualMonitor;
+			BuildDynamicLists();
+			_resolutionOpt.Clear();
+			for (int i = 0; i < _resolutions.Length; i++)
+				_resolutionOpt.AddItem(FormatResolutionLabel(_resolutions[i]));
+		}
+		_monitorOpt.Selected = Mathf.Clamp(Settings.MonitorIndex, 0, _monitorOpt.ItemCount - 1);
 		_resolutionOpt.Selected = ResolutionToIndex(Settings.Resolution);
 		_vsyncOpt.Selected = VSyncToIndex(Settings.VSync);
 		_fpsCapOpt.Selected = FpsCapToIndex(Settings.FpsCap);
@@ -598,10 +685,10 @@ public partial class SettingsMenu : CanvasLayer
 		_aoOpt.Selected = Settings.AmbientOcclusion ? 1 : 0;
 		_reflectionsOpt.Selected = Settings.Reflections ? 1 : 0;
 		_reflectionProbesOpt.Selected = (int)Settings.ReflectionProbes;
-		// UI shows Low/Medium/High at indices 0..2; enum Off (legacy) maps to Low.
-		_volumetricFogOpt.Selected = System.Math.Max(0, (int)Settings.VolumetricFog - 1);
+		_volumetricFogOpt.Selected = (int)Settings.VolumetricFog;
 		_skyOpt.Selected = Settings.Sky ? 1 : 0;
 		_cloudShadowsOpt.Selected = Settings.CloudShadows ? 1 : 0;
+		_postProcessingOpt.Selected = Settings.PostProcessing ? 1 : 0;
 		_cloudShadowDistOpt.Selected =
 			Settings.CloudShadowDistance <= 90f ? 0
 			: Settings.CloudShadowDistance <= 160f ? 1
@@ -613,6 +700,7 @@ public partial class SettingsMenu : CanvasLayer
 		_filmGrainOpt.Selected = Settings.FilmGrain ? 1 : 0;
 		_vignetteOpt.Selected = Settings.Vignette ? 1 : 0;
 		_sharpeningOpt.Selected = Settings.Sharpening ? 1 : 0;
+		_chromaticAberrationOpt.Selected = Settings.ChromaticAberration ? 1 : 0;
 		_adsDofOpt.Selected = Settings.AdsDepthOfField ? 1 : 0;
 		_adsFovZoomOpt.Selected = Settings.AdsFovZoom ? 1 : 0;
 		_autoExposureOpt.Selected = Settings.AutoExposure ? 1 : 0;
@@ -707,12 +795,12 @@ public partial class SettingsMenu : CanvasLayer
 		Settings.Apply(GetTree());
 	}
 
-	/// <summary>Volumetric fog quality changed. UI is Low/Medium/High (no Off) so dropdown index 0/1/2 maps to enum Low/Medium/High via +1 offset.</summary>
+	/// <summary>Volumetric fog quality changed. UI indices 0..3 map directly to enum Off/Low/Medium/High.</summary>
 	private void OnVolumetricFogChanged(long idx)
 	{
 		if (_suppressEvents)
 			return;
-		Settings.VolumetricFog = (VolumetricFogQuality)((int)idx + 1);
+		Settings.VolumetricFog = (VolumetricFogQuality)(int)idx;
 		MarkCustomPreset();
 		Settings.Apply(GetTree());
 	}
@@ -774,6 +862,18 @@ public partial class SettingsMenu : CanvasLayer
 		if (_suppressEvents)
 			return;
 		Settings.CloudShadows = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Master toggle for the compute-shader post-process compositor effect — disables the
+	/// whole <see cref="PostProcessEffect"/> dispatch when Off (diagnostic for the "Post Transparent
+	/// Compositor Effects" frame-spike).</summary>
+	private void OnPostProcessingChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.PostProcessing = idx == 1;
 		MarkCustomPreset();
 		Settings.Apply(GetTree());
 	}
@@ -847,6 +947,18 @@ public partial class SettingsMenu : CanvasLayer
 		if (_suppressEvents)
 			return;
 		Settings.Vignette = idx == 1;
+		MarkCustomPreset();
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Chromatic Aberration toggle changed. Was previously not wired to Settings (only the
+	/// effect-side default of true was used), so even "all effects off" still triggered the post-
+	/// process compute dispatch.</summary>
+	private void OnChromaticAberrationChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.ChromaticAberration = idx == 1;
 		MarkCustomPreset();
 		Settings.Apply(GetTree());
 	}
@@ -979,6 +1091,55 @@ public partial class SettingsMenu : CanvasLayer
 			return;
 		Settings.Resolution = _resolutions[(int)idx];
 		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Monitor dropdown changed. Updates the active monitor, rebuilds the resolution list
+	/// against the new monitor's native size, re-populates the Resolution dropdown, picks the
+	/// closest matching entry (the current Resolution may not be valid on the new monitor), and
+	/// applies the whole set so the window jumps to the new screen immediately.</summary>
+	private void OnMonitorChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.MonitorIndex = (int)idx;
+		BuildDynamicLists();
+		_suppressEvents = true;
+		_resolutionOpt.Clear();
+		for (int i = 0; i < _resolutions.Length; i++)
+			_resolutionOpt.AddItem(FormatResolutionLabel(_resolutions[i]));
+		// Pick the largest entry that still fits the previous Resolution if available, otherwise
+		// fall back to the monitor's native (last in the sorted list).
+		int newIdx = ResolutionToIndex(Settings.Resolution);
+		Settings.Resolution = _resolutions[newIdx];
+		_resolutionOpt.Selected = newIdx;
+		_suppressEvents = false;
+		Settings.Apply(GetTree());
+	}
+
+	/// <summary>Builds human-readable labels for the Monitor dropdown — Windows display number +
+	/// PHYSICAL native + refresh + "(primary)" tag. Uses the OS's "Display N" numbering (as shown
+	/// in Windows Settings → Display) rather than Godot's 0-based screen index, so the labels
+	/// match what the user sees natively. PHYSICAL native via Win32 / xrandr because Godot's
+	/// <see cref="DisplayServer.ScreenGetSize"/> returns DPI-scaled coords (a 4K @ 150% reads as
+	/// 2560×1440), and the primary tag via Win32 because Godot's GetPrimaryScreen can mis-report
+	/// in per-monitor-DPI setups.</summary>
+	private static string[] BuildMonitorLabels()
+	{
+		int n = DisplayServer.GetScreenCount();
+		int godotPrimary = DisplayServer.GetPrimaryScreen();
+		string[] labels = new string[n];
+		for (int i = 0; i < n; i++)
+		{
+			Vector2I size = Win32Display.IsSupported
+				? Win32Display.GetNativeResolution(i)
+				: LinuxDisplay.IsSupported ? LinuxDisplay.GetNativeResolution(i) : Vector2I.Zero;
+			if (size == Vector2I.Zero) size = DisplayServer.ScreenGetSize(i);
+			int hz = (int)Mathf.Round(DisplayServer.ScreenGetRefreshRate(i));
+			int displayNum = Win32Display.IsSupported ? Win32Display.GetWindowsDisplayNumber(i) : i + 1;
+			bool isPrimary = Win32Display.IsSupported ? Win32Display.IsPrimaryMonitor(i) : i == godotPrimary;
+			labels[i] = $"Display {displayNum} — {size.X}×{size.Y}@{hz}Hz" + (isPrimary ? " (primary)" : "");
+		}
+		return labels;
 	}
 
 	/// <summary>VSync mode dropdown changed.</summary>

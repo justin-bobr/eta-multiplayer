@@ -16,7 +16,11 @@ Downloads/
 
 # Godot engine source-tree for build-engine.cmd's scons compilation.
 # Cloned from godotengine/godot - not part of THIS project's history.
-Source/
+# Only the godot subdir is excluded - the rest of Source/ stays tracked, in
+# particular Source/patches/ (our local engine patches that get git-applied
+# to Source/godot/ before scons builds the editor + template).
+Source/godot
+Source/godot/*
 
 # Generic OS / IDE noise just in case the workspace root is opened as a folder.
 Thumbs.db
