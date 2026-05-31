@@ -512,9 +512,20 @@ public static class Settings
 		ApplyShadows(Shadows);
 	}
 
-	/// <summary>Applies loaded/changed values to Godot + ConVars. Safe to call multiple times.</summary>
+	/// <summary>Applies loaded/changed values to Godot + ConVars. Safe to call multiple times.
+	/// Early-returns on a dedicated headless server (<see cref="NetMode.Server"/>) — every branch
+	/// below targets rendering or input state the server doesn't have: window mode + vsync (no
+	/// display), <see cref="Engine.MaxFps"/> override (would clobber the <c>Cli.TickRate</c> cap
+	/// NetMain sets at boot), viewport scaling / TAA / MSAA (no viewport), mouse/FOV ConVars
+	/// (no client), shadow atlas + soft-filter quality + per-Light3D walk (dummy RenderingServer
+	/// on headless ignores these anyway), Sky/SSR/SSIL/Volumetric/Compositor toggles (no render
+	/// pipeline). The headless defaults from <see cref="ApplyServerHeadlessDefaults"/> stay as
+	/// static field values; they would only matter if rendering were active.</summary>
 	public static void Apply(SceneTree tree)
 	{
+		if (NetMain.Instance?.Cli?.Mode == NetMode.Server)
+			return;
+
 		ApplyWindowModeAndResolution();
 		DisplayServer.WindowSetVsyncMode(VSync);
 

@@ -43,6 +43,7 @@ public partial class NetMain : Node
 		else
 		{
 			Settings.ApplyServerHeadlessDefaults();
+			Engine.MaxFps = Cli.TickRate;
 		}
 		Dbg.Print($"[NetMain] {Cli}");
 		// SustainedLowLatency-Mode: GC delays Gen2 collections aggressively, eliminiert

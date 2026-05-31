@@ -522,8 +522,11 @@ public class NetServer
 		if (tree.CurrentScene == null) return;
 		if (tree.CurrentScene.Name != "World") return;
 		_spawns.Scan(tree);
-		if (NetMain.Instance?.Cli.Mode == NetMode.Server)
-			Settings.Apply(tree);
+		// Settings.Apply call removed: on dedicated server it's a no-op (Settings.Apply early-returns
+		// for NetMode.Server because every branch targets rendering/input which the headless server
+		// doesn't have). Shadows, environment toggles, compositor effects, MaxFps cap from the
+		// client's saved FpsCap — none of it belongs on the server. ApplyServerHeadlessDefaults()
+		// already set the static fields to safe values at NetMain boot.
 	}
 
 	/// <summary>Voxel-PVS for line-of-sight Fog of War. Built lazily on the first server Poll where

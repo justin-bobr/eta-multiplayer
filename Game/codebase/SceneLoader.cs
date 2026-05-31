@@ -23,10 +23,12 @@ public partial class SceneLoader : Control
 
 	/// <summary>Loading phases the player sees. Client steps through ALL phases sequentially,
 	/// Server/Listen-Mode jumps straight to LoadingWorld (no remote connection needed).
-	/// PreloadingAudio scans res://audio/footsteps/ and triggers background ResourceLoader
-	/// requests so the first step on each surface doesn't cold-load (~40ms hitch). PreloadingAnims
-	/// is a short cosmetic delay covering the AnimationTree one-shot pre-warm that PlayerCore._Ready
-	/// performs after the scene switch — typically &lt;100ms, but the user gets a visible message.</summary>
+	/// PreloadingAudio extracts the surface-material Godot groups from the loaded PackedScene
+	/// (via SceneState, without instantiating) and triggers background ResourceLoader requests
+	/// for only the matching audio/footsteps/&lt;material&gt;/ folders, so first-step latency
+	/// stays low without the disk/memory cost of loading every surface in the library.
+	/// PreloadingAnims is a short cosmetic delay covering the AnimationTree one-shot pre-warm
+	/// that PlayerCore._Ready performs after the scene switch.</summary>
 	private enum LoadPhase
 	{
 		Connecting,
@@ -213,19 +215,44 @@ public partial class SceneLoader : Control
 		}
 	}
 
-	/// <summary>Recursively scans res://audio/footsteps/ for .wav clips and kicks off threaded
-	/// loads for each. The list is what FootstepAudio.ClipPaths references — we don't have access
-	/// to that node yet (scene not switched), so we mirror the on-disk paths instead. Each load
-	/// is async; finalization (= main-thread import) happens later when FootstepAudio._Process
-	/// polls them, but the bulk of the I/O cost is already paid here.</summary>
+	/// <summary>Scans res://audio/footsteps/ for surface folders, filters down to only the groups
+	/// actually referenced by colliders in the just-loaded PackedScene (recursively across
+	/// instanced sub-scenes), and kicks off threaded loads for those clips. <see cref="DefaultFootstepGroup"/>
+	/// is unconditionally included as the fallback FootstepAudio uses when a collider has no
+	/// recognised group.
+	///
+	/// On a dedicated headless server this is skipped entirely — the server never plays footstep
+	/// audio and would waste disk I/O + decoded buffer memory + AudioStreamWAV instantiations on
+	/// hundreds of clips it'll never touch.
+	///
+	/// Previously this script loaded EVERY .wav/.ogg under res://audio/footsteps/ blindly — on dust2
+	/// that's ~3700 clips for a map that uses 3-4 surfaces. Now the I/O scales with what the map
+	/// actually needs.</summary>
 	private void BeginAudioPreload()
 	{
 		_audioPaths.Clear();
 		_audioFinalizedCount = 0;
+
+		// Dedicated server has no audio output and no FootstepAudio nodes in its scenes —
+		// preloading clips would only waste startup time and disk bandwidth.
+		if (NetMain.Instance?.Cli?.Mode == NetMode.Server)
+			return;
+
 		using var root = DirAccess.Open(FootstepAudioRoot);
 		if (root == null) return;
+
+		var usedGroups = ExtractSceneGroups(_loadedScene);
+		// Always include the FootstepAudio fallback material so colliders with no recognised
+		// surface group still have audible steps from the first frame onwards. Hardcoded here
+		// because SceneLoader runs before any FootstepAudio instance exists — must stay in sync
+		// with FootstepAudio.DefaultGroup if that ever changes.
+		usedGroups.Add(DefaultFootstepGroup);
 		foreach (string subName in root.GetDirectories())
 		{
+			// Skip surfaces no node in the scene uses. The convention is that floor colliders are
+			// added to a Godot group named after the audio/footsteps/<surface>/ folder.
+			if (!usedGroups.Contains(subName))
+				continue;
 			using var sub = DirAccess.Open($"{FootstepAudioRoot}/{subName}");
 			if (sub == null) continue;
 			foreach (string fileName in sub.GetFiles())
@@ -236,6 +263,48 @@ public partial class SceneLoader : Control
 		}
 		foreach (string path in _audioPaths)
 			ResourceLoader.LoadThreadedRequest(path);
+	}
+
+	/// <summary>Default footstep material - mirrors FootstepAudio.DefaultGroup. SceneLoader needs
+	/// to know this so it preloads the fallback clips even when the map has no &quot;dirt&quot;-tagged
+	/// nodes.</summary>
+	private const string DefaultFootstepGroup = "dirt";
+
+	/// <summary>Recursively walks a PackedScene's SceneState and every PackedScene it instances
+	/// to extract every group name referenced by any node — without instantiating anything. Returns
+	/// the union set; callers compare against folder names under res://audio/footsteps/ to decide
+	/// which surface clips to preload. Recursion is necessary because Godot serialises sub-scenes
+	/// as opaque instance pointers in the parent's SceneState — concrete/wood groups in dust2.tscn
+	/// are invisible from world.tscn's state without descending. Cycle guard via a visited set
+	/// keyed by PackedScene instance id (sub-scenes can be re-used in multiple slots).</summary>
+	private static System.Collections.Generic.HashSet<string> ExtractSceneGroups(PackedScene scene)
+	{
+		var groups = new System.Collections.Generic.HashSet<string>();
+		var visited = new System.Collections.Generic.HashSet<ulong>();
+		WalkScene(scene, groups, visited);
+		return groups;
+	}
+
+	private static void WalkScene(PackedScene scene,
+		System.Collections.Generic.HashSet<string> groups,
+		System.Collections.Generic.HashSet<ulong> visited)
+	{
+		if (scene == null) return;
+		if (!visited.Add(scene.GetInstanceId())) return;
+		var state = scene.GetState();
+		if (state == null) return;
+		int nodeCount = state.GetNodeCount();
+		for (int i = 0; i < nodeCount; i++)
+		{
+			var nodeGroups = state.GetNodeGroups(i);
+			for (int g = 0; g < nodeGroups.Length; g++)
+				groups.Add(nodeGroups[g].ToString());
+			// If this node instances a sub-scene, recurse into its state. dust2.tscn is referenced
+			// from world.tscn this way; without this walk we'd miss every surface group inside it.
+			var sub = state.GetNodeInstance(i);
+			if (sub != null)
+				WalkScene(sub, groups, visited);
+		}
 	}
 
 	/// <summary>Polls the status of every queued audio path; counts the number that have reached terminal state (Loaded or Failed). Drives both the percent label and the phase-completion check.</summary>
