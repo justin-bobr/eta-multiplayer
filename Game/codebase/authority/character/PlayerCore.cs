@@ -1046,6 +1046,38 @@ public partial class PlayerCore : ServerBaseCharacter
 			lagHit.Material.ToString());
 	}
 
+	/// <summary>Walks the bullet path from the shooter's eye to the hitbox impact and reports whether
+	/// an opaque wall (= not in group "wallhit") sits in between. Iterates so a chain of penetrable
+	/// walls (e.g. two glass panes) doesn't trip the check; an opaque wall after any number of
+	/// penetrables still blocks. Capped at <c>MaxPenetrableChain</c> to bound the worst case.
+	/// Single-threaded server tick, reuses the shared Hitscan query so no per-call allocations.</summary>
+	private bool IsHitObstructedByOpaqueWall(PhysicsDirectSpaceState3D space, Vector3 from, Vector3 to)
+	{
+		if (space == null) return false;
+		const int MaxPenetrableChain = 4;
+		Vector3 dir = (to - from).Normalized();
+		// -0.05m so we don't count the target's own collider as an obstruction. The hitbox is on
+		// a different layer than the world (mask=1u below excludes it), but the body capsule sits
+		// on layer 5 and is excluded by `GetRid()`. Shortening also avoids floating-point overshoot.
+		float remaining = from.DistanceTo(to) - 0.05f;
+		if (remaining <= 0f) return false;
+		Vector3 origin = from;
+		for (int i = 0; i < MaxPenetrableChain; i++)
+		{
+			HitInfo wall = Hitscan.Cast(space, origin, dir, remaining, exclude: GetRid(), mask: 1u);
+			if (!wall.Hit) return false;                                          // clear to target
+			if (wall.Collider == null || !wall.Collider.IsInGroup("wallhit"))
+				return true;                                                      // opaque wall
+			// Penetrable: step past the hit point by a small epsilon (avoids re-hitting the same
+			// face on the next cast) and continue.
+			float stepped = origin.DistanceTo(wall.Position) + 0.05f;
+			if (stepped >= remaining) return false;
+			origin = wall.Position + dir * 0.05f;
+			remaining -= stepped;
+		}
+		return false; // exceeded chain limit — extremely unlikely; treat as clear
+	}
+
 	/// <summary>Re-simulates a single tick with the saved user input. Physics state (OnFloor etc.) is
 	/// re-derived from the current position. Audio, FX and net-send are skipped via <see cref="_isReplaying"/>.
 	/// A streamlined variant of <see cref="FixedTick"/>.</summary>
