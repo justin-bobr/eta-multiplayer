@@ -123,6 +123,14 @@ public class SvConVars
 	public int AntiCheatViolationWindowMs = 10_000;
 	/// <summary>Violations-within-window threshold that triggers a kick.</summary>
 	public int AntiCheatKickThreshold = 5;
+	/// <summary>Bot combat skill level (0-3). Higher = faster reaction + better aim point.
+	///   0 = ~500ms reaction, aims at feet (most shots miss into the floor)
+	///   1 = ~350ms reaction, aims at body
+	///   2 = ~200ms reaction, alternates body / head
+	///   3 = ~80ms reaction, aims at head
+	/// Below 0 is clamped to 0, above 3 to 3. Default 1 = "casual"; bump for hard scrims.</summary>
+	public int BotDifficulty = 1;
+
 	/// <summary>Per-peer cap on InputPackets processed in one server tick. Real-world clients at 128 Hz
 	/// average 1 packet per server tick, but LiteNetLib batches + network jitter regularly deliver
 	/// 3-5 packets in one server-tick window during normal play (especially around route changes / brief

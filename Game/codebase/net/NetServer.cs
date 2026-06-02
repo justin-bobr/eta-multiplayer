@@ -98,6 +98,7 @@ public class NetServer
 		using (MiniProfiler.SampleServer("NetServer.BuildVoxelPvsIfNeeded")) TryBuildVoxelPvs();
 		using (MiniProfiler.SampleServer("NetServer.FinalizePendingHandshakes")) FinalizePendingHandshakes();
 		RefreshAllPeersCache();
+		using (MiniProfiler.SampleServer("NetServer.UpdateBotInputs")) UpdateBotInputs();
 		using (MiniProfiler.SampleServer("NetServer.FeedInputsToAgents")) FeedInputsToAgents();
 		using (MiniProfiler.SampleServer("NetServer.BroadcastSnapshots")) BroadcastSnapshots();
 		using (MiniProfiler.SampleServer("NetServer.BroadcastDebugHitboxes")) BroadcastDebugHitboxes();
@@ -1209,6 +1210,10 @@ public class NetServer
 				ViewYaw = spawnYaw,
 				ViewPitch = 0f,
 			};
+			// Seed the wander AI with the spawn pose so its very first Tick has a sensible target.
+			// UpdateBotInputs in Poll() then overwrites NetInputSource each server tick.
+			if (bot.ServerAgent is ServerBotPlayer botBody)
+				botBody.BotController.Init(spawnPos, spawnYaw, _spawns.WanderTargets, _serverTick);
 		}
 
 		var joinedWriter = Packets.WritePlayerJoined(bot.NetId, bot.PlayerName, spawnPos, spawnYaw, bot.Hp, bot.ActiveSlot, bot.WeaponId, (byte)bot.Team, bot.TeamSlot);
@@ -1233,6 +1238,47 @@ public class NetServer
 				kv.Key.Send(leftWriter, ChannelReliable, DeliveryMethod.ReliableOrdered);
 
 		Dbg.Print($"[NetServer] Bot removed: netId={bot.NetId} name=\"{bot.PlayerName}\"");
+	}
+
+	/// <summary>Per-tick AI driver for all bots. Runs in <see cref="Poll"/> right BEFORE
+	/// <c>FeedInputsToAgents</c> so the next physics step picks up the fresh InputPacket via
+	/// <see cref="ServerBaseCharacter.NetInputSource"/>. Skips dead/frozen bots so a respawning
+	/// bot doesn't try to walk while it's in the death-collision-zeroed state. Bots whose body
+	/// isn't a ServerBotPlayer (defensive: shouldn't happen) are also skipped to avoid a cast
+	/// crash. Passes the world's physics space + an obstacle mask (world geometry bit 0 + server-
+	/// agent bit 4) so the controller can probe for walls and other bots ahead of time and steer
+	/// around them. No per-tick allocations: SpawnManager.WanderTargets caches the array and
+	/// BotController pools its raycast query + result.</summary>
+	private const uint BotProbeMask = 1u | (1u << 4);
+	private void UpdateBotInputs()
+	{
+		if (_bots.Count == 0) return;
+		var waypoints = _spawns.WanderTargets;
+		int difficulty = Mathf.Clamp(ConVars.Sv.BotDifficulty, 0, 3);
+		int tickRate = Mathf.Max(1, _cli.TickRate);
+		foreach (var bot in _bots)
+		{
+			if (bot.PendingRemoval) continue;
+			var agent = bot.ServerAgent;
+			if (agent == null || agent.IsDead || agent.IsFrozen) continue;
+			if (agent is not ServerBotPlayer botBody) continue;
+			// Get space from the bot's OWN World3D - guaranteed valid as long as the body is in
+			// the tree. The earlier `tree.Root.World3D` route was racy in headless server mode
+			// (the root viewport's World3D could be the wrong one or null entirely).
+			var space = agent.GetWorld3D()?.DirectSpaceState;
+			Vector3 pos = agent.GlobalPosition;
+			var combat = new BotCombatContext
+			{
+				AllPeers = _allPeersCache,
+				OwnNetId = bot.NetId,
+				OwnTeam = bot.Team,
+				SelfBodyRid = agent.GetRid(),
+				Difficulty = difficulty,
+				TickRate = tickRate,
+				NeedsReload = (agent is PlayerCore pc) && pc.NeedsReload,
+			};
+			agent.NetInputSource = botBody.BotController.Tick(_serverTick, pos, waypoints, space, BotProbeMask, combat);
+		}
 	}
 
 	/// <summary>Validates and stores the latest input packet for the peer's ServerAgent and unfreezes

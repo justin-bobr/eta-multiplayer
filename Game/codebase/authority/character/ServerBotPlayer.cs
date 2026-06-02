@@ -12,9 +12,13 @@ using Godot;
 /// Spawn / Despawn / PendingRemoval logic lives in <see cref="NetServer"/>. Bots can be killed by
 /// friendly fire (no team check during damage resolve).
 ///
-/// Future AI extension: hook a custom BotInputPolicy here (walk, aim, fire pattern) — write to
-/// <see cref="ServerBaseCharacter.NetInputSource"/> per tick.
+/// AI: each bot carries its own <see cref="BotController"/> that produces an <see cref="InputPacket"/>
+/// per server tick. <see cref="NetServer.SpawnBot"/> calls <see cref="BotController.Init"/> once at
+/// spawn; <see cref="NetServer.Poll"/> calls <see cref="BotController.Tick"/> every tick before
+/// FeedInputsToAgents so the next physics step reads the fresh input. Plain field — no scene-graph
+/// hop, no per-tick wrapper allocations.
 /// </summary>
 public partial class ServerBotPlayer : ServerPlayer
 {
+	public readonly BotController BotController = new();
 }

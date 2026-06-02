@@ -34,6 +34,12 @@ public partial class PlayerCore : ServerBaseCharacter
 
 	[ExportGroup("Firing")]
 	[Export] public bool CanFire = true;
+
+	/// <summary>True iff the magazine is empty and the body is not already mid-reload. Used by
+	/// <see cref="NetServer.UpdateBotInputs"/> to drive the bot's <c>ReloadPressed</c> input. Real
+	/// peers don't need this — their client decides when to reload. False if there's no movement
+	/// controller wired up yet (very early in spawn).</summary>
+	public bool NeedsReload => _movement != null && _movement.CurrentMag == 0 && !_movement.IsReloading;
 	[Export] public float HitscanRange = 200f;
 	[Export] public uint HitscanMask = 1;
 
@@ -932,7 +938,11 @@ public partial class PlayerCore : ServerBaseCharacter
 
 		HitInfo worldHit = Hitscan.CastMulti(space, _movement.LastShotOrigin, _movement.LastShotDirection,
 			HitscanRange, _lagCompExcludes, mask: 1u);
-		float maxDist = worldHit.Hit ? worldHit.Distance : HitscanRange;
+		// "wallhit" group → penetrable wall (glass, fence, thin plywood). The bullet continues
+		// past it, so don't clip maxDist on it. Anything else opaque clips as before. Mappers
+		// add the group via Inspector → "Add to Group" → wallhit on the StaticBody3D.
+		bool worldHitBlocks = worldHit.Hit && !(worldHit.Collider?.IsInGroup("wallhit") ?? false);
+		float maxDist = worldHitBlocks ? worldHit.Distance : HitscanRange;
 
 		// Manual Hitbox-Cast — wenn ein Hitbox NÄHER als die Wand ist, gewinnt der Hitbox-Hit.
 		HitInfo boneHit = Hitscan.CastVsBoneShapes(_movement.LastShotOrigin, _movement.LastShotDirection,
@@ -980,6 +990,18 @@ public partial class PlayerCore : ServerBaseCharacter
 				Dbg.Print($"[sv-hitbox] netId={other.NetId} body={other.ServerAgent.GlobalPosition:F2} firstHitbox={headHb.Name} @ {headHb.GlobalPosition:F2}");
 			}
 		}
+		// Damage-time wall-block safety net. worldHit above already clips boneHit by wall distance,
+		// but a single raycast can still slip through narrow geometry slits (texture-decorative
+		// holes between adjacent meshes that aren't really shootable). Recast world-only here and
+		// deny damage if an opaque (non-"wallhit") wall sits between shooter and the hitbox hit.
+		// "wallhit"-tagged walls are treated as transparent — bullet penetrates them.
+		if (victim != null && lagHit.Hit && IsHitObstructedByOpaqueWall(space, _movement.LastShotOrigin, lagHit.Position))
+		{
+			Dbg.Print($"[sv-fire] netId={NetId} wall-block: shot at netId={victim.NetId} blocked by opaque geometry between eye and target");
+			lagHit.Hit = false;   // pretend it didn't hit anything — no visual flesh decal either
+			victim = null;
+		}
+
 		if (victim != null && victim.NetId != NetId && victim.NetId > 0)
 		{
 			var vs = server.GetPeerStateForNetId(victim.NetId);
@@ -1899,7 +1921,12 @@ public partial class PlayerCore : ServerBaseCharacter
 			CrouchPressed = p.CrouchPressed,
 			AdsHeld = p.AdsHeld,
 			BreathHoldHeld = p.BreathHoldHeld,
-			Weapon = WeaponHolder?.ActiveWeapon,
+			// ServerAgent bodies (server_player.tscn + server_bot_player.tscn) have no WeaponHolder
+			// subtree, so WeaponHolder?.ActiveWeapon is null. The fire gate in MovementController.Step
+			// requires `input.Weapon != null`, otherwise wantsFire never triggers DoFire — bots were
+			// holding the trigger but not actually shooting. Same M4A1 fallback as BuildFireInput
+			// (line above) so the two input paths agree on the weapon.
+			Weapon = WeaponHolder?.ActiveWeapon ?? (IsServerAgent ? ConVars.Weapons.M4A1 : null),
 			JumpPressed = p.JumpPressed,
 			OnFloor = IsOnFloor(),
 			TouchingWall = IsOnWall(),

@@ -93,6 +93,7 @@ public class SpawnManager
 		_ctSpawns.Clear();
 		_tSpawns.Clear();
 		_dmSpawns.Clear();
+		_wanderTargets = null;
 		_ctRotator = 0;
 		_tRotator = 0;
 		_dmRotator = 0;
@@ -117,6 +118,26 @@ public class SpawnManager
 		Dbg.Print($"[SpawnManager] Scan: {_ctSpawns.Count} CT, {_tSpawns.Count} T, {_dmSpawns.Count} DM spawns found");
 		if (_ctSpawns.Count == 0 && _tSpawns.Count == 0 && _dmSpawns.Count == 0)
 			GD.PushWarning("[SpawnManager] NO markers found — falling back to DefaultPos. Place Marker3D nodes in group 'spawn_ct'/'spawn_t'/'spawn_deathmatch' in the map.");
+	}
+
+	/// <summary>Cached wander-target list for bot AI: all spawn marker positions (CT + T + DM)
+	/// collapsed into a single Vector3[] so a bot can pick a random one as its current goal.
+	/// Built lazily on first access, invalidated on <see cref="Scan"/>. Returns an empty array
+	/// when no markers are defined (the BotController then falls back to standing still).</summary>
+	private Vector3[] _wanderTargets;
+	public System.Collections.Generic.IReadOnlyList<Vector3> WanderTargets
+	{
+		get
+		{
+			if (_wanderTargets != null) return _wanderTargets;
+			var arr = new Vector3[_ctSpawns.Count + _tSpawns.Count + _dmSpawns.Count];
+			int i = 0;
+			foreach (var s in _ctSpawns) arr[i++] = s.Pos;
+			foreach (var s in _tSpawns) arr[i++] = s.Pos;
+			foreach (var s in _dmSpawns) arr[i++] = s.Pos;
+			_wanderTargets = arr;
+			return _wanderTargets;
+		}
 	}
 
 	/// <summary>Converts a Marker3D into a SpawnPoint capturing its global position and Y rotation.</summary>
