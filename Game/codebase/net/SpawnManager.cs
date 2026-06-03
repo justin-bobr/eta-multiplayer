@@ -93,23 +93,30 @@ public class SpawnManager
 		_ctSpawns.Clear();
 		_tSpawns.Clear();
 		_dmSpawns.Clear();
-		_wanderTargets = null;
 		_ctRotator = 0;
 		_tRotator = 0;
 		_dmRotator = 0;
 
-		// Accept both the new "spawn_team1"/"spawn_team2" names AND the legacy "spawn_ct"/"spawn_t"
-		// so existing maps don't need an editor pass. New maps should use the team1/team2 names.
+		// Primary: read the Map cache. Spawn extends Zone (Area3D) — we capture the centre + yaw
+		// as the spawn pose. Multiple players in the same Spawn area get de-clumped by the
+		// FreeRadius retry inside PickFromList.
+		foreach (var sp in MapCache.SpawnsForKind(Spawn.SpawnKind.Team1)) _ctSpawns.Add(AreaToPoint(sp));
+		foreach (var sp in MapCache.SpawnsForKind(Spawn.SpawnKind.Team2)) _tSpawns.Add(AreaToPoint(sp));
+		foreach (var sp in MapCache.SpawnsForKind(Spawn.SpawnKind.Deathmatch)) _dmSpawns.Add(AreaToPoint(sp));
+
+		// Backwards-compat: legacy plain-Marker3D nodes in named groups (CT/T era, before the
+		// area-based Spawn type). These still appear in the legacy groups; Spawn instances no
+		// longer join any group so the `n is not Spawn` exclusion is moot but kept for clarity.
 		foreach (var n in tree.GetNodesInGroup("spawn_team1"))
-			if (n is Marker3D m) _ctSpawns.Add(MarkerToPoint(m));
+			if (n is Marker3D m && n is not Spawn) _ctSpawns.Add(MarkerToPoint(m));
 		foreach (var n in tree.GetNodesInGroup("spawn_ct"))
 			if (n is Marker3D m) _ctSpawns.Add(MarkerToPoint(m));
 		foreach (var n in tree.GetNodesInGroup("spawn_team2"))
-			if (n is Marker3D m) _tSpawns.Add(MarkerToPoint(m));
+			if (n is Marker3D m && n is not Spawn) _tSpawns.Add(MarkerToPoint(m));
 		foreach (var n in tree.GetNodesInGroup("spawn_t"))
 			if (n is Marker3D m) _tSpawns.Add(MarkerToPoint(m));
 		foreach (var n in tree.GetNodesInGroup("spawn_deathmatch"))
-			if (n is Marker3D m) _dmSpawns.Add(MarkerToPoint(m));
+			if (n is Marker3D m && n is not Spawn) _dmSpawns.Add(MarkerToPoint(m));
 
 		if (_ctSpawns.Count == 0 && _tSpawns.Count == 0 && _dmSpawns.Count == 0 && tree.CurrentScene != null)
 			ScanFallbackByName(tree.CurrentScene);
@@ -120,29 +127,13 @@ public class SpawnManager
 			GD.PushWarning("[SpawnManager] NO markers found — falling back to DefaultPos. Place Marker3D nodes in group 'spawn_ct'/'spawn_t'/'spawn_deathmatch' in the map.");
 	}
 
-	/// <summary>Cached wander-target list for bot AI: all spawn marker positions (CT + T + DM)
-	/// collapsed into a single Vector3[] so a bot can pick a random one as its current goal.
-	/// Built lazily on first access, invalidated on <see cref="Scan"/>. Returns an empty array
-	/// when no markers are defined (the BotController then falls back to standing still).</summary>
-	private Vector3[] _wanderTargets;
-	public System.Collections.Generic.IReadOnlyList<Vector3> WanderTargets
-	{
-		get
-		{
-			if (_wanderTargets != null) return _wanderTargets;
-			var arr = new Vector3[_ctSpawns.Count + _tSpawns.Count + _dmSpawns.Count];
-			int i = 0;
-			foreach (var s in _ctSpawns) arr[i++] = s.Pos;
-			foreach (var s in _tSpawns) arr[i++] = s.Pos;
-			foreach (var s in _dmSpawns) arr[i++] = s.Pos;
-			_wanderTargets = arr;
-			return _wanderTargets;
-		}
-	}
-
 	/// <summary>Converts a Marker3D into a SpawnPoint capturing its global position and Y rotation.</summary>
 	private static SpawnPoint MarkerToPoint(Marker3D m) =>
 		new() { Pos = m.GlobalPosition, Yaw = m.GlobalRotation.Y };
+
+	/// <summary>Converts a Spawn (Area3D) into a SpawnPoint using the area's centre and yaw.</summary>
+	private static SpawnPoint AreaToPoint(Spawn s) =>
+		new() { Pos = s.GlobalPosition, Yaw = s.GlobalRotation.Y };
 
 	/// <summary>Recursive fallback scan that sorts spawn_* markers by name suffix into the appropriate pool.</summary>
 	private void ScanFallbackByName(Node root)

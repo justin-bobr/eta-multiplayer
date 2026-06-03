@@ -33,21 +33,21 @@ public partial class HudCs2 : Node
 	/// <summary>Smoke count; -1 renders as the infinity glyph for test mode.</summary>
 	[Export] public int SmokeCount = -1;
 
-	[ExportGroup("Navigation")]
-	/// <summary>Any Node3D in the map belonging to this group is used as the bombsite A target.</summary>
-	[Export] public string SiteAGroup = "bombsite_a";
-	/// <summary>Any Node3D in the map belonging to this group is used as the bombsite B target.</summary>
-	[Export] public string SiteBGroup = "bombsite_b";
+	// Bombsite navigation: BombSpot lookups go through MapCache.BombSpotForSlot — no groups, no string
+	// exports. The mapper places BombSpot nodes with the Slot dropdown, the Map cache scans by
+	// type, the HUD asks for the BombSpot of each slot every frame.
 
 	private CanvasLayer _layer;
 	private Label _moneyLabel, _roundLabel;
 	private Label _timeLabel, _scoreTLabel, _scoreCTLabel;
 	private Label _bombTimerLabel;
+	private Label _zoneLabel;
 	private HudCompass _compass;
 	private HudWeaponSlots _weaponSlots;
 	private HudVitals _vitals;
 	private VBoxContainer _topCol;
-	private Node3D _siteA, _siteB;
+	private Zone _activeZone;
+	private string _lastZoneText = null;
 	private bool _navChecked;
 
 	private int _lastHealth = int.MinValue, _lastArmor = int.MinValue, _lastStamina = int.MinValue;
@@ -63,7 +63,7 @@ public partial class HudCs2 : Node
 	private int _lastActiveSlot = int.MinValue;
 	private float _lastGrenadeCharge = float.MinValue;
 	private float _lastHeading = float.MinValue;
-	private float _lastSiteABearing = float.NaN, _lastSiteBBearing = float.NaN;
+	private float _lastSiteABearing = float.NaN, _lastSiteBBearing = float.NaN, _lastSiteCBearing = float.NaN;
 	private float _lastMarginH = float.MinValue, _lastMarginV = float.MinValue;
 
 	private const float HudRefreshInterval = 0.5f;
@@ -119,27 +119,33 @@ public partial class HudCs2 : Node
 		if (Player != null && _compass != null)
 		{
 			float heading = Mathf.PosMod(-Mathf.RadToDeg(Player.Rotation.Y), 360f);
-			float siteA = BearingToSite(ref _siteA, SiteAGroup);
-			float siteB = BearingToSite(ref _siteB, SiteBGroup);
+			float siteA = BearingToBombSpot(BombSpot.BombSlot.A);
+			float siteB = BearingToBombSpot(BombSpot.BombSlot.B);
+			float siteC = BearingToBombSpot(BombSpot.BombSlot.C);
 			if (Mathf.Abs(heading - _lastHeading) > 0.5f
 				|| !NearlyEqualBearing(siteA, _lastSiteABearing)
-				|| !NearlyEqualBearing(siteB, _lastSiteBBearing))
+				|| !NearlyEqualBearing(siteB, _lastSiteBBearing)
+				|| !NearlyEqualBearing(siteC, _lastSiteCBearing))
 			{
 				_compass.HeadingDegrees = heading;
 				_compass.SiteABearing = siteA;
 				_compass.SiteBBearing = siteB;
+				_compass.SiteCBearing = siteC;
 				_compass.QueueRedraw();
 				_lastHeading = heading;
 				_lastSiteABearing = siteA;
 				_lastSiteBBearing = siteB;
+				_lastSiteCBearing = siteC;
 			}
 
-			if (!_navChecked)
+			UpdateZoneLabel();
+
+			if (!_navChecked && MapCache.Initialized)
 			{
 				_navChecked = true;
-				Dbg.Print($"[HUD] Bombsite marker — A ('{SiteAGroup}'): " +
-					$"{(_siteA != null ? "OK" : "MISSING")}  ·  B ('{SiteBGroup}'): " +
-					$"{(_siteB != null ? "OK" : "MISSING")}");
+				Dbg.Print($"[HUD] BombSpots from Map: A={(MapCache.BombSpotForSlot(BombSpot.BombSlot.A) != null ? "OK" : "MISSING")}" +
+					$" · B={(MapCache.BombSpotForSlot(BombSpot.BombSlot.B) != null ? "OK" : "MISSING")}" +
+					$" · C={(MapCache.BombSpotForSlot(BombSpot.BombSlot.C) != null ? "OK" : "MISSING")}");
 			}
 		}
 
@@ -198,6 +204,15 @@ public partial class HudCs2 : Node
 			MouseFilter = Control.MouseFilterEnum.Ignore,
 		};
 		col.AddChild(_compass);
+
+		// Live "you are in: …" zone display directly under the compass strip. Updated by
+		// UpdateZoneLabel() each frame — populated from the Zone group, point-in-box test against
+		// every Zone in the scene. Empty string keeps it visually hidden (Label collapses to
+		// minimum size) so 2-site maps without zones don't see a stray gap.
+		_zoneLabel = MakeLabel("", 13, TextDim);
+		_zoneLabel.HorizontalAlignment = HorizontalAlignment.Center;
+		_zoneLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
+		col.AddChild(_zoneLabel);
 
 		var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
 		row.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
@@ -365,18 +380,38 @@ public partial class HudCs2 : Node
 		_lastWeaponName = WeaponName; _lastActiveSlot = activeSlot; _lastGrenadeCharge = grenadeCharge;
 	}
 
-	/// <summary>
-	/// Compass bearing (0..360 degrees, north = -Z) from the player to a bombsite marker.
-	/// The marker is any Node3D in the given group; the reference is cached lazily.
-	/// Returns NaN when no marker is found, which causes the compass to skip drawing it.
-	/// </summary>
-	private float BearingToSite(ref Node3D cached, string group)
+	/// <summary>Finds the <see cref="Zone"/> the player currently stands in and writes its name
+	/// into the zone label under the compass. Delegates to <see cref="MapCache.ZoneAt"/> which handles
+	/// the point-in-box test + smallest-volume tiebreak (innermost nested zone wins). Triggers a
+	/// lazy <see cref="MapCache.Scan"/> the first time the world scene is up — the server's NetServer
+	/// scan already populated it, but a listen-server / standalone client without the server-side
+	/// scan still ends up with a populated cache.</summary>
+	private void UpdateZoneLabel()
 	{
-		if ((cached == null || !cached.IsInsideTree()) && !string.IsNullOrEmpty(group))
-			cached = GetTree().GetFirstNodeInGroup(group) as Node3D;
-		if (cached == null || Player == null) return float.NaN;
+		if (_zoneLabel == null || Player == null) return;
+		var tree = GetTree();
+		if (tree == null) return;
+		if (!MapCache.Initialized && tree.CurrentScene != null && tree.CurrentScene.Name == "World")
+			MapCache.Scan(tree);
+		var z = MapCache.ZoneAt(Player.GlobalPosition);
+		_activeZone = z;
+		string text = z != null ? z.ZoneName : "";
+		if (text == _lastZoneText) return;
+		_zoneLabel.Text = text;
+		_lastZoneText = text;
+	}
 
-		Vector3 d = cached.GlobalPosition - Player.GlobalPosition;
+	/// <summary>
+	/// Compass bearing (0..360 degrees, north = -Z) from the player to the BombSpot with the
+	/// given slot. Resolved via <see cref="MapCache.BombSpotForSlot"/>. Returns NaN when the map has no
+	/// BombSpot for that slot (so e.g. C-less 2-site maps skip drawing the C diamond).
+	/// </summary>
+	private float BearingToBombSpot(BombSpot.BombSlot slot)
+	{
+		if (Player == null || !MapCache.Initialized) return float.NaN;
+		var spot = MapCache.BombSpotForSlot(slot);
+		if (spot == null) return float.NaN;
+		Vector3 d = spot.GlobalPosition - Player.GlobalPosition;
 		if (d.X * d.X + d.Z * d.Z < 0.01f) return float.NaN;
 		return Mathf.PosMod(Mathf.RadToDeg(Mathf.Atan2(d.X, -d.Z)), 360f);
 	}

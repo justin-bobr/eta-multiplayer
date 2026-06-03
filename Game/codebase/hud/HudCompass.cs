@@ -13,6 +13,9 @@ public partial class HudCompass : Control
 	public float SiteABearing = float.NaN;
 	/// <summary>Compass bearing to bombsite B; NaN hides the marker.</summary>
 	public float SiteBBearing = float.NaN;
+	/// <summary>Compass bearing to bombsite C; NaN hides the marker. Only some maps use a third
+	/// plant site (e.g. defusal training); on standard 2-site maps this stays NaN and draws nothing.</summary>
+	public float SiteCBearing = float.NaN;
 
 	/// <summary>Degrees of arc visible across the full strip width.</summary>
 	private const float VisibleRange = 104f;
@@ -64,6 +67,7 @@ public partial class HudCompass : Control
 
 		DrawSiteMarker(font, "A", SiteABearing);
 		DrawSiteMarker(font, "B", SiteBBearing);
+		DrawSiteMarker(font, "C", SiteCBearing);
 	}
 
 	/// <summary>

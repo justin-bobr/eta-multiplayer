@@ -522,6 +522,9 @@ public class NetServer
 		if (Engine.GetMainLoop() is not SceneTree tree) return;
 		if (tree.CurrentScene == null) return;
 		if (tree.CurrentScene.Name != "World") return;
+		// MapCache.Scan must come FIRST: SpawnManager.Scan reads from MapCache.SpawnsForKind for the new
+		// Spawn type. Without this order Spawn nodes don't end up in the spawn pools.
+		MapCache.Scan(tree);
 		_spawns.Scan(tree);
 		// Settings.Apply call removed: on dedicated server it's a no-op (Settings.Apply early-returns
 		// for NetMode.Server because every branch targets rendering/input which the headless server
@@ -1213,7 +1216,7 @@ public class NetServer
 			// Seed the wander AI with the spawn pose so its very first Tick has a sensible target.
 			// UpdateBotInputs in Poll() then overwrites NetInputSource each server tick.
 			if (bot.ServerAgent is ServerBotPlayer botBody)
-				botBody.BotController.Init(spawnPos, spawnYaw, _spawns.WanderTargets, _serverTick);
+				botBody.BotController.Init(spawnPos, spawnYaw, _serverTick);
 		}
 
 		var joinedWriter = Packets.WritePlayerJoined(bot.NetId, bot.PlayerName, spawnPos, spawnYaw, bot.Hp, bot.ActiveSlot, bot.WeaponId, (byte)bot.Team, bot.TeamSlot);
@@ -1247,13 +1250,29 @@ public class NetServer
 	/// isn't a ServerBotPlayer (defensive: shouldn't happen) are also skipped to avoid a cast
 	/// crash. Passes the world's physics space + an obstacle mask (world geometry bit 0 + server-
 	/// agent bit 4) so the controller can probe for walls and other bots ahead of time and steer
-	/// around them. No per-tick allocations: SpawnManager.WanderTargets caches the array and
-	/// BotController pools its raycast query + result.</summary>
+	/// around them. No per-tick allocations: the target candidate list is cached in
+	/// <see cref="_botTargetCandidates"/> and BotController pools its raycast query + result.</summary>
 	private const uint BotProbeMask = 1u | (1u << 4);
+	/// <summary>Reused list of Zone / BombSpot centres handed to the bot controller as the pool of
+	/// long-range targets. Rebuilt only when its size changes (rare — only on map reload after a
+	/// <see cref="MapCache.Scan"/>). The list backs <see cref="BotController.RequestNavPath"/>; each
+	/// nav-path query picks a random entry as the destination.</summary>
+	private readonly List<Vector3> _botTargetCandidates = new();
+
+	private IReadOnlyList<Vector3> ResolveBotTargets()
+	{
+		int expected = MapCache.Zones.Count + MapCache.BombSpots.Count;
+		if (_botTargetCandidates.Count == expected && expected > 0) return _botTargetCandidates;
+		_botTargetCandidates.Clear();
+		foreach (var z in MapCache.Zones) _botTargetCandidates.Add(z.GlobalPosition);
+		foreach (var bs in MapCache.BombSpots) _botTargetCandidates.Add(bs.GlobalPosition);
+		return _botTargetCandidates;
+	}
+
 	private void UpdateBotInputs()
 	{
 		if (_bots.Count == 0) return;
-		var waypoints = _spawns.WanderTargets;
+		var targets = ResolveBotTargets();
 		int difficulty = Mathf.Clamp(ConVars.Sv.BotDifficulty, 0, 3);
 		int tickRate = Mathf.Max(1, _cli.TickRate);
 		foreach (var bot in _bots)
@@ -1262,10 +1281,12 @@ public class NetServer
 			var agent = bot.ServerAgent;
 			if (agent == null || agent.IsDead || agent.IsFrozen) continue;
 			if (agent is not ServerBotPlayer botBody) continue;
-			// Get space from the bot's OWN World3D - guaranteed valid as long as the body is in
-			// the tree. The earlier `tree.Root.World3D` route was racy in headless server mode
-			// (the root viewport's World3D could be the wrong one or null entirely).
-			var space = agent.GetWorld3D()?.DirectSpaceState;
+			// Get space + nav map from the bot's OWN World3D — guaranteed valid as long as the body
+			// is in the tree. The NavigationMap RID is set when a NavigationRegion3D is baked into
+			// the world scene; an invalid RID means no NavMesh is set up and the bot just stands.
+			var world = agent.GetWorld3D();
+			var space = world?.DirectSpaceState;
+			var navMap = world?.NavigationMap ?? new Rid();
 			Vector3 pos = agent.GlobalPosition;
 			var combat = new BotCombatContext
 			{
@@ -1277,7 +1298,7 @@ public class NetServer
 				TickRate = tickRate,
 				NeedsReload = (agent is PlayerCore pc) && pc.NeedsReload,
 			};
-			agent.NetInputSource = botBody.BotController.Tick(_serverTick, pos, waypoints, space, BotProbeMask, combat);
+			agent.NetInputSource = botBody.BotController.Tick(_serverTick, pos, navMap, targets, space, BotProbeMask, combat);
 		}
 	}
 

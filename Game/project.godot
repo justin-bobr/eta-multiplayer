@@ -36,6 +36,10 @@ window/vsync/vsync_mode=0
 
 project/assembly_name="keta"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/spots_gizmo/plugin.cfg")
+
 [global]
 
 debug=false
