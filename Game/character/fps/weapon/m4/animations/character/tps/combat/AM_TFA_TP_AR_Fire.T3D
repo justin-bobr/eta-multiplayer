@@ -1,0 +1,30 @@
+Begin Object Class=/Script/Engine.AnimMontage Name="AM_TFA_TP_AR_Fire" ExportPath="/Script/Engine.AnimMontage'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Fire.AM_TFA_TP_AR_Fire'"
+   Begin Object Class=/Script/UnrealEd.SceneThumbnailInfo Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Fire.AM_TFA_TP_AR_Fire:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimDataModel Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Fire.AM_TFA_TP_AR_Fire:AnimDataModel'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Fire.AM_TFA_TP_AR_Fire:AN_UnlockActions_C_0'"
+   End Object
+   Begin Object Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Fire.AM_TFA_TP_AR_Fire:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Fire.AM_TFA_TP_AR_Fire:AnimDataModel'"
+      NumberOfFrames=88000
+      NumberOfKeys=88001
+      bPopulated=True
+   End Object
+   Begin Object Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Fire.AM_TFA_TP_AR_Fire:AN_UnlockActions_C_0'"
+   End Object
+   BlendIn=(BlendTime=0.100000,BlendOption=Sinusoidal)
+   BlendOut=(BlendTime=0.500000,BlendOption=Sinusoidal)
+   CompositeSections(0)=(SectionName="Default",LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Fire'",SegmentIndex=0,SegmentLength=1.466667,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Fire.A_TFA_TP_AR_Fire'")
+   SlotAnimTracks(0)=(AnimTrack=(AnimSegments=((CachedPlayLength=1.466667,AnimReference="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Fire.A_TFA_TP_AR_Fire'",AnimEndTime=1.466667))))
+   SlotAnimTracks(1)=(SlotName="Aiming",AnimTrack=(AnimSegments=((CachedPlayLength=1.466667,AnimReference="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Fire.A_TFA_TP_AR_Fire'",AnimEndTime=1.466667))))
+   PreviewBasePose="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Poses/A_TFA_TP_AR_Idle_Pose.A_TFA_TP_AR_Idle_Pose'"
+   CommonTargetFrameRate=(Numerator=30)
+   Notifies(0)=(TriggerTimeOffset=0.000100,NotifyName="AN_UnlockActions_C",Notify="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'AN_UnlockActions_C_0'",Guid=7CA41DAA468B01EBBA6540AFE3E1EEBC,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Fire'",SegmentIndex=0,SegmentLength=1.466667,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Fire.A_TFA_TP_AR_Fire'")
+   SequenceLength=1.466667
+   AnimNotifyTracks(0)=(TrackName="1",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   DataModelInterface=AnimDataModel'AM_TFA_TP_AR_Fire:AnimDataModel'
+   Skeleton="/Script/Engine.Skeleton'/Game/InfimaGames/TacticalFPSAnimations/Common/Characters/Mannequins/Meshes/SKEL_TFA_Mannequin.SKEL_TFA_Mannequin'"
+   ThumbnailInfo="/Script/UnrealEd.SceneThumbnailInfo'SceneThumbnailInfo_0'"
+End Object

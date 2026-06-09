@@ -1,0 +1,69 @@
+Begin Object Class=/Script/Engine.AnimMontage Name="AM_TFA_TP_AR_Melee_Swing_L" ExportPath="/Script/Engine.AnimMontage'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L'"
+   Begin Object Class=/Script/UnrealEd.SceneThumbnailInfo Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C Name="ANS_TFA_LeftHandGrip_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:ANS_TFA_LeftHandGrip_C_0'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C Name="ANS_BlockADS_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:ANS_BlockADS_C_0'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_9" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimNotify_PlaySound_9'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_8" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimNotify_PlaySound_8'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_6" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimNotify_PlaySound_6'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_10" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimNotify_PlaySound_10'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimDataModel Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimDataModel'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AN_UnlockActions_C_0'"
+   End Object
+   Begin Object Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Name="ANS_TFA_LeftHandGrip_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:ANS_TFA_LeftHandGrip_C_0'"
+   End Object
+   Begin Object Name="ANS_BlockADS_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:ANS_BlockADS_C_0'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_9" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimNotify_PlaySound_9'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Foley/A_TFA_Foley_Cloth_Cue.A_TFA_Foley_Cloth_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_8" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimNotify_PlaySound_8'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Foley/A_TFA_Foley_Cloth_Cue.A_TFA_Foley_Cloth_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_6" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimNotify_PlaySound_6'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Melee/A_TFA_Melee_Whoosh_Cue.A_TFA_Melee_Whoosh_Cue'"
+      VolumeMultiplier=0.250000
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_10" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimNotify_PlaySound_10'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Audio/Impacts/A_TFA_AR_GunSmack_Cue.A_TFA_AR_GunSmack_Cue'"
+      VolumeMultiplier=0.500000
+   End Object
+   Begin Object Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AnimDataModel'"
+      NumberOfFrames=112000
+      NumberOfKeys=112001
+   End Object
+   Begin Object Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_Melee_Swing_L.AM_TFA_TP_AR_Melee_Swing_L:AN_UnlockActions_C_0'"
+   End Object
+   BlendIn=(BlendTime=0.200000,BlendOption=Sinusoidal)
+   BlendOut=(BlendTime=0.200000,BlendOption=Sinusoidal)
+   CompositeSections(0)=(SectionName="Default",LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'")
+   SlotAnimTracks(0)=(AnimTrack=(AnimSegments=((CachedPlayLength=1.866667,AnimReference="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'",AnimEndTime=1.866667))))
+   PreviewBasePose="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Poses/A_TFA_TP_AR_Idle_Pose.A_TFA_TP_AR_Idle_Pose'"
+   CommonTargetFrameRate=(Numerator=30)
+   Notifies(0)=(TriggerTimeOffset=0.000100,NotifyName="ANS_BlockADS_C",NotifyStateClass="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'ANS_BlockADS_C_0'",Duration=1.005761,EndLink=(LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkValue=1.005761,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'"),Guid=9B3C02AC494E7BE9476F7B8EAA6FA772,TrackIndex=1,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'")
+   Notifies(1)=(TriggerTimeOffset=0.000100,EndTriggerTimeOffset=0.000100,NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_8'",Guid=B9AD1D3D41612866B819D1955C1DB128,TrackIndex=4,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'")
+   Notifies(2)=(NotifyName="ANS_TFA_LeftHandGrip_C",NotifyStateClass="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'ANS_TFA_LeftHandGrip_C_0'",Duration=0.625798,EndLink=(LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkValue=0.678451,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'"),Guid=EC6300FA4AFB82F42C4E5896902B9B69,TrackIndex=2,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkValue=0.052653,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'")
+   Notifies(3)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_6'",EndLink=(LinkValue=0.272757),Guid=FD89496042BC8EBDC88299BF63388D8E,TrackIndex=3,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkValue=0.171108,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'")
+   Notifies(4)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_9'",EndLink=(LinkValue=0.390176),Guid=A4AC72194A03089674AA0C89623161A8,TrackIndex=4,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkValue=0.544208,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'")
+   Notifies(5)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_10'",EndLink=(LinkValue=0.775392),Guid=92C56C72459C80DC015E28A6ED0AE2D7,TrackIndex=5,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkValue=0.765232,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'")
+   Notifies(6)=(NotifyName="AN_UnlockActions_C",Notify="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'AN_UnlockActions_C_0'",EndLink=(LinkValue=1.000000),Guid=C4335B17402FD89DFE9BF1A10CBD37D7,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Melee_Swing_L'",SegmentIndex=0,SegmentLength=1.866667,LinkValue=1.000000,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_Melee_Swing_L.A_TFA_TP_AR_Melee_Swing_L'")
+   SequenceLength=1.866667
+   AnimNotifyTracks(0)=(TrackName="1",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(1)=(TrackName="2",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(2)=(TrackName="3",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(3)=(TrackName="4",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(4)=(TrackName="6",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(5)=(TrackName="7",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   DataModelInterface=AnimDataModel'AM_TFA_TP_AR_Melee_Swing_L:AnimDataModel'
+   Skeleton="/Script/Engine.Skeleton'/Game/InfimaGames/TacticalFPSAnimations/Common/Characters/Mannequins/Meshes/SKEL_TFA_Mannequin.SKEL_TFA_Mannequin'"
+   ThumbnailInfo="/Script/UnrealEd.SceneThumbnailInfo'SceneThumbnailInfo_0'"
+End Object

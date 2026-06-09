@@ -1,0 +1,41 @@
+Begin Object Class=/Script/Engine.AnimMontage Name="AM_TFA_TP_AR_Equip" ExportPath="/Script/Engine.AnimMontage'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip'"
+   Begin Object Class=/Script/UnrealEd.SceneThumbnailInfo Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C Name="ANS_TFA_LeftHandGrip_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:ANS_TFA_LeftHandGrip_C_0'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C Name="ANS_BlockADS_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:ANS_BlockADS_C_0'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimDataModel Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:AnimDataModel'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:AN_UnlockActions_C_0'"
+   End Object
+   Begin Object Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Name="ANS_TFA_LeftHandGrip_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:ANS_TFA_LeftHandGrip_C_0'"
+   End Object
+   Begin Object Name="ANS_BlockADS_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:ANS_BlockADS_C_0'"
+   End Object
+   Begin Object Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:AnimDataModel'"
+      NumberOfFrames=140000
+      NumberOfKeys=140001
+      bPopulated=True
+   End Object
+   Begin Object Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/AM_TFA_TP_AR_Equip.AM_TFA_TP_AR_Equip:AN_UnlockActions_C_0'"
+   End Object
+   BlendIn=(BlendTime=0.000000,BlendOption=Linear)
+   BlendOut=(BlendTime=0.000000,BlendOption=Linear)
+   CompositeSections(0)=(SectionName="Default",LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Equip'",SegmentIndex=0,SegmentLength=2.333333,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/A_TFA_TP_AR_Equip.A_TFA_TP_AR_Equip'")
+   SlotAnimTracks(0)=(AnimTrack=(AnimSegments=((CachedPlayLength=2.333333,AnimReference="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/A_TFA_TP_AR_Equip.A_TFA_TP_AR_Equip'",AnimEndTime=2.333333))))
+   PreviewBasePose="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Poses/A_TFA_TP_AR_Idle_Pose.A_TFA_TP_AR_Idle_Pose'"
+   CommonTargetFrameRate=(Numerator=30)
+   Notifies(0)=(TriggerTimeOffset=0.000100,NotifyName="ANS_BlockADS_C",NotifyStateClass="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'ANS_BlockADS_C_0'",Duration=1.736507,EndLink=(LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Equip'",SegmentIndex=0,SegmentLength=2.333333,LinkValue=1.736507,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/A_TFA_TP_AR_Equip.A_TFA_TP_AR_Equip'"),Guid=5A81207F42D18868CCE121BA815A891A,TrackIndex=1,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Equip'",SegmentIndex=0,SegmentLength=2.333333,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/A_TFA_TP_AR_Equip.A_TFA_TP_AR_Equip'")
+   Notifies(1)=(TriggerTimeOffset=0.000100,NotifyName="ANS_TFA_LeftHandGrip_C",NotifyStateClass="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'ANS_TFA_LeftHandGrip_C_0'",Duration=1.515452,EndLink=(LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Equip'",SegmentIndex=0,SegmentLength=2.333333,LinkValue=1.515452,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/A_TFA_TP_AR_Equip.A_TFA_TP_AR_Equip'"),Guid=33CF2B0E4229FB2BE0391D963D26FCBF,TrackIndex=2,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Equip'",SegmentIndex=0,SegmentLength=2.333333,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/A_TFA_TP_AR_Equip.A_TFA_TP_AR_Equip'")
+   Notifies(2)=(EndTriggerTimeOffset=0.000100,NotifyName="AN_UnlockActions_C",Notify="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'AN_UnlockActions_C_0'",Guid=319630F341DFEB5819F003B578A8662D,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Equip'",SegmentIndex=0,SegmentLength=2.333333,LinkValue=1.736263,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Transitions/A_TFA_TP_AR_Equip.A_TFA_TP_AR_Equip'")
+   SequenceLength=2.333333
+   AnimNotifyTracks(0)=(TrackName="2",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(1)=(TrackName="1",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(2)=(TrackName="3",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   DataModelInterface=AnimDataModel'AM_TFA_TP_AR_Equip:AnimDataModel'
+   Skeleton="/Script/Engine.Skeleton'/Game/InfimaGames/TacticalFPSAnimations/Common/Characters/Mannequins/Meshes/SKEL_TFA_Mannequin.SKEL_TFA_Mannequin'"
+   ThumbnailInfo="/Script/UnrealEd.SceneThumbnailInfo'SceneThumbnailInfo_0'"
+End Object

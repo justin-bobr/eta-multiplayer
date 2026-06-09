@@ -26,9 +26,18 @@ using Godot;
 public partial class TpsAimModifier : SkeletonModifier3D
 {
 	[Export] public Node3D HeadPitch;
+	/// <summary>Optional body-orientation source for the world-space pitch axis. Defaults to the owning
+	/// CharacterBody3D; set it when the visible body is a separate node (AnimatedCharacter's GlowVisual).</summary>
+	[Export] public Node3D BodyNode;
 	[Export] public string AimBoneName = "spine_03";
 	[Export(PropertyHint.Range, "0,1,0.05")] public float PitchScale = 0.6f;
+	/// <summary>false (default, PlayerCore): replace the bone with rest+aim. true (AnimatedCharacter): add the
+	/// aim on top of the animated pose, so idle/montage spine motion survives and it is a no-op when pitch=0.</summary>
+	[Export] public bool Additive;
 
+	/// <summary>Direct pitch (radians) used when <see cref="HeadPitch"/> is null — lets non-PlayerCore drivers
+	/// (AnimatedCharacter) feed the aim pitch straight in.</summary>
+	public float Pitch;
 	/// <summary>Y twist (radians). Set per frame by PuppetPlayer for upper-body rotation. 0 = no twist.</summary>
 	public float SpineTwist;
 
@@ -79,14 +88,16 @@ public partial class TpsAimModifier : SkeletonModifier3D
 			? MiniProfiler.SampleServer("TpsAimModifier._ProcessModification")
 			: MiniProfiler.SampleClient("TpsAimModifier._ProcessModification");
 		if (!_resolved) Resolve();
-		if (_boneIdx < 0 || HeadPitch == null || _characterBody == null) return;
+		if (_boneIdx < 0) return;
 		var skel = GetSkeleton();
 		if (skel == null) return;
+		Node3D body = BodyNode ?? _characterBody;
+		if (body == null) return;
 
-		float pitch = HeadPitch.Rotation.X * PitchScale;
+		float pitch = (HeadPitch != null ? HeadPitch.Rotation.X : Pitch) * PitchScale;
 		float twist = SpineTwist * PitchScale;
 
-		Quaternion bodyRot = _characterBody.GlobalTransform.Basis.GetRotationQuaternion();
+		Quaternion bodyRot = body.GlobalTransform.Basis.GetRotationQuaternion();
 		Vector3 bodyRightWorld = bodyRot * Vector3.Right;
 		Vector3 worldUp = Vector3.Up;
 
@@ -102,7 +113,8 @@ public partial class TpsAimModifier : SkeletonModifier3D
 
 		Quaternion extraInParentLocal = parentGlobalWorld.Inverse() * extraWorld * parentGlobalWorld;
 
-		Quaternion newPoseRot = extraInParentLocal * _restRot;
+		Quaternion basePose = Additive ? skel.GetBonePoseRotation(_boneIdx) : _restRot;
+		Quaternion newPoseRot = extraInParentLocal * basePose;
 		skel.SetBonePoseRotation(_boneIdx, newPoseRot);
 	}
 }

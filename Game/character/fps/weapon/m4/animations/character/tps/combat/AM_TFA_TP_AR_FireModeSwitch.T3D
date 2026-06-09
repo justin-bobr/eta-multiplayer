@@ -1,0 +1,56 @@
+Begin Object Class=/Script/Engine.AnimMontage Name="AM_TFA_TP_AR_FireModeSwitch" ExportPath="/Script/Engine.AnimMontage'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch'"
+   Begin Object Class=/Script/UnrealEd.SceneThumbnailInfo Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_2" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AnimNotify_PlaySound_2'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_1" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AnimNotify_PlaySound_1'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_0" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AnimNotify_PlaySound_0'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimDataModel Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AnimDataModel'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AN_UnlockActions_C_0'"
+   End Object
+   Begin Object Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_2" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AnimNotify_PlaySound_2'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Audio/Impacts/A_TFA_AR_GunSmack_Cue.A_TFA_AR_GunSmack_Cue'"
+      VolumeMultiplier=0.250000
+      PitchMultiplier=1.100000
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_1" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AnimNotify_PlaySound_1'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Foley/A_TFA_Foley_Cloth_Cue.A_TFA_Foley_Cloth_Cue'"
+      VolumeMultiplier=0.800000
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_0" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AnimNotify_PlaySound_0'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Audio/Handling/Foley/A_TFA_AR_Click_Cue.A_TFA_AR_Click_Cue'"
+      VolumeMultiplier=0.500000
+      PitchMultiplier=0.900000
+   End Object
+   Begin Object Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AnimDataModel'"
+      NumberOfFrames=56000
+      NumberOfKeys=56001
+   End Object
+   Begin Object Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/AM_TFA_TP_AR_FireModeSwitch.AM_TFA_TP_AR_FireModeSwitch:AN_UnlockActions_C_0'"
+   End Object
+   BlendIn=(BlendTime=0.000000,BlendOption=Linear)
+   BlendOut=(BlendTime=0.000000,BlendOption=Linear)
+   CompositeSections(0)=(SectionName="Default",LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_FireModeSwitch'",SegmentIndex=0,SegmentLength=0.933333,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_FireModeSwitch.A_TFA_TP_AR_FireModeSwitch'")
+   SlotAnimTracks(0)=(AnimTrack=(AnimSegments=((CachedPlayLength=0.933333,AnimReference="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_FireModeSwitch.A_TFA_TP_AR_FireModeSwitch'",AnimEndTime=0.933333))))
+   SlotAnimTracks(1)=(SlotName="Aiming",AnimTrack=(AnimSegments=((CachedPlayLength=0.933333,AnimReference="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_FireModeSwitch.A_TFA_TP_AR_FireModeSwitch'",AnimEndTime=0.933333))))
+   PreviewBasePose="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Poses/A_TFA_TP_AR_Idle_Pose.A_TFA_TP_AR_Idle_Pose'"
+   CommonTargetFrameRate=(Numerator=30)
+   Notifies(0)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_1'",EndLink=(LinkValue=0.092062),Guid=6B3029F947222AF8E57678A0022DDA25,TrackIndex=2,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_FireModeSwitch'",SegmentIndex=0,SegmentLength=0.933333,LinkValue=0.009514,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_FireModeSwitch.A_TFA_TP_AR_FireModeSwitch'")
+   Notifies(1)=(NotifyName="AN_UnlockActions_C",Notify="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'AN_UnlockActions_C_0'",Guid=0379C3D9403F3D5FE936F985C9042BAD,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_FireModeSwitch'",SegmentIndex=0,SegmentLength=0.933333,LinkValue=0.013685,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_FireModeSwitch.A_TFA_TP_AR_FireModeSwitch'")
+   Notifies(2)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_0'",EndLink=(LinkValue=0.118155),Guid=618595F9410E09A1F8618D82AF44E288,TrackIndex=1,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_FireModeSwitch'",SegmentIndex=0,SegmentLength=0.933333,LinkValue=0.096235,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_FireModeSwitch.A_TFA_TP_AR_FireModeSwitch'")
+   Notifies(3)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_2'",EndLink=(LinkValue=0.120458),Guid=8B2307A5400A77B6E53E24B1D9C74BA1,TrackIndex=3,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_FireModeSwitch'",SegmentIndex=0,SegmentLength=0.933333,LinkValue=0.098538,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Combat/A_TFA_TP_AR_FireModeSwitch.A_TFA_TP_AR_FireModeSwitch'")
+   SequenceLength=0.933333
+   AnimNotifyTracks(0)=(TrackName="1",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(1)=(TrackName="2",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(2)=(TrackName="3",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(3)=(TrackName="4",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   DataModelInterface=AnimDataModel'AM_TFA_TP_AR_FireModeSwitch:AnimDataModel'
+   Skeleton="/Script/Engine.Skeleton'/Game/InfimaGames/TacticalFPSAnimations/Common/Characters/Mannequins/Meshes/SKEL_TFA_Mannequin.SKEL_TFA_Mannequin'"
+   ThumbnailInfo="/Script/UnrealEd.SceneThumbnailInfo'SceneThumbnailInfo_0'"
+   PreviewSkeletalMesh="/Game/InfimaGames/TacticalFPSAnimations/Common/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
+End Object
