@@ -32,7 +32,17 @@ public static class MiniProfiler
 	public static double WarnThresholdMs = 1.0;
 
 	private struct PerFrameEntry { public long TotalTicks; public int Count; }
-	private struct WindowEntry { public long TotalTicks; public long PeakTicks; public int Count; public long TotalBytes; public long PeakBytes; }
+	private struct WindowEntry
+	{
+		public long TotalTicks; public long PeakTicks; public int Count; public long TotalBytes; public long PeakBytes;
+		/// <summary>System.Environment.TickCount64 when PeakTicks/PeakBytes was last raised. Peaks survive report
+		/// resets for <see cref="PeakHoldMs"/> so a one-off spike stays visible (with "!!") across reports
+		/// instead of vanishing in the next 10s window.</summary>
+		public long PeakAtMs;
+	}
+
+	/// <summary>How long a recorded peak survives report resets (ms). Totals/counts stay per-window.</summary>
+	private const long PeakHoldMs = 60_000;
 
 	// Zwei vor-allokierte Dicts die per FlushFrame SWAPPED werden (Pointer-Swap = zero alloc) statt
 	// ein neues Dict zu allocaten. Vorher: `new Dictionary(_current)` jeden Frame = 60+ Dict-Allocs/sec
@@ -115,9 +125,9 @@ public static class MiniProfiler
 				_window.TryGetValue(_name, out var w);
 				w.TotalTicks += delta;
 				w.Count++;
-				if (delta > w.PeakTicks) w.PeakTicks = delta;
+				if (delta > w.PeakTicks) { w.PeakTicks = delta; w.PeakAtMs = System.Environment.TickCount64; }
 				w.TotalBytes += bytes;
-				if (bytes > w.PeakBytes) w.PeakBytes = bytes;
+				if (bytes > w.PeakBytes) { w.PeakBytes = bytes; if (w.PeakAtMs == 0) w.PeakAtMs = System.Environment.TickCount64; }
 				_window[_name] = w;
 			}
 		}
@@ -145,15 +155,18 @@ public static class MiniProfiler
 		}
 	}
 
-	/// <summary>Top-N samples by total time from LAST FlushFrame snapshot. Für HUD-Live-Anzeige.</summary>
+	private static readonly List<(string name, double ms, int count)> _topSamplesBuf = new(64);
+
+	/// <summary>Top-N samples by total time from LAST FlushFrame snapshot. Für HUD-Live-Anzeige.
+	/// Returns a REUSED buffer (overwritten on the next call) — consume immediately, don't store.</summary>
 	public static List<(string name, double ms, int count)> TopSamples(int n = 10)
 	{
-		var list = new List<(string, double, int)>(_last.Count);
+		_topSamplesBuf.Clear();
 		foreach (var kv in _last)
-			list.Add((kv.Key, TicksToMs(kv.Value.TotalTicks), kv.Value.Count));
-		list.Sort((a, b) => b.Item2.CompareTo(a.Item2));
-		if (list.Count > n) list.RemoveRange(n, list.Count - n);
-		return list;
+			_topSamplesBuf.Add((kv.Key, TicksToMs(kv.Value.TotalTicks), kv.Value.Count));
+		_topSamplesBuf.Sort(static (a, b) => b.ms.CompareTo(a.ms));
+		if (_topSamplesBuf.Count > n) _topSamplesBuf.RemoveRange(n, _topSamplesBuf.Count - n);
+		return _topSamplesBuf;
 	}
 
 	// Reused-Buffers für WriteReport — ohne diese allokierte jeder Write ~10KB+ garbage (List<>,
@@ -184,11 +197,21 @@ public static class MiniProfiler
 			{
 				if (string.IsNullOrEmpty(filterPrefix) || kv.Key.StartsWith(filterPrefix))
 				{
+					if (kv.Value.Count == 0 && kv.Value.PeakTicks == 0) continue;   // held peak expired, no new data
 					_reportFiltered.Add((kv.Key, kv.Value));
 					_reportToReset.Add(kv.Key);
 				}
 			}
-			for (int i = 0; i < _reportToReset.Count; i++) _window.Remove(_reportToReset[i]);
+			// Reset totals/counts for the next window, but HOLD peaks for PeakHoldMs so a spike stays
+			// visible (sorted on top, flagged "!!") across several reports instead of vanishing after 10s.
+			long now = System.Environment.TickCount64;
+			for (int i = 0; i < _reportToReset.Count; i++)
+			{
+				var w = _window[_reportToReset[i]];
+				w.TotalTicks = 0; w.Count = 0; w.TotalBytes = 0;
+				if (now - w.PeakAtMs > PeakHoldMs) { w.PeakTicks = 0; w.PeakBytes = 0; w.PeakAtMs = 0; }
+				_window[_reportToReset[i]] = w;
+			}
 		}
 		_reportFiltered.Sort((a, b) => b.Item2.PeakTicks.CompareTo(a.Item2.PeakTicks));
 

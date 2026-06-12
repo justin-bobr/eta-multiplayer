@@ -357,7 +357,12 @@ public partial class ViewmodelLightSampler : Node3D
 			CollideWithBodies = true,
 			CollisionMask = WorldCollisionMask,
 		};
-		AddChild(rc);
+		// CRITICAL: raycasts query the World3D of the node they live under. This sampler sits inside the
+		// viewmodel SubViewport (own_world_3d = EMPTY world) — parented here the probes hit nothing, the
+		// sun ray is never blocked and the weapon light never reacts (post-character-refactor regression).
+		// MainCamera is the world-side fps_camera, so its tree is the MAIN world; TopLevel keeps the probes
+		// world-space driven either way.
+		MainCamera.AddChild(rc);
 		return rc;
 	}
 

@@ -8,5 +8,9 @@ public partial class FireSelectorModifier : SkeletonModifier3D
 {
 	public WeaponAnimation Weapon;
 
-	public override void _ProcessModificationWithDelta(double delta) => Weapon?.ApplyFireSelectorPose();
+	public override void _ProcessModificationWithDelta(double delta)
+	{
+		using var _prof = MiniProfiler.SampleClient("FireSelectorModifier._ProcessModification");
+		Weapon?.ApplyFireSelectorPose();
+	}
 }

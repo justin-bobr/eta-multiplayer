@@ -127,6 +127,7 @@ public partial class BulletImpactManager : Node3D
 	/// pro Schuss (= GC-Pressure). Jetzt: single _Process Walk.</summary>
 	public override void _Process(double delta)
 	{
+		using var _prof = MiniProfiler.SampleClient("BulletImpactManager._Process");
 		_recycleAccum += (float)delta;
 		if (_recycleAccum < RecycleInterval) return;
 		_recycleAccum = 0f;

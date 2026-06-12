@@ -661,6 +661,7 @@ public partial class NetworkPlayer : CharacterBody3D
 	}
 
 	private bool _tpsWasReloading, _tpsWasInspecting;
+	private static readonly StringName _pTpsActionRequest = "parameters/Action/request";
 
 	/// <summary>Fires the TPS reload/inspect one-shot montage on the rising edge of the reload/inspect state.
 	/// Puppets read the replicated snapshot flags; the local TPS body reads its own sim. Needs BuildTpsTree
@@ -685,7 +686,7 @@ public partial class NetworkPlayer : CharacterBody3D
 		if (string.IsNullOrEmpty(anim) || !_tpsPlayer.HasAnimation(anim))
 			return;
 		_tpsActionAnim.Animation = anim;
-		_tpsTree.Set("parameters/Action/request", (int)AnimationNodeOneShot.OneShotRequest.Fire);
+		_tpsTree.Set(_pTpsActionRequest, (int)AnimationNodeOneShot.OneShotRequest.Fire);
 	}
 
 	protected void ApplyModeVisibility()

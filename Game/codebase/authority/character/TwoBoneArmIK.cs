@@ -82,11 +82,9 @@ public partial class TwoBoneArmIK : SkeletonModifier3D
 		}
 	}
 
-	private float GetInfluence()
-	{
-		var v = Get("influence");
-		return v.VariantType == Variant.Type.Nil ? 1f : (float)v;
-	}
+	// Influence comes from the BASE SkeletonModifier3D.GetInfluence() — the old custom override did
+	// Get("influence") with a string literal, allocating a StringName per arm per frame (~470KB/10s).
+	// (It also caused the long-standing CS0108 hides-inherited-member warning.)
 
 	// Rotate a bone so its global `from` direction points along `to`, blended by influence.
 	private void AlignBone(Skeleton3D sk, int bone, Vector3 from, Vector3 to, float infl)

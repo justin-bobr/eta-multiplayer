@@ -282,9 +282,32 @@ public partial class NetMain : Node
 
 	public override void _Process(double delta)
 	{
+		if (Dbg.Enabled || Settings.ShowDebugBar) EnsureViewportMeasurement();
 		if (!Dbg.Enabled) return;
-		EnsureViewportMeasurement();
 		TrackFrameSpike(delta);
+	}
+
+	/// <summary>Real GPU frame time (ms): sum of the measured render times across all tracked viewports
+	/// (main window + viewmodel + glow + active capture faces). Valorant-style "GPU" — runs in parallel
+	/// to the CPU, so FPS is limited by max(CPU, GPU), not their sum. 0 until measurement is enabled.</summary>
+	public double MeasuredGpuMs()
+	{
+		double sum = 0;
+		foreach (var vp in _measuredViewports)
+			if (GodotObject.IsInstanceValid(vp))
+				sum += RenderingServer.ViewportGetMeasuredRenderTimeGpu(vp.GetViewportRid());
+		return sum;
+	}
+
+	/// <summary>Render-thread CPU time (ms) summed over all tracked viewports — culling + draw-call
+	/// submission. Companion to <see cref="MeasuredGpuMs"/> for the debug bar's frame decomposition.</summary>
+	public double MeasuredRenderCpuMs()
+	{
+		double sum = 0;
+		foreach (var vp in _measuredViewports)
+			if (GodotObject.IsInstanceValid(vp))
+				sum += RenderingServer.ViewportGetMeasuredRenderTimeCpu(vp.GetViewportRid());
+		return sum;
 	}
 
 	// Per-viewport render-time measurement: the C# MiniProfiler can't see engine-side cost (scene cull,

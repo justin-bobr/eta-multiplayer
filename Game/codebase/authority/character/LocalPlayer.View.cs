@@ -17,34 +17,28 @@ public partial class LocalPlayer
 		using var _prof = MiniProfiler.SampleClient("LocalPlayer.RenderLocalView");
 
 		float dt = (float)delta;
-		UpdateVisualBlends(dt);
-		UpdateGripBlend(dt);
-		using (MiniProfiler.SampleClient("View.DriveLocomotionTree"))
-			DriveLocomotionTree(dt);
-		using (MiniProfiler.SampleClient("View.UpdateViewmodelMontages"))
-			UpdateViewmodelMontages();
-		PollMontageState();
-		using (MiniProfiler.SampleClient("View.ApplyHandIk"))
-			ApplyHandIk();
-		using (MiniProfiler.SampleClient("View.ApplyWeaponOffset"))
-			ApplyWeaponOffset();
-		using (MiniProfiler.SampleClient("View.FpsTree.Advance"))
-			_tree?.Advance(dt);
-		using (MiniProfiler.SampleClient("View.StepViewmodelProcedural"))
-			StepViewmodelProcedural(dt);
-		UpdateProceduralSprings(dt);
-		using (MiniProfiler.SampleClient("View.ApplyModeVisibility"))
-			ApplyModeVisibility();
-		ApplyViewmodelProcedural();
+		using (MiniProfiler.SampleClient("View.UpdateVisualBlends")) UpdateVisualBlends(dt);
+		using (MiniProfiler.SampleClient("View.UpdateGripBlend")) UpdateGripBlend(dt);
+		using (MiniProfiler.SampleClient("View.DriveLocomotionTree")) DriveLocomotionTree(dt);
+		using (MiniProfiler.SampleClient("View.UpdateViewmodelMontages")) UpdateViewmodelMontages();
+		using (MiniProfiler.SampleClient("View.PollMontageState")) PollMontageState();
+		using (MiniProfiler.SampleClient("View.ApplyHandIk")) ApplyHandIk();
+		using (MiniProfiler.SampleClient("View.ApplyWeaponOffset")) ApplyWeaponOffset();
+		using (MiniProfiler.SampleClient("View.FpsTree.Advance")) _tree?.Advance(dt);
+		using (MiniProfiler.SampleClient("View.StepViewmodelProcedural")) StepViewmodelProcedural(dt);
+		using (MiniProfiler.SampleClient("View.UpdateProceduralSprings")) UpdateProceduralSprings(dt);
+		using (MiniProfiler.SampleClient("View.ApplyModeVisibility")) ApplyModeVisibility();
+		using (MiniProfiler.SampleClient("View.ApplyViewmodelProcedural")) ApplyViewmodelProcedural();
 		if (ViewMode == ViewMode.Tps && _tpsCam != null)
-			UpdateTpsCamera(dt);
+		{
+			using (MiniProfiler.SampleClient("View.UpdateTpsCamera")) UpdateTpsCamera(dt);
+		}
 		else
 		{
-			RenderWorldCamera(dt);
-			RenderFpsCamera();
+			using (MiniProfiler.SampleClient("View.RenderWorldCamera")) RenderWorldCamera(dt);
+			using (MiniProfiler.SampleClient("View.RenderFpsCamera")) RenderFpsCamera();
 		}
-		using (MiniProfiler.SampleClient("View.UpdateAdsPostFx"))
-			UpdateAdsPostFx();
+		using (MiniProfiler.SampleClient("View.UpdateAdsPostFx")) UpdateAdsPostFx();
 	}
 
 	private void UpdateVisualBlends(float dt)
@@ -79,6 +73,12 @@ public partial class LocalPlayer
 	private static readonly StringName _pCrouchMix = "parameters/CrouchMix/blend_amount";
 	private static readonly StringName _pGripAdd = "parameters/GripAdd/add_amount";
 	private static readonly StringName _pGripAimBlend = "parameters/GripAimBlend/blend_amount";
+	private static readonly StringName _pActionActive = "parameters/Action/active";
+	private static readonly StringName _pActionRequest = "parameters/Action/request";
+	private static readonly StringName _pGripChangeActive = "parameters/GripChangeSlot/active";
+	private static readonly StringName _pGripChangeRequest = "parameters/GripChangeSlot/request";
+	private static readonly StringName _pLocoStopRequest = "parameters/LocoStop/request";
+	private static readonly StringName _pInfluence = "influence";
 
 	private void DriveLocomotionTree(float dt)
 	{
@@ -158,17 +158,17 @@ public partial class LocalPlayer
 	{
 		if (_tree == null)
 			return;
-		if (_montageActive && !_tree.Get("parameters/Action/active").AsBool())
+		if (_montageActive && !_tree.Get(_pActionActive).AsBool())
 			_montageActive = false;
-		if (_gripChangeActive && !_tree.Get("parameters/GripChangeSlot/active").AsBool())
+		if (_gripChangeActive && !_tree.Get(_pGripChangeActive).AsBool())
 			_gripChangeActive = false;
 	}
 
 	private void ApplyHandIk()
 	{
 		float ikInfluence = IkEnabled ? 1f : 0f;
-		_leftHandFabrik?.Set("influence", ikInfluence);
-		_rightHandFabrik?.Set("influence", ikInfluence);
+		_leftHandFabrik?.Set(_pInfluence, ikInfluence);
+		_rightHandFabrik?.Set(_pInfluence, ikInfluence);
 	}
 
 	private void UpdateProceduralSprings(float dt)
@@ -410,7 +410,7 @@ public partial class LocalPlayer
 		if (_actionRef2Node != null)
 			_actionRef2Node.Animation = actionRef;
 		_actionAnim.Animation = anim;
-		_tree.Set("parameters/Action/request", (int)AnimationNodeOneShot.OneShotRequest.Fire);
+		_tree.Set(_pActionRequest, (int)AnimationNodeOneShot.OneShotRequest.Fire);
 		_montageActive = true;
 	}
 
@@ -421,7 +421,7 @@ public partial class LocalPlayer
 		if (_gripChangeAnim != null && _tree != null && _player.HasAnimation(GripChange))
 		{
 			_gripChangeAnim.Animation = GripChange;
-			_tree.Set("parameters/GripChangeSlot/request", (int)AnimationNodeOneShot.OneShotRequest.Fire);
+			_tree.Set(_pGripChangeRequest, (int)AnimationNodeOneShot.OneShotRequest.Fire);
 			_gripChangeActive = true;
 			return;
 		}
@@ -433,7 +433,7 @@ public partial class LocalPlayer
 		if (_locoStopAnim == null || _tree == null || string.IsNullOrEmpty(anim) || !_player.HasAnimation(anim))
 			return;
 		_locoStopAnim.Animation = anim;
-		_tree.Set("parameters/LocoStop/request", (int)AnimationNodeOneShot.OneShotRequest.Fire);
+		_tree.Set(_pLocoStopRequest, (int)AnimationNodeOneShot.OneShotRequest.Fire);
 	}
 
 	protected override void ApplyEditorPreview(float dt = 0f)
@@ -492,8 +492,8 @@ public partial class LocalPlayer
 			_cam.Fov = (_isAiming || _adsTestMode) ? AimFov : HipFov;
 
 		var ikInfluence = IkEnabled ? 1f : 0f;
-		_leftHandFabrik?.Set("influence", ikInfluence);
-		_rightHandFabrik?.Set("influence", ikInfluence);
+		_leftHandFabrik?.Set(_pInfluence, ikInfluence);
+		_rightHandFabrik?.Set(_pInfluence, ikInfluence);
 
 		ApplyWeaponOffset();
 		tree.Advance(_adsTestMode ? 0.0 : dt);

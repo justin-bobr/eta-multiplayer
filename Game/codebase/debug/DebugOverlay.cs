@@ -24,6 +24,9 @@ public partial class DebugOverlay : Node
 
 	private double _smoothedProcMs;
 	private double _smoothedPhysMs;
+	private double _smoothedGpuMs;
+	private double _smoothedRenderCpuMs;
+	private double _frameMaxWindow;
 	private double _procMaxWindow, _physMaxWindow;
 	private float _maxWindowTimer;
 	private const float MaxWindowSec = 1.0f;
@@ -99,6 +102,7 @@ public partial class DebugOverlay : Node
 		{
 			_procMaxWindow = procNow;
 			_physMaxWindow = physNow;
+			_frameMaxWindow = _smoothedFrameMs;
 			_maxWindowTimer = 0f;
 		}
 
@@ -131,12 +135,20 @@ public partial class DebugOverlay : Node
 		float vramMb = (float)Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / (1024f * 1024f);
 		int drawCalls = (int)Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame);
 		int objects = (int)Performance.GetMonitor(Performance.Monitor.RenderTotalObjectsInFrame);
-		// Triangles per frame is the dominant cost in vertex/pixel-shader-bound scenes.
-		// Total time minus CPU process time = approx GPU-blocked wait — useful to spot
-		// whether you're CPU- or GPU-bound at a glance without launching RenderDoc.
+		// Frame decomposition from MEASURED sources only. Godot's TimeProcess monitor was dropped from
+		// the bar: with a separate render thread it double-counts pipeline overlap and reported more
+		// main-thread ms than the whole frame lasted (4.8ms "Proc" at 367fps = impossible). Ground truth:
+		//   Frame = wall time per frame (uncapped ⇒ ≈ total CPU since nothing sleeps)
+		//   RCpu  = render-thread cull+submit (RenderingServer timestamps, all viewports)
+		//   GPU   = GPU render time (same source) — runs parallel to CPU; the larger side limits FPS.
 		long primitives = (long)Performance.GetMonitor(Performance.Monitor.RenderTotalPrimitivesInFrame);
-		double gpuApproxMs = System.Math.Max(0.0, _smoothedFrameMs - _smoothedProcMs - _smoothedPhysMs);
-		string engine = $"[Proc {_smoothedProcMs:F2}ms↑{_procMaxWindow:F1} Phys {_smoothedPhysMs:F2}ms↑{_physMaxWindow:F1} GPU~{gpuApproxMs:F2}ms @ {physicsTps}Hz] │ FPS {fps:F0}{minStr} ({_smoothedFrameMs:F1}ms) f={interp:F2} │ RAM {ramMb:F0}MB │ VRAM {vramMb:F0}MB │ Draw {drawCalls} Tri {primitives/1000}k Obj {objects}";
+		double gpuNow = NetMain.Instance?.MeasuredGpuMs() ?? 0.0;
+		double rcpuNow = NetMain.Instance?.MeasuredRenderCpuMs() ?? 0.0;
+		_smoothedGpuMs = _smoothedGpuMs * 0.9 + gpuNow * 0.1;
+		_smoothedRenderCpuMs = _smoothedRenderCpuMs * 0.9 + rcpuNow * 0.1;
+		if (_smoothedFrameMs > _frameMaxWindow) _frameMaxWindow = _smoothedFrameMs;
+		string bound = _smoothedGpuMs >= _smoothedFrameMs * 0.9 ? "GPU-bound" : "CPU-bound";
+		string engine = $"[Frame {_smoothedFrameMs:F2}ms↑{_frameMaxWindow:F1} RCpu {_smoothedRenderCpuMs:F2} GPU {_smoothedGpuMs:F2} Phys {_smoothedPhysMs:F2} {bound} @ {physicsTps}Hz] │ FPS {fps:F0}{minStr} f={interp:F2} │ RAM {ramMb:F0}MB │ VRAM {vramMb:F0}MB │ Draw {drawCalls} Tri {primitives/1000}k Obj {objects}";
 
 		if (Player == null) return engine + " │ (no Player)";
 

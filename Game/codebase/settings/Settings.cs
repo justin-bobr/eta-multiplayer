@@ -703,8 +703,26 @@ public static class Settings
 				float origEnergy = (float)light.GetMeta(EnergyOrigMetaKey);
 
 				light.ShadowEnabled = shadowsOn && origShadow;
-				if (light is DirectionalLight3D)
+				if (light is DirectionalLight3D dir)
+				{
 					light.LightEnergy = shadowsOn ? origEnergy : origEnergy * NoShadowSunDim;
+					// Cascade count + shadow distance scale with quality. The Visual Profiler showed
+					// "Render Shadows" (4 PSSM splits over the whole map) as the single biggest render
+					// item by far (~0.85ms CPU + ~2ms GPU on de_dust2) — Low/Medium halve the cascade
+					// renders and cut the caster set via distance; High keeps the full 4-split look.
+					if (shadowsOn)
+					{
+						dir.DirectionalShadowMode = q == ShadowQuality.High
+							? DirectionalLight3D.ShadowMode.Parallel4Splits
+							: DirectionalLight3D.ShadowMode.Parallel2Splits;
+						dir.DirectionalShadowMaxDistance = q switch
+						{
+							ShadowQuality.Low => 50f,
+							ShadowQuality.Medium => 80f,
+							_ => 150f,
+						};
+					}
+				}
 				else
 					light.LightEnergy = origEnergy;
 			}

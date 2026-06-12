@@ -240,6 +240,7 @@ public partial class WeaponAnimation : Node3D
 	public Camera3D RemapToCamera;
 
 	private const string TreeNodeName = "AnimationTree";
+	private static readonly StringName _pActionRequest = "parameters/Action/request";
 	private AnimationTree _tree;
 	private AnimationPlayer _player;
 	private AnimationPlayer _eventPlayer;
@@ -336,6 +337,7 @@ public partial class WeaponAnimation : Node3D
 
 		BuildBulletPool();
 		SetFireMode(ActualFireMode);
+		ResolveFireSelector();
 	}
 
 
@@ -425,6 +427,7 @@ public partial class WeaponAnimation : Node3D
 		if (FireModes == null || string.IsNullOrEmpty(name) || !FireModes.ContainsKey(name))
 			return;
 		ActualFireMode = name;
+		_fireSelectorTime = FireModes[name].AsSingle();   // Variant lookup only on mode CHANGE, not per frame
 	}
 
 	public void CycleFireMode()
@@ -438,30 +441,39 @@ public partial class WeaponAnimation : Node3D
 		SetFireMode(keys[(cur + 1) % keys.Count]);
 	}
 
-	private Animation _fireSelectorAnimCached;
+	private Animation _fireSelectorAnim;
 	private int[] _fireSelectorTracks = [];
+	private float _fireSelectorTime;
+
+	/// <summary>One-time resolve of everything the per-frame selector pass needs: the FireModeStates
+	/// animation, its Fire_Selector track indices, and the current mode's time. The hot path must be
+	/// allocation-free — HasAnim's StringName.ToString and Godot.Collections.Dictionary lookups each
+	/// allocate, which summed to ~2.6MB/10s when done per modifier pass.</summary>
+	private void ResolveFireSelector()
+	{
+		_fireSelectorAnim = null;
+		_fireSelectorTracks = [];
+		if (_skeleton == null || _fireSelectorBone < 0 || !HasAnim(FireModeStates))
+			return;
+		_fireSelectorAnim = _player.GetAnimation(FireModeStates);
+		var tracks = new List<int>();
+		for (int i = 0; i < _fireSelectorAnim.GetTrackCount(); i++)
+			if (((string)_fireSelectorAnim.TrackGetPath(i)).Contains("Fire_Selector"))
+				tracks.Add(i);
+		_fireSelectorTracks = [.. tracks];
+		_fireSelectorTime = FireModes != null && FireModes.ContainsKey(ActualFireMode)
+			? FireModes[ActualFireMode].AsSingle() : 0f;
+	}
 
 	/// <summary>Overrides the Fire_Selector bone with the pose matching <see cref="ActualFireMode"/>.
 	/// Called by <see cref="FireSelectorModifier"/> after the AnimationMixer pass (modifiers run post-mix,
-	/// so the override survives the tree's bone writes).</summary>
+	/// so the override survives the tree's bone writes). Allocation-free — everything is pre-resolved.</summary>
 	public void ApplyFireSelectorPose()
 	{
-		if (_skeleton == null || _fireSelectorBone < 0 || !HasAnim(FireModeStates))
+		var anim = _fireSelectorAnim;
+		if (anim == null || _skeleton == null)
 			return;
-		var anim = _player.GetAnimation(FireModeStates);
-		// Track lookup cached per animation: the old per-frame TrackGetPath→string cast allocated one
-		// string per track per frame per weapon instance — a steady GC-pressure source at high FPS.
-		if (!ReferenceEquals(anim, _fireSelectorAnimCached))
-		{
-			_fireSelectorAnimCached = anim;
-			var tracks = new List<int>();
-			for (int i = 0; i < anim.GetTrackCount(); i++)
-				if (((string)anim.TrackGetPath(i)).Contains("Fire_Selector"))
-					tracks.Add(i);
-			_fireSelectorTracks = [.. tracks];
-		}
-		float t = FireModes != null && FireModes.ContainsKey(ActualFireMode)
-			? FireModes[ActualFireMode].AsSingle() : 0f;
+		float t = _fireSelectorTime;
 		foreach (int i in _fireSelectorTracks)
 		{
 			switch (anim.TrackGetType(i))
@@ -516,7 +528,7 @@ public partial class WeaponAnimation : Node3D
 		if (_tree != null && _actionAnim != null && HasAnim(anim))
 		{
 			_actionAnim.Animation = anim;
-			_tree.Set("parameters/Action/request", (int)AnimationNodeOneShot.OneShotRequest.Fire);
+			_tree.Set(_pActionRequest, (int)AnimationNodeOneShot.OneShotRequest.Fire);
 		}
 		if (eventAnim != null && _eventPlayer != null && _eventPlayer.HasAnimation(eventAnim))
 		{

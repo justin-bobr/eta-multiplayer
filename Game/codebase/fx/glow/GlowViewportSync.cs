@@ -118,6 +118,7 @@ public partial class GlowViewportSync : Node
 	public override void _Process(double delta)
 	{
 		if (Engine.IsEditorHint()) return;
+		using var _prof = MiniProfiler.SampleClient("GlowViewportSync._Process");
 		if (MainCamera == null) return;
 
 		bool enabled = Settings.TeamGlow;

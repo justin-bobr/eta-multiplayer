@@ -381,6 +381,7 @@ public partial class LocalPlayer : NetworkPlayer
 	public override void _Process(double delta)
 	{
 		if (Engine.IsEditorHint()) { RenderLocalView(delta); return; }
+		using var _prof = MiniProfiler.SampleClient("LocalPlayer._Process");
 		float fraction = (float)Engine.GetPhysicsInterpolationFraction();
 		GlobalPosition = _prevPhysicsPos.Lerp(_currentPhysicsPos, fraction) + _visualErrorOffset;
 		if (_waitingForFadeOut && FootstepAudio.PendingLoadCount == 0)

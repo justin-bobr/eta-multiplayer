@@ -70,16 +70,28 @@ public partial class PostCanvasFx : CanvasLayer
 	}
 
 	/// <summary>Pushes the current settings + time into the shader uniforms every frame.</summary>
+	// Cached parameter names — string literals in SetShaderParameter allocate a StringName per call,
+	// which at 8 params × every frame summed to ~2MB/10s of pure GC pressure.
+	private static readonly StringName _pAberration = "aberration";
+	private static readonly StringName _pSharpen = "sharpen";
+	private static readonly StringName _pVignetteStrength = "vignette_strength";
+	private static readonly StringName _pVignetteRadius = "vignette_radius";
+	private static readonly StringName _pVignetteAdsBoost = "vignette_ads_boost";
+	private static readonly StringName _pAdsBlend = "ads_blend";
+	private static readonly StringName _pGrainStrength = "grain_strength";
+	private static readonly StringName _pTimeSeconds = "time_seconds";
+
 	public override void _Process(double delta)
 	{
 		if (_mat == null) return;
-		_mat.SetShaderParameter("aberration", ChromaticAberrationEnabled ? Aberration : 0f);
-		_mat.SetShaderParameter("sharpen", SharpeningEnabled ? Sharpen : 0f);
-		_mat.SetShaderParameter("vignette_strength", VignetteEnabled ? VignetteStrength : 0f);
-		_mat.SetShaderParameter("vignette_radius", VignetteRadius);
-		_mat.SetShaderParameter("vignette_ads_boost", VignetteAdsBoost);
-		_mat.SetShaderParameter("ads_blend", AdsBlend);
-		_mat.SetShaderParameter("grain_strength", FilmGrainEnabled ? GrainStrength : 0f);
-		_mat.SetShaderParameter("time_seconds", (float)(Time.GetTicksMsec() % 100000UL) / 1000.0f);
+		using var _prof = MiniProfiler.SampleClient("PostCanvasFx._Process");
+		_mat.SetShaderParameter(_pAberration, ChromaticAberrationEnabled ? Aberration : 0f);
+		_mat.SetShaderParameter(_pSharpen, SharpeningEnabled ? Sharpen : 0f);
+		_mat.SetShaderParameter(_pVignetteStrength, VignetteEnabled ? VignetteStrength : 0f);
+		_mat.SetShaderParameter(_pVignetteRadius, VignetteRadius);
+		_mat.SetShaderParameter(_pVignetteAdsBoost, VignetteAdsBoost);
+		_mat.SetShaderParameter(_pAdsBlend, AdsBlend);
+		_mat.SetShaderParameter(_pGrainStrength, FilmGrainEnabled ? GrainStrength : 0f);
+		_mat.SetShaderParameter(_pTimeSeconds, (float)(Time.GetTicksMsec() % 100000UL) / 1000.0f);
 	}
 }

@@ -18,6 +18,11 @@ public static class InputGate
 	public static bool LocalPlayerFrozen;
 
 	/// <summary>True when no game input should be accepted right now.</summary>
+	/// <summary>Cached once — DisplayServer.GetName() marshals a NEW managed string per call, and Blocked
+	/// is consulted by every input-read site (several times per 128Hz tick). That string was the largest
+	/// steady allocation source in the client tick, blamed on whatever profiler scope read input.</summary>
+	private static readonly bool _headless = DisplayServer.GetName() == "headless";
+
 	public static bool Blocked
 	{
 		get
@@ -25,8 +30,7 @@ public static class InputGate
 			if (LocalPlayerFrozen) return true;
 			if (SettingsMenu.IsAnyOpen) return true;
 			if (ConsoleHud.IsAnyOpen) return true;
-			if (DisplayServer.GetName() != "headless"
-				&& !DisplayServer.WindowIsFocused(0))
+			if (!_headless && !DisplayServer.WindowIsFocused(0))
 				return true;
 			// LocalPlayer dead → kein Movement/Fire/Aim. HP-Check via LastSelfSnap (authoritativ).
 			// Bleibt geblockt bis Server-Respawn-Event Hp wieder > 0 setzt (siehe NetClient.HandleRespawn).

@@ -123,6 +123,7 @@ public partial class WorldCaptureRig : Node3D
 	{
 		if (Engine.IsEditorHint()) return;
 		if (AnchorCamera == null) return;
+		using var _prof = MiniProfiler.SampleClient("WorldCaptureRig._Process");
 		// Shares the Reflections graphics toggle with the ReflectionProbes, and the Weapon Light debug
 		// toggle kills the whole viewmodel light/reflection pipeline (sampler + this rig) in one switch.
 		if (!Settings.Reflections || !Settings.WeaponLight) return;
