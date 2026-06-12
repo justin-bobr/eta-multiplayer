@@ -32,7 +32,7 @@ public static class MiniProfiler
 	public static double WarnThresholdMs = 1.0;
 
 	private struct PerFrameEntry { public long TotalTicks; public int Count; }
-	private struct WindowEntry { public long TotalTicks; public long PeakTicks; public int Count; }
+	private struct WindowEntry { public long TotalTicks; public long PeakTicks; public int Count; public long TotalBytes; public long PeakBytes; }
 
 	// Zwei vor-allokierte Dicts die per FlushFrame SWAPPED werden (Pointer-Swap = zero alloc) statt
 	// ein neues Dict zu allocaten. Vorher: `new Dictionary(_current)` jeden Frame = 60+ Dict-Allocs/sec
@@ -45,7 +45,7 @@ public static class MiniProfiler
 	/// <summary>Begin-Scope. Mit `using var _ = MiniProfiler.Sample("Name")` automatisch gestoppt.
 	/// Bei ProfilingEnabled=false: no-op (returnt default scope).</summary>
 	public static Scope Sample(string name) =>
-		ProfilingEnabled ? new Scope(name, Stopwatch.GetTimestamp()) : default;
+		ProfilingEnabled ? new Scope(name, Stopwatch.GetTimestamp(), GC.GetAllocatedBytesForCurrentThread()) : default;
 
 	/// <summary>Sample mit Server-Prefix [SV]. Für server-side Code (NetServer, ServerAgent's hot paths).
 	/// In Listen-Mode wo Server + Client im selben Prozess laufen → sofort klar von welcher Seite.
@@ -88,17 +88,22 @@ public static class MiniProfiler
 	{
 		private readonly string _name;
 		private readonly long _startTicks;
+		private readonly long _startBytes;
 
-		internal Scope(string name, long startTicks)
+		internal Scope(string name, long startTicks, long startBytes)
 		{
 			_name = name;
 			_startTicks = startTicks;
+			_startBytes = startBytes;
 		}
 
 		public void Dispose()
 		{
 			if (_name == null) return;
 			long delta = Stopwatch.GetTimestamp() - _startTicks;
+			// Managed bytes allocated during this scope (incl. nested calls). Reveals the GC-pressure driver
+			// that pure timing misses — a GC pause gets blamed on whatever ran during it, not the allocator.
+			long bytes = GC.GetAllocatedBytesForCurrentThread() - _startBytes;
 			lock (_lock)
 			{
 				// Per-Frame Aggregat (für HUD live-Anzeige)
@@ -111,6 +116,8 @@ public static class MiniProfiler
 				w.TotalTicks += delta;
 				w.Count++;
 				if (delta > w.PeakTicks) w.PeakTicks = delta;
+				w.TotalBytes += bytes;
+				if (bytes > w.PeakBytes) w.PeakBytes = bytes;
 				_window[_name] = w;
 			}
 		}
@@ -189,7 +196,7 @@ public static class MiniProfiler
 		_reportSb.Append("# MiniProfiler Report — ").Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")).Append('\n');
 		_reportSb.Append("# Filter: ").Append(filterPrefix ?? "(all)").Append("    WarnThreshold: ").Append(warnThresholdMs.ToString("F2")).Append("ms\n");
 		_reportSb.Append("# Sorted by peak descending. \"!!\" = peak > threshold.\n\n");
-		_reportSb.Append("Name                                                 Total          Peak       Avg     Count\n");
+		_reportSb.Append("Name                                                 Total          Peak       Avg     Count   AllocTot   AllocPk\n");
 		for (int i = 0; i < _reportFiltered.Count; i++)
 		{
 			var (name, e) = _reportFiltered[i];
@@ -203,6 +210,9 @@ public static class MiniProfiler
 			AppendPaddedLeft(_reportSb, peakMs.ToString("F2"), 7); _reportSb.Append("ms ");
 			AppendPaddedLeft(_reportSb, avgMs.ToString("F3"), 7); _reportSb.Append("ms ");
 			AppendPaddedLeft(_reportSb, e.Count.ToString(), 8);
+			_reportSb.Append("  ");
+			AppendPaddedLeft(_reportSb, (e.TotalBytes / 1024).ToString(), 8); _reportSb.Append("KB ");
+			AppendPaddedLeft(_reportSb, (e.PeakBytes / 1024).ToString(), 6); _reportSb.Append("KB");
 			if (peakMs > warnThresholdMs) _reportSb.Append(" !!");
 			_reportSb.Append('\n');
 		}

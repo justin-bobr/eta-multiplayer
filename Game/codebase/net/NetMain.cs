@@ -1,4 +1,6 @@
 using Godot;
+using System.Collections.Generic;
+using System.Text;
 
 /// <summary>
 /// Top-level netcode boot. Loaded as an autoload (see project.godot [autoload]) so it exists
@@ -281,7 +283,57 @@ public partial class NetMain : Node
 	public override void _Process(double delta)
 	{
 		if (!Dbg.Enabled) return;
+		EnsureViewportMeasurement();
 		TrackFrameSpike(delta);
+	}
+
+	// Per-viewport render-time measurement: the C# MiniProfiler can't see engine-side cost (scene cull,
+	// draw submission, shadow passes), but the RenderingServer can report it per viewport. Rescans the
+	// tree every 5s for new SubViewports and enables measurement; the spike log prints cpu/gpu per
+	// viewport so the expensive one (main / viewmodel / glow / capture faces) is directly named.
+	private readonly List<Viewport> _measuredViewports = new();
+	private double _nextViewportScanAt;
+
+	private void EnsureViewportMeasurement()
+	{
+		double now = Time.GetTicksMsec() / 1000.0;
+		if (now < _nextViewportScanAt) return;
+		_nextViewportScanAt = now + 5.0;
+		_measuredViewports.Clear();
+		CollectViewports(GetTree().Root, _measuredViewports);
+		for (int i = _measuredViewports.Count - 1; i >= 0; i--)
+		{
+			// Only measure real, currently-rendering targets. Enabling timing queries on render-disabled,
+			// zero-sized or pre-spawn UI viewports produced RenderingDevice "framebuffer is null" /
+			// "draw_list not active" spam between connect and spawn.
+			if (_measuredViewports[i] is SubViewport sv
+				&& (sv.RenderTargetUpdateMode == SubViewport.UpdateMode.Disabled
+					|| sv.Size.X < 2 || sv.Size.Y < 2))
+			{ _measuredViewports.RemoveAt(i); continue; }
+			RenderingServer.ViewportSetMeasureRenderTime(_measuredViewports[i].GetViewportRid(), true);
+		}
+	}
+
+	private static void CollectViewports(Node n, List<Viewport> outList)
+	{
+		if (n is Viewport vp) outList.Add(vp);
+		foreach (Node c in n.GetChildren()) CollectViewports(c, outList);
+	}
+
+	private string BuildViewportTimesReport()
+	{
+		var sb = new StringBuilder(256);
+		foreach (var vp in _measuredViewports)
+		{
+			if (!GodotObject.IsInstanceValid(vp)) continue;
+			Rid rid = vp.GetViewportRid();
+			double cpu = RenderingServer.ViewportGetMeasuredRenderTimeCpu(rid);
+			double gpu = RenderingServer.ViewportGetMeasuredRenderTimeGpu(rid);
+			if (cpu < 0.25 && gpu < 0.25) continue;
+			sb.Append("\n  vp '").Append(vp.Name).Append("': cpu=").Append(cpu.ToString("F2"))
+				.Append("ms gpu=").Append(gpu.ToString("F2")).Append("ms");
+		}
+		return sb.ToString();
 	}
 
 	/// <summary>Logs Frame-Spikes > <see cref="SpikeThresholdSec"/> ms zu GD.Print mit GC-Stats +
@@ -347,7 +399,8 @@ public partial class NetMain : Node
 			$"  godot: process={timeProc * 1000:F2}ms phys={timePhys * 1000:F2}ms (Δ {dProc:+0.0;-0.0;0}/{dPhys:+0.0;-0.0;0}ms)\n" +
 			$"  render: draw={drawCalls} (Δ {dDraw:+0;-0;0}) vram={vram / (1024 * 1024)}MB (Δ {dVramKb:+0;-0;0}KB)\n" +
 			$"  scene: objects={objCount} (Δ {dObj:+0;-0;0}) nodes={nodeCount} (Δ {dNode:+0;-0;0}) orphans={orphan} (Δ {dOrphan:+0;-0;0})\n" +
-			$"  physics: active={physActive} (Δ {dPhysActive:+0;-0;0}) pairs={physPairs} (Δ {dPhysPairs:+0;-0;0}) islands={physIslands} (Δ {dPhysIslands:+0;-0;0})");
+			$"  physics: active={physActive} (Δ {dPhysActive:+0;-0;0}) pairs={physPairs} (Δ {dPhysPairs:+0;-0;0}) islands={physIslands} (Δ {dPhysIslands:+0;-0;0})" +
+			BuildViewportTimesReport());
 
 		_gen0Last = gen0; _gen1Last = gen1; _gen2Last = gen2; _heapLast = heap;
 		_drawCallsLast = drawCalls; _objCountLast = objCount; _nodeCountLast = nodeCount;

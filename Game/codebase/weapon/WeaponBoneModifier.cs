@@ -34,6 +34,7 @@ public partial class WeaponBoneModifier : SkeletonModifier3D
 	{
 		var skel = GetSkeleton();
 		if (skel == null) return;
+		using var _prof = MiniProfiler.SampleClient("WeaponBoneModifier._ProcessModification");
 
 		// Apply the procedural weapon offset (ADS / crouch / canted / recoil) to the weapon bone, exactly
 		// like Unreal's ModifyBone on ik_hand_gun. The grip bones ik_hand_l/r ride this bone, so the

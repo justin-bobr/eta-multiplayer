@@ -247,6 +247,7 @@ public partial class WeaponAnimation : Node3D
 	private Skeleton3D _skeleton;
 	private int _fireSelectorBone = -1;
 	private int _ejectionBone = -1;
+	private FireSelectorModifier _fireSelectorModifier;
 	private Node3D _mainMag;
 	private Node3D _reserveMag;
 	private Bullet[] _bulletPool;
@@ -265,11 +266,24 @@ public partial class WeaponAnimation : Node3D
 		BuildMuzzleSmoke();
 	}
 
-	public override void _Process(double delta)
+	private bool _weaponActive;
+
+	/// <summary>Enables animation by switching the tree's process callback to Idle (self-running). Called
+	/// by the owning player for its CURRENT weapon only — inactive instances (local TPS weapon in FPS view,
+	/// puppet viewmodels, server-side weapons) stay on Manual with nobody advancing = frozen, zero cost.
+	/// The fire-selector pose runs as a <see cref="FireSelectorModifier"/> after the mixer, so no manual
+	/// advance ordering is needed.</summary>
+	public void ActivateWeapon() { _weaponActive = true; ApplyWeaponActive(); }
+
+	/// <summary>Freezes animation (tree back to Manual). See <see cref="ActivateWeapon"/>.</summary>
+	public void DeactivateWeapon() { _weaponActive = false; ApplyWeaponActive(); }
+
+	private void ApplyWeaponActive()
 	{
-		if (_tree != null && _tree.Active)
-			_tree.Advance(delta);
-		ApplyFireSelectorPose();
+		if (_tree == null) return;
+		_tree.CallbackModeProcess = _weaponActive
+			? AnimationMixer.AnimationCallbackModeProcess.Idle
+			: AnimationMixer.AnimationCallbackModeProcess.Manual;
 	}
 
 	private void BuildAnimationTree()
@@ -309,7 +323,13 @@ public partial class WeaponAnimation : Node3D
 		_tree.AnimPlayer = _tree.GetPathTo(_player);
 		_actionAnim = bt.GetNode("ActionAnim") as AnimationNodeAnimation;
 		_tree.Active = true;
-		_tree.CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Manual;
+		ApplyWeaponActive();   // Idle when this is the player's current weapon, Manual (frozen) otherwise
+
+		if (_skeleton != null && _fireSelectorModifier == null)
+		{
+			_fireSelectorModifier = new FireSelectorModifier { Name = "FireSelectorModifier", Weapon = this };
+			_skeleton.AddChild(_fireSelectorModifier);
+		}
 
 		_mainMagAnim = _mainMag?.GetNodeOrNull<AnimatedMagazin>("AnimatedMagazin");
 		_reserveMagAnim = _reserveMag?.GetNodeOrNull<AnimatedMagazin>("AnimatedMagazin");
@@ -418,17 +438,32 @@ public partial class WeaponAnimation : Node3D
 		SetFireMode(keys[(cur + 1) % keys.Count]);
 	}
 
-	private void ApplyFireSelectorPose()
+	private Animation _fireSelectorAnimCached;
+	private int[] _fireSelectorTracks = [];
+
+	/// <summary>Overrides the Fire_Selector bone with the pose matching <see cref="ActualFireMode"/>.
+	/// Called by <see cref="FireSelectorModifier"/> after the AnimationMixer pass (modifiers run post-mix,
+	/// so the override survives the tree's bone writes).</summary>
+	public void ApplyFireSelectorPose()
 	{
 		if (_skeleton == null || _fireSelectorBone < 0 || !HasAnim(FireModeStates))
 			return;
 		var anim = _player.GetAnimation(FireModeStates);
+		// Track lookup cached per animation: the old per-frame TrackGetPath→string cast allocated one
+		// string per track per frame per weapon instance — a steady GC-pressure source at high FPS.
+		if (!ReferenceEquals(anim, _fireSelectorAnimCached))
+		{
+			_fireSelectorAnimCached = anim;
+			var tracks = new List<int>();
+			for (int i = 0; i < anim.GetTrackCount(); i++)
+				if (((string)anim.TrackGetPath(i)).Contains("Fire_Selector"))
+					tracks.Add(i);
+			_fireSelectorTracks = [.. tracks];
+		}
 		float t = FireModes != null && FireModes.ContainsKey(ActualFireMode)
 			? FireModes[ActualFireMode].AsSingle() : 0f;
-		for (int i = 0; i < anim.GetTrackCount(); i++)
+		foreach (int i in _fireSelectorTracks)
 		{
-			if (!((string)anim.TrackGetPath(i)).Contains("Fire_Selector"))
-				continue;
 			switch (anim.TrackGetType(i))
 			{
 				case Animation.TrackType.Rotation3D:
@@ -504,6 +539,7 @@ public partial class WeaponAnimation : Node3D
 	private void EditorPlay(StringName anim, string eventAnim = null)
 	{
 		EnsureTree();
+		ActivateWeapon();   // editor preview: tree self-runs on Idle now that _Process is gone
 		PlayAction(anim, eventAnim);
 	}
 

@@ -51,8 +51,14 @@ public partial class WorldCaptureRig : Node3D
 	/// full cube every 12 frames (~5 Hz), still smooth because IBL convolution is blurry and the
 	/// player rarely needs sub-100 ms reflection latency on a gun. This rig was a measured 300→30 FPS
 	/// hit when running flat-out, so it is throttled AND gated behind Settings.Reflections.</summary>
-	[Export(PropertyHint.Range, "1,8,1")] public int FaceUpdateInterval = 2;
+	[Export(PropertyHint.Range, "1,16,1")] public int FaceUpdateInterval = 4;
 	private int _frameAccum;
+
+	/// <summary>Far plane for the 6 cube cameras. Short on purpose: the cubemap feeds a 64px IBL for the
+	/// viewmodel, so geometry beyond ~80m contributes nothing visible — but the old 500m far made every
+	/// face render cull + submit the whole map incl. a per-viewport directional-shadow re-render
+	/// (de_dust2: ~15ms steady main-thread cost + spikes). The decisive lever on heavy maps.</summary>
+	[Export(PropertyHint.Range, "20,500,5")] public float CaptureFar = 80f;
 
 	private static readonly Vector3[] _faceRotationsDeg = new[]
 	{
@@ -100,10 +106,13 @@ public partial class WorldCaptureRig : Node3D
 				_faceCams[i].RotationDegrees = _faceRotationsDeg[i];
 				_faceCams[i].Fov = 90.0f;
 				_faceCams[i].Near = 0.05f;
-				_faceCams[i].Far = 500.0f;
+				_faceCams[i].Far = CaptureFar;
 				_faceCams[i].CullMask = CaptureCullMask;
 				_faceCams[i].Current = true;  // make it the active cam for its viewport
 			}
+			// NOTE: do NOT set PositionalShadowAtlasSize = 0 here — with shadow-casting omni lights in a
+			// face's view, 4.6's renderer hits "framebuffer is null" draw_list errors on the missing atlas.
+			vp.PositionalShadowAtlasSize = 256;   // minimal atlas: cheap, avoids the null-framebuffer path
 
 			if (sm != null)
 				sm.SetShaderParameter(_uniformNames[i], vp.GetTexture());
@@ -114,9 +123,9 @@ public partial class WorldCaptureRig : Node3D
 	{
 		if (Engine.IsEditorHint()) return;
 		if (AnchorCamera == null) return;
-		// Shares the Reflections graphics toggle with the ReflectionProbes — lets the user kill
-		// the per-frame cube-render cost from the Settings menu if it bites their framerate.
-		if (!Settings.Reflections) return;
+		// Shares the Reflections graphics toggle with the ReflectionProbes, and the Weapon Light debug
+		// toggle kills the whole viewmodel light/reflection pipeline (sampler + this rig) in one switch.
+		if (!Settings.Reflections || !Settings.WeaponLight) return;
 
 		// Position all 6 cube cameras at the player camera's world position. Rotation
 		// remains axis-aligned per face. Done every frame so reflections track the

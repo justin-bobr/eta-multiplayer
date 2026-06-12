@@ -27,6 +27,7 @@ public partial class TwoBoneArmIK : SkeletonModifier3D
 	{
 		var sk = GetSkeleton();
 		if (sk == null) return;
+		using var _prof = MiniProfiler.SampleClient("TwoBoneArmIK._ProcessModification");
 		float infl = GetInfluence();
 		if (infl <= 0f) return;
 		if (_u < 0) Resolve(sk);

@@ -91,6 +91,8 @@ public static class Settings
 	public static bool TeamGlow = true;
 	public static bool ShowDebugBar = false;
 	public static bool ShowNetGraph = false;
+	// Debug: viewmodel weapon-light sampler. Off skips its per-frame raycasts (top CPU cost in the profiler).
+	public static bool WeaponLight = true;
 
 	public static bool ViewBob = true;
 	public static bool SprintSway = true;
@@ -253,6 +255,7 @@ public static class Settings
 		CameraShake = cfg.GetValue("camera", "camera_shake", CameraShake).AsBool();
 		ShowDebugBar = cfg.GetValue("debug", "show_debug_bar", ShowDebugBar).AsBool();
 		ShowNetGraph = cfg.GetValue("debug", "show_net_graph", ShowNetGraph).AsBool();
+		WeaponLight = cfg.GetValue("debug", "weapon_light", WeaponLight).AsBool();
 		Brightness = (float)cfg.GetValue("graphics", "brightness", Brightness).AsDouble();
 
 		MouseSensitivity = (float)cfg.GetValue("input", "mouse_sens", MouseSensitivity).AsDouble();
@@ -331,6 +334,7 @@ public static class Settings
 		cfg.SetValue("camera", "camera_shake", CameraShake);
 		cfg.SetValue("debug", "show_debug_bar", ShowDebugBar);
 		cfg.SetValue("debug", "show_net_graph", ShowNetGraph);
+		cfg.SetValue("debug", "weapon_light", WeaponLight);
 		cfg.SetValue("graphics", "brightness", Brightness);
 
 		cfg.SetValue("input", "mouse_sens", MouseSensitivity);
@@ -651,9 +655,13 @@ public static class Settings
 	private static void ApplyShadows(ShadowQuality q, SceneTree tree = null)
 	{
 		bool shadowsOn = q != ShadowQuality.Off;
+		// Off keeps a MINIMAL atlas instead of 0: lights that spawn AFTER this walk (map load between
+		// connect and spawn) still have ShadowEnabled until the next Apply — with a size-0 atlas the
+		// engine then begins the shadow pass on a null framebuffer (RenderingDevice draw_list error spam
+		// until respawn re-runs the walk). 256 is free and makes the stray pass harmless.
 		int dirAtlasSize = q switch
 		{
-			ShadowQuality.Off => 0,
+			ShadowQuality.Off => 256,
 			ShadowQuality.Low => 2048,
 			ShadowQuality.Medium => 4096,
 			ShadowQuality.High => 8192,

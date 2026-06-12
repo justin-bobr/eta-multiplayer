@@ -12,19 +12,29 @@ public partial class LocalPlayer
 	{
 		if (Engine.IsEditorHint())
 		{ ApplyEditorPreview((float)delta); return; }
+		if (IsDead)
+			return;   // dead = spectating through a puppet cam; don't animate the hidden viewmodel
+		using var _prof = MiniProfiler.SampleClient("LocalPlayer.RenderLocalView");
 
 		float dt = (float)delta;
 		UpdateVisualBlends(dt);
 		UpdateGripBlend(dt);
-		DriveLocomotionTree(dt);
-		UpdateViewmodelMontages();
+		using (MiniProfiler.SampleClient("View.DriveLocomotionTree"))
+			DriveLocomotionTree(dt);
+		using (MiniProfiler.SampleClient("View.UpdateViewmodelMontages"))
+			UpdateViewmodelMontages();
 		PollMontageState();
-		ApplyHandIk();
-		ApplyWeaponOffset();
-		_tree?.Advance(dt);
-		StepViewmodelProcedural(dt);
+		using (MiniProfiler.SampleClient("View.ApplyHandIk"))
+			ApplyHandIk();
+		using (MiniProfiler.SampleClient("View.ApplyWeaponOffset"))
+			ApplyWeaponOffset();
+		using (MiniProfiler.SampleClient("View.FpsTree.Advance"))
+			_tree?.Advance(dt);
+		using (MiniProfiler.SampleClient("View.StepViewmodelProcedural"))
+			StepViewmodelProcedural(dt);
 		UpdateProceduralSprings(dt);
-		ApplyModeVisibility();
+		using (MiniProfiler.SampleClient("View.ApplyModeVisibility"))
+			ApplyModeVisibility();
 		ApplyViewmodelProcedural();
 		if (ViewMode == ViewMode.Tps && _tpsCam != null)
 			UpdateTpsCamera(dt);
@@ -33,7 +43,8 @@ public partial class LocalPlayer
 			RenderWorldCamera(dt);
 			RenderFpsCamera();
 		}
-		UpdateAdsPostFx();
+		using (MiniProfiler.SampleClient("View.UpdateAdsPostFx"))
+			UpdateAdsPostFx();
 	}
 
 	private void UpdateVisualBlends(float dt)
@@ -85,7 +96,11 @@ public partial class LocalPlayer
 
 		float horizSpeed = new Vector2(Velocity.X, Velocity.Z).Length();
 		bool fwdMoving = fwd > 0.3f;
-		bool running = horizSpeed > ConVars.Sv.WalkSpeed + 0.1f && fwdMoving;
+		// Normal movement (WalkSpeed) IS the run gait — shift-walk (ShiftSpeed) is the slow one. The old
+		// "> WalkSpeed + 0.1" threshold could never be reached at normal speed (== WalkSpeed exactly), so
+		// the Run_F pose only ever engaged while sprinting. Threshold halfway between shift and normal.
+		float runThreshold = (ConVars.Sv.ShiftSpeed + ConVars.Sv.WalkSpeed) * 0.5f;
+		bool running = horizSpeed > runThreshold && fwdMoving;
 		bool sprinting = (Movement?.ActuallySprinting ?? false) && fwdMoving;
 		_runAmt = Mathf.MoveToward(_runAmt, running || sprinting ? 1f : 0f, SpeedBlendRate * dt);
 		_sprintAmt = Mathf.MoveToward(_sprintAmt, sprinting ? 1f : 0f, SpeedBlendRate * dt);
@@ -107,7 +122,8 @@ public partial class LocalPlayer
 	private bool _vmWasReloading, _vmWasInspecting;
 	private void UpdateViewmodelMontages()
 	{
-		if (Movement == null) return;
+		if (Movement == null)
+			return;
 		if (Movement.ShotIndex != _vmLastShotIndex)
 		{
 			bool didFire = Movement.ShotIndex > _vmLastShotIndex;
@@ -126,7 +142,10 @@ public partial class LocalPlayer
 			bool aimed = _aimBlend > 0.5f;
 			bool empty = Movement.CurrentMag <= 0;
 			PlayOneShot(empty ? (aimed ? ReloadEmptyAimed : ReloadEmpty) : (aimed ? ReloadAimed : Reload), aimed);
-			if (empty) _currentWeapon?.ReloadEmpty(); else { _currentWeapon?.Reload(); _currentWeapon?.DropMagazine(); }
+			if (empty)
+				_currentWeapon?.ReloadEmpty();
+			else
+			{ _currentWeapon?.Reload(); _currentWeapon?.DropMagazine(); }
 		}
 		_vmWasReloading = reloading;
 		bool inspecting = Movement.IsInspecting;
@@ -184,7 +203,8 @@ public partial class LocalPlayer
 		_inertiaTilt.Z = Mathf.Clamp(_inertiaTilt.Z, -InertiaTiltMax, InertiaTiltMax);
 		_inertiaTilt = _inertiaTilt.Lerp(Vector3.Zero, Mathf.Min(1f, InertiaTiltRecovery * dt));
 
-		if (!_bodyYawInit) { _prevBodyYaw = _lookYaw; _prevBodyPitch = _lookPitch; _bodyYawInit = true; }
+		if (!_bodyYawInit)
+		{ _prevBodyYaw = _lookYaw; _prevBodyPitch = _lookPitch; _bodyYawInit = true; }
 		float yawDelta = Mathf.AngleDifference(_prevBodyYaw, _lookYaw);
 		_prevBodyYaw = _lookYaw;
 		float yawRateDeg = Mathf.RadToDeg(yawDelta / Mathf.Max(0.0001f, dt));
@@ -243,9 +263,11 @@ public partial class LocalPlayer
 
 	private void UpdateBodyYaw()
 	{
-		if (!MouseLookEnabled) return;
+		if (!MouseLookEnabled)
+			return;
 		Node3D yawNode = _bodyNode ?? _cam?.GetParentOrNull<Node3D>();
-		if (yawNode == null) return;
+		if (yawNode == null)
+			return;
 		Vector3 r = yawNode.Rotation;
 		r.Y = _lookYaw;
 		yawNode.Rotation = r;
@@ -253,11 +275,13 @@ public partial class LocalPlayer
 
 	private void RenderWorldCamera(float dt)
 	{
-		if (_cam == null) return;
+		if (_cam == null)
+			return;
 		if (!_camRigCaptured)
 		{
 			_camRestLocal = _cam.Transform;
-			if (_viewmodelCamAnchor != null) _eyeRest = _viewmodelCamAnchor.GlobalTransform;
+			if (_viewmodelCamAnchor != null)
+				_eyeRest = _viewmodelCamAnchor.GlobalTransform;
 			_cam.Fov = HipFov;
 			_camRigCaptured = true;
 		}
@@ -278,12 +302,14 @@ public partial class LocalPlayer
 
 	private void RenderFpsCamera()
 	{
-		if (_viewmodelCam == null || _viewmodelCamAnchor == null) return;
+		if (_viewmodelCam == null || _viewmodelCamAnchor == null)
+			return;
 		Transform3D sway = new(
 			Basis.FromEuler(new Vector3(Mathf.DegToRad(_viewSwayRotDeg.X), Mathf.DegToRad(_viewSwayRotDeg.Y), Mathf.DegToRad(_viewSwayRotDeg.Z))),
 			_viewSwayPos);
 		_viewmodelCam.GlobalTransform = _viewmodelCamAnchor.GlobalTransform * sway;
-		if (_cam != null) _viewmodelCam.Fov = _cam.Fov;
+		if (_cam != null)
+			_viewmodelCam.Fov = _cam.Fov;
 	}
 
 	private PostProcessEffect _cachedPostFx;
@@ -311,15 +337,20 @@ public partial class LocalPlayer
 			{
 				if (n is WorldEnvironment we && !ViewmodelMotionBlur.IsViewmodelEnvironment(we) && we.Compositor is Compositor c)
 					foreach (CompositorEffect e in c.CompositorEffects)
-						if (e is PostProcessEffect ppe) { _cachedPostFx = ppe; break; }
-				if (_cachedPostFx != null) break;
+						if (e is PostProcessEffect ppe)
+						{ _cachedPostFx = ppe; break; }
+				if (_cachedPostFx != null)
+					break;
 			}
 		}
-		if (_cachedPostFx != null) _cachedPostFx.AdsBlend = adsBlend;
-		if (PostCanvasFx.Instance != null) PostCanvasFx.Instance.AdsBlend = adsBlend;
+		if (_cachedPostFx != null)
+			_cachedPostFx.AdsBlend = adsBlend;
+		if (PostCanvasFx.Instance != null)
+			PostCanvasFx.Instance.AdsBlend = adsBlend;
 		// Feed the same ADS vignette boost into the per-viewmodel post-FX so the weapon edges
 		// darken on aim consistently with the world.
-		if (ViewmodelMotionBlur.Effect != null) ViewmodelMotionBlur.Effect.AdsBlend = adsBlend;
+		if (ViewmodelMotionBlur.Effect != null)
+			ViewmodelMotionBlur.Effect.AdsBlend = adsBlend;
 	}
 
 	/// <summary>Drives the viewmodel_ads_blur shader on the weapon SubViewportContainer — a 2D pseudo-DOF that
@@ -332,7 +363,8 @@ public partial class LocalPlayer
 			_viewmodelBlurLookupDone = true;
 			if (_viewmodelLayer != null)
 				foreach (Node n in _viewmodelLayer.FindChildren("viewmodel_container", "SubViewportContainer", true, false))
-					if (n is SubViewportContainer svc && svc.Material is ShaderMaterial sm) { _viewmodelBlurMat = sm; break; }
+					if (n is SubViewportContainer svc && svc.Material is ShaderMaterial sm)
+					{ _viewmodelBlurMat = sm; break; }
 		}
 		_viewmodelBlurMat?.SetShaderParameter(_pAdsBlendShader, blend);
 	}
@@ -341,7 +373,8 @@ public partial class LocalPlayer
 	/// Far DOF stays permanently enabled; only the amount fades with ADS so there is no per-frame toggle.</summary>
 	private void ApplyWorldAdsDof(float amount)
 	{
-		if (_cam?.Attributes is not CameraAttributesPractical a) return;
+		if (_cam?.Attributes is not CameraAttributesPractical a)
+			return;
 		a.DofBlurNearEnabled = false;
 		a.DofBlurFarEnabled = true;
 		a.DofBlurFarDistance = 35.0f;
@@ -372,8 +405,10 @@ public partial class LocalPlayer
 		if (string.IsNullOrEmpty(anim) || _tree == null || _actionAnim == null || !_player.HasAnimation(anim))
 			return;
 		string actionRef = aimed ? ActionRefAim : ActionRefIdle;
-		if (_actionRefNode != null) _actionRefNode.Animation = actionRef;
-		if (_actionRef2Node != null) _actionRef2Node.Animation = actionRef;
+		if (_actionRefNode != null)
+			_actionRefNode.Animation = actionRef;
+		if (_actionRef2Node != null)
+			_actionRef2Node.Animation = actionRef;
 		_actionAnim.Animation = anim;
 		_tree.Set("parameters/Action/request", (int)AnimationNodeOneShot.OneShotRequest.Fire);
 		_montageActive = true;
@@ -468,16 +503,20 @@ public partial class LocalPlayer
 
 	private void UpdateAdsCrosshair()
 	{
-		if (_adsTestMode && !_adsTestPrev) SpawnAdsCrosshair();
-		else if (!_adsTestMode && _adsTestPrev) DespawnAdsCrosshair();
+		if (_adsTestMode && !_adsTestPrev)
+			SpawnAdsCrosshair();
+		else if (!_adsTestMode && _adsTestPrev)
+			DespawnAdsCrosshair();
 		_adsTestPrev = _adsTestMode;
-		if (_adsTestMode) PoseAdsCrosshair();
+		if (_adsTestMode)
+			PoseAdsCrosshair();
 	}
 
 	private void SpawnAdsCrosshair()
 	{
 		Camera3D cam = _viewmodelCam ?? _cam;
-		if (cam == null || _adsMarker != null) return;
+		if (cam == null || _adsMarker != null)
+			return;
 		uint layer = cam.CullMask != 0 ? cam.CullMask : 1u;
 		_adsMarker = MakeCrosshairMesh("_AdsMarker", new SphereMesh { Radius = AdsCalibrationSize, Height = AdsCalibrationSize * 2f }, layer, cam);
 		_adsLineH = MakeCrosshairMesh("_AdsLineH", new BoxMesh { Size = new Vector3(100f, AdsCalibrationSize, AdsCalibrationSize) }, layer, cam);
@@ -503,16 +542,21 @@ public partial class LocalPlayer
 	{
 		Vector3 pos = new(0f, 0f, -AdsCalibrationDistance);
 		float t = AdsCalibrationSize;
-		if (_adsMarker != null) { _adsMarker.Position = pos; if (_adsMarker.Mesh is SphereMesh s) { s.Radius = t; s.Height = t * 2f; } SetCrosshairColor(_adsMarker); }
-		if (_adsLineH != null) { _adsLineH.Position = pos; if (_adsLineH.Mesh is BoxMesh b) b.Size = new Vector3(100f, t, t); SetCrosshairColor(_adsLineH); }
-		if (_adsLineV != null) { _adsLineV.Position = pos; if (_adsLineV.Mesh is BoxMesh b) b.Size = new Vector3(t, 100f, t); SetCrosshairColor(_adsLineV); }
+		if (_adsMarker != null)
+		{ _adsMarker.Position = pos; if (_adsMarker.Mesh is SphereMesh s) { s.Radius = t; s.Height = t * 2f; } SetCrosshairColor(_adsMarker); }
+		if (_adsLineH != null)
+		{ _adsLineH.Position = pos; if (_adsLineH.Mesh is BoxMesh b) b.Size = new Vector3(100f, t, t); SetCrosshairColor(_adsLineH); }
+		if (_adsLineV != null)
+		{ _adsLineV.Position = pos; if (_adsLineV.Mesh is BoxMesh b) b.Size = new Vector3(t, 100f, t); SetCrosshairColor(_adsLineV); }
 	}
 
 	private void SetCrosshairColor(MeshInstance3D mi) { if (mi.MaterialOverride is StandardMaterial3D m) m.AlbedoColor = AdsCalibrationColor; }
 
 	private void DespawnAdsCrosshair()
 	{
-		_adsMarker?.QueueFree(); _adsLineH?.QueueFree(); _adsLineV?.QueueFree();
+		_adsMarker?.QueueFree();
+		_adsLineH?.QueueFree();
+		_adsLineV?.QueueFree();
 		_adsMarker = _adsLineH = _adsLineV = null;
 	}
 

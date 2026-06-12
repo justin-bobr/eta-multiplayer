@@ -68,6 +68,7 @@ public partial class SettingsMenu : CanvasLayer
 	private OptionButton _cameraShakeOpt;
 	private OptionButton _showDebugBarOpt;
 	private OptionButton _showNetGraphOpt;
+	private OptionButton _weaponLightOpt;
 	private OptionButton _windowModeOpt;
 	private OptionButton _monitorOpt;
 	private OptionButton _resolutionOpt;
@@ -493,6 +494,9 @@ public partial class SettingsMenu : CanvasLayer
 		_showNetGraphOpt = AddDropdown(vbox, "Net Graph (F4)", new[] { "Off", "On" });
 		_showNetGraphOpt.ItemSelected += OnShowNetGraphChanged;
 
+		_weaponLightOpt = AddDropdown(vbox, "Weapon Light (debug)", new[] { "Off", "On" });
+		_weaponLightOpt.ItemSelected += OnWeaponLightChanged;
+
 		return page;
 	}
 
@@ -712,6 +716,7 @@ public partial class SettingsMenu : CanvasLayer
 		_cameraShakeOpt.Selected = Settings.CameraShake ? 1 : 0;
 		_showDebugBarOpt.Selected = Settings.ShowDebugBar ? 1 : 0;
 		_showNetGraphOpt.Selected = Settings.ShowNetGraph ? 1 : 0;
+		_weaponLightOpt.Selected = Settings.WeaponLight ? 1 : 0;
 
 		_suppressEvents = prev;
 	}
@@ -1073,6 +1078,13 @@ public partial class SettingsMenu : CanvasLayer
 		if (_suppressEvents)
 			return;
 		Settings.ShowNetGraph = idx == 1;
+	}
+
+	private void OnWeaponLightChanged(long idx)
+	{
+		if (_suppressEvents)
+			return;
+		Settings.WeaponLight = idx == 1;
 	}
 
 	/// <summary>Window mode dropdown changed.</summary>

@@ -87,12 +87,36 @@ public partial class ViewmodelLightSampler : Node3D
 	private RayCast3D _sunUpCast;
 	private RayCast3D[] _sunConeCasts;
 
+	// Debug toggle (Settings.WeaponLight): captured light state restored when the sampler is switched off.
+	private bool _capturedDefault;
+	private float _defaultEnergy;
+	private Color _defaultColor;
+	private bool _disabledApplied;
+
 	/// <summary>Samples world lighting at 20 Hz while smoothing the result every tick, and applies it to the viewmodel light.</summary>
 	public override void _PhysicsProcess(double delta)
 	{
 		using var _prof = MiniProfiler.SampleClient("ViewmodelLightSampler._PhysicsProcess");
 		if (Engine.IsEditorHint()) return;
 		if (ViewmodelLight == null || MainCamera == null) return;
+
+		if (!_capturedDefault)
+		{
+			_defaultEnergy = ViewmodelLight.LightEnergy;
+			_defaultColor = ViewmodelLight.LightColor;
+			_capturedDefault = true;
+		}
+		if (!Settings.WeaponLight)
+		{
+			if (!_disabledApplied)
+			{
+				ViewmodelLight.LightEnergy = _defaultEnergy;
+				ViewmodelLight.LightColor = _defaultColor;
+				_disabledApplied = true;
+			}
+			return;   // skip the per-frame world-light raycasts (debug / perf)
+		}
+		_disabledApplied = false;
 
 		_sampleAccum += delta;
 		if (_sampleAccum < SampleInterval)

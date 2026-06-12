@@ -574,13 +574,16 @@ public partial class NetworkPlayer : CharacterBody3D
 	protected void UpdateActiveWeapon()
 	{
 		WeaponAnimation target = CurrentGameMode == PresentationMode.Server ? null
+			: IsPuppet ? _tpsWeapon                       // puppets only ever show the TPS body
 			: TpsView && _tpsWeapon != null ? _tpsWeapon
 			: _fpsWeapon;
 		if (target == _currentWeapon)
 			return;
+		_currentWeapon?.DeactivateWeapon();
 		_currentWeapon = target;
 		if (_currentWeapon == null)
 			return;
+		_currentWeapon.ActivateWeapon();
 		_currentWeapon.Aiming = _isAiming;
 		_currentWeapon.OwnerBody = this;
 		_currentWeapon.SetFireMode(_fireModeName);
@@ -699,6 +702,15 @@ public partial class NetworkPlayer : CharacterBody3D
 		}
 		if (GodotObject.IsInstanceValid(_viewmodelLayer)) _viewmodelLayer.Visible = fps;
 		if (GodotObject.IsInstanceValid(_glowVisual)) _glowVisual.Visible = !server && (!local || tps);
+		// Local player in FPS view: the third-person body is hidden, so don't animate it. Otherwise the full
+		// TPS skeleton + AnimationTree + aim modifier process every frame for an invisible body — pure waste,
+		// and engine-side so it never showed in the C# profiler. Re-enabled when spectating through the TPS cam.
+		if (local)
+		{
+			bool tpsBodyShown = tps;
+			if (TpsAnimTree != null && TpsAnimTree.Active != tpsBodyShown) TpsAnimTree.Active = tpsBodyShown;
+			if (AimModifier != null && AimModifier.Active != tpsBodyShown) AimModifier.Active = tpsBodyShown;
+		}
 		UpdateActiveWeapon();
 	}
 

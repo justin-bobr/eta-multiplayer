@@ -598,7 +598,7 @@ public partial class PuppetPlayer : NetworkPlayer
 		_lodAnimAccum += (float)delta;
 		if (lodHz > 0f && _lodAnimAccum >= 1f / lodHz)
 		{
-			TpsAnimTree?.Advance(_lodAnimAccum);
+			using (MiniProfiler.SampleClient("PuppetPlayer.TpsTree.Advance")) TpsAnimTree?.Advance(_lodAnimAccum);
 			_lodAnimAccum = 0f;
 		}
 		ApplyAimModifierLod();
