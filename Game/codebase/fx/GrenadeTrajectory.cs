@@ -12,7 +12,7 @@ public static class GrenadeTrajectory
 {
 	public const float BaseGravity = 17.5f;
 	/// <summary>
-	/// Effective gravity — set by PlayerCore from GrenadeRangeScale. This is the range knob,
+	/// Effective gravity — set by NetworkPlayer from GrenadeRangeScale. This is the range knob,
 	/// independent of throw speed (smaller = floatier = travels farther). All clients derive
 	/// the same value from the same designer-set scale.
 	/// </summary>

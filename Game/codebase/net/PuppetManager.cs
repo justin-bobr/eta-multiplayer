@@ -11,6 +11,7 @@ public class PuppetManager
 	private readonly Dictionary<byte, PuppetPlayer> _puppets = new();
 	private Node3D _container;
 	private NetClient _client;
+	private static PackedScene _puppetScene;
 
 	public IReadOnlyDictionary<byte, PuppetPlayer> Puppets => _puppets;
 
@@ -69,7 +70,10 @@ public class PuppetManager
 	{
 		if (_puppets.TryGetValue(netId, out var existing)) return existing;
 		if (_container == null) return null;
-		var p = new PuppetPlayer { NetId = netId, PlayerName = nameHint ?? "" };
+		_puppetScene ??= GD.Load<PackedScene>("res://character/puppet_player.tscn");
+		var p = _puppetScene.Instantiate<PuppetPlayer>();
+		p.NetId = netId;
+		p.PlayerName = nameHint ?? "";
 		p.Name = $"puppet_{netId}";
 		_container.AddChild(p);
 		p.GlobalPosition = initialPos;

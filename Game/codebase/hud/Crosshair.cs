@@ -8,7 +8,7 @@ using Godot;
 /// </summary>
 public partial class Crosshair : Node
 {
-	[Export] public PlayerCore Player;
+	[Export] public NetworkPlayer Player;
 	[Export] public int CanvasLayerOrder = 50;
 
 	private CanvasLayer _layer;
@@ -35,7 +35,7 @@ public partial class Crosshair : Node
 /// <summary>Inner drawing node. Polls movement state, animates the fire-kick gap, and renders via custom _Draw.</summary>
 public partial class CrosshairDrawer : Control
 {
-	public PlayerCore Player;
+	public NetworkPlayer Player;
 
 	private float _fireKickGap;
 	private int _lastSeenShotIndex;

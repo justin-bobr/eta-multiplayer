@@ -1,0 +1,652 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://cstldnluwlc24"
+path="res://.godot/imported/tps.fbx-1d67306f17557f414d7d843f4ffe6ab1.scn"
+
+[deps]
+
+source_file="res://character/tps/import/tps.fbx"
+dest_files=["res://.godot/imported/tps.fbx-1d67306f17557f414d7d843f4ffe6ab1.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=true
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"M_Equiepment": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/tps/materials/M_Equiepment.tres",
+"use_external/path": "uid://cmh8ip3mkllds"
+},
+"M_Equiepment.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/tps/materials/M_Equiepment.001.tres",
+"use_external/path": "uid://bxrjwyumuw066"
+},
+"M_Gloves": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves.tres",
+"use_external/path": "uid://2kg80prcjxjo"
+},
+"M_Gloves_01": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_01.tres",
+"use_external/path": "uid://dclwdhcm4pfk7"
+},
+"M_Gloves_02": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_02.tres",
+"use_external/path": "uid://t57060kpri5o"
+},
+"M_Gloves_03": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_03.tres",
+"use_external/path": "uid://cqlgw2wmo3v5o"
+},
+"M_Gloves_04": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_04.tres",
+"use_external/path": "uid://mds8dr3s6twq"
+},
+"M_Gloves_05": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_05.tres",
+"use_external/path": "uid://cf3bcstpwub7s"
+},
+"M_Gloves_06.004": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_06.004.tres",
+"use_external/path": "uid://cmvmsy7etklnk"
+},
+"M_Gloves_07.011": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_07.004.tres",
+"use_external/path": "uid://begc7ghm04fce"
+},
+"M_Gloves_08.011": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_08.004.tres",
+"use_external/path": "uid://b3flry2tvf30r"
+},
+"M_Gloves_09.011": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_09.004.tres",
+"use_external/path": "uid://6uf2vuhqumyl"
+},
+"M_Gloves_10.011": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_10.004.tres",
+"use_external/path": "uid://bja7moiy1gaqu"
+},
+"M_Gloves_11.011": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/shared/materials/M_Gloves_11.004.tres",
+"use_external/path": "uid://stlxssm2p4vj"
+},
+"M_HeadGear": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/tps/materials/M_HeadGear.tres",
+"use_external/path": "uid://byuoqw3t1yj0o"
+},
+"M_LowBody": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/tps/materials/M_LowBody.tres",
+"use_external/path": "uid://k6d35abk1jy0"
+},
+"M_Pouches": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/tps/materials/M_Pouches.tres",
+"use_external/path": "uid://bxcxl3mbmt4mf"
+},
+"M_TopBody": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://character/tps/materials/M_TopBody.tres",
+"use_external/path": "uid://ceq7c3cjqyady"
+}
+},
+"meshes": {
+"Mesh": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh.res",
+"save_to_file/path": "uid://crhxju6s27ee5"
+},
+"Mesh_001": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_001.res",
+"save_to_file/path": "uid://japdyyt5u4yi"
+},
+"Mesh_002": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_002.res",
+"save_to_file/path": "uid://b31elt3k5t4cu"
+},
+"Mesh_003": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_003.res",
+"save_to_file/path": "uid://8vgghtcuyun5"
+},
+"Mesh_004": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_004.res",
+"save_to_file/path": "uid://bvtaqowiqe7a0"
+},
+"Mesh_005": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_005.res",
+"save_to_file/path": "uid://vs563kuarymy"
+},
+"Mesh_006": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_006.res",
+"save_to_file/path": "uid://bb7q1vm6y87fn"
+},
+"Mesh_007": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_007.res",
+"save_to_file/path": "uid://c3xbda7let5tp"
+},
+"Mesh_008": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_008.res",
+"save_to_file/path": "uid://cuphbq1abxi3k"
+},
+"Mesh_009": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_009.res",
+"save_to_file/path": "uid://c2ce7xgy0j5wn"
+},
+"Mesh_010": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_010.res",
+"save_to_file/path": "uid://4iyfqh4hxhlf"
+},
+"Mesh_011": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_011.res",
+"save_to_file/path": "uid://btd3sy6c2gn4k"
+},
+"Mesh_012": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_012.res",
+"save_to_file/path": "uid://d1143dhcrnq7v"
+},
+"Mesh_013": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_013.res",
+"save_to_file/path": "uid://ci6k71e88kjjj"
+},
+"Mesh_014": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_014.res",
+"save_to_file/path": "uid://ccynnn4bafwai"
+},
+"Mesh_015": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_015.res",
+"save_to_file/path": "uid://b6x3cr5i7f5t2"
+},
+"Mesh_016": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_016.res",
+"save_to_file/path": "uid://b8ydncqaojjxk"
+},
+"Mesh_017": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_017.res",
+"save_to_file/path": "uid://gibd7gmnqa4c"
+},
+"Mesh_018": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_018.res",
+"save_to_file/path": "uid://cjpinuqhp46ud"
+},
+"Mesh_019": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_019.res",
+"save_to_file/path": "uid://dx5o50cvuv4l6"
+},
+"Mesh_020": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_020.res",
+"save_to_file/path": "uid://cg5u7jrdlum84"
+},
+"Mesh_021": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_021.res",
+"save_to_file/path": "uid://w2rp4calt4uh"
+},
+"Mesh_022": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_022.res",
+"save_to_file/path": "uid://bdjtx4jl37u4l"
+},
+"Mesh_023": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_023.res",
+"save_to_file/path": "uid://fpjfnkodqej6"
+},
+"Mesh_024": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_024.res",
+"save_to_file/path": "uid://c135ji4udfeuu"
+},
+"Mesh_025": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_025.res",
+"save_to_file/path": "uid://clyo4noe7c6qb"
+},
+"Mesh_026": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_026.res",
+"save_to_file/path": "uid://daislaqke1p6h"
+},
+"Mesh_027": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_027.res",
+"save_to_file/path": "uid://cup1q142vwd0d"
+},
+"Mesh_028": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_028.res",
+"save_to_file/path": "uid://bxtagsoins6k1"
+},
+"Mesh_029": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_029.res",
+"save_to_file/path": "uid://u3gn12ibqjhx"
+},
+"Mesh_030": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_030.res",
+"save_to_file/path": "uid://bq45g4bvbb0dh"
+},
+"Mesh_031": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_031.res",
+"save_to_file/path": "uid://bep5qm82026cw"
+},
+"Mesh_032": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_032.res",
+"save_to_file/path": "uid://dhxrjoaam34wc"
+},
+"Mesh_033": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_033.res",
+"save_to_file/path": "uid://cjxfgym2klaq4"
+},
+"Mesh_034": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_034.res",
+"save_to_file/path": "uid://ra8rtrap1t4q"
+},
+"Mesh_035": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_035.res",
+"save_to_file/path": "uid://cj02m0bvcas8s"
+},
+"Mesh_036": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_036.res",
+"save_to_file/path": "uid://ctcd1ngg1uqeg"
+},
+"Mesh_037": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_037.res",
+"save_to_file/path": "uid://b434yyiaquigw"
+},
+"Mesh_038": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_038.res",
+"save_to_file/path": "uid://cpsk370qssrmm"
+},
+"Mesh_039": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_039.res",
+"save_to_file/path": "uid://besgj2alpsy45"
+},
+"Mesh_040": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_040.res",
+"save_to_file/path": "uid://5dh54f7ln15o"
+},
+"Mesh_041": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_041.res",
+"save_to_file/path": "uid://cheec0vensfc1"
+},
+"Mesh_042": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_042.res",
+"save_to_file/path": "uid://cejkljsdq2bcw"
+},
+"Mesh_043": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_043.res",
+"save_to_file/path": "uid://h0n4qte5q1q3"
+},
+"Mesh_044": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_044.res",
+"save_to_file/path": "uid://c2iu2aksfoqt"
+},
+"Mesh_045": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/Mesh_045.res",
+"save_to_file/path": "uid://b0pue5vjawuco"
+},
+"SK_Gloves_01": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_01.res",
+"save_to_file/path": "uid://bxtevn8uxbe7k"
+},
+"SK_Gloves_02": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_02.res",
+"save_to_file/path": "uid://fv804828te56"
+},
+"SK_Gloves_03": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_03.res",
+"save_to_file/path": "uid://bm0pgkmarebog"
+},
+"SK_Gloves_04": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_04.res",
+"save_to_file/path": "uid://dbnb6wbc8wp22"
+},
+"SK_Gloves_05": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_05.res",
+"save_to_file/path": "uid://b63nwlbrgr512"
+},
+"SK_Gloves_06_003": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_06_003.res",
+"save_to_file/path": "uid://dfv2ckreeup4y"
+},
+"SK_Gloves_07_010": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_07_010.res",
+"save_to_file/path": "uid://dip8sidy86rdx"
+},
+"SK_Gloves_08_010": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_08_010.res",
+"save_to_file/path": "uid://xcc7eov7nyy2"
+},
+"SK_Gloves_09_010": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_09_010.res",
+"save_to_file/path": "uid://dp264wfpe5jy4"
+},
+"SK_Gloves_10_001": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_10_001.res",
+"save_to_file/path": "uid://dorvkgbkd5a7o"
+},
+"SK_Gloves_11_010": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://character/tps/meshes/SK_Gloves_11_010.res",
+"save_to_file/path": "uid://52hf081qahuy"
+}
+}
+}
+fbx/importer=0
+fbx/allow_geometry_helper_nodes=false
+fbx/embedded_image_handling=1
+fbx/naming_version=2

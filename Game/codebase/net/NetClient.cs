@@ -188,7 +188,7 @@ public class NetClient
 	/// Jeder SendInput-Call schickt alle gespeicherten Inputs damit Single-Packet-Loss keinen
 	/// Edge-Triggered Intent (Jump/Reload) verschluckt. Insert via Shift bei voller Kapazität —
 	/// 3 Einträge × ~16 Byte = trivial.</summary>
-	private readonly Packets.EncodedInput[] _inputRing = new Packets.EncodedInput[Packets.MaxInputRedundancy];
+	private readonly EncodedInput[] _inputRing = new EncodedInput[Packets.MaxInputRedundancy];
 	private int _inputRingCount;
 
 	/// <summary>Sends the last <see cref="Packets.MaxInputRedundancy"/> input frames to the server
@@ -218,7 +218,7 @@ public class NetClient
 
 	/// <summary>Appends an encoded input to the redundancy ring. Bei voller Kapazität wird der älteste
 	/// Eintrag rausgeshiftet ([0] dropped, [1..] → [0..], neuer Eintrag bei [count-1]).</summary>
-	private void PushInputToRing(in Packets.EncodedInput input)
+	private void PushInputToRing(in EncodedInput input)
 	{
 		if (_inputRingCount == Packets.MaxInputRedundancy)
 		{
@@ -316,6 +316,9 @@ public class NetClient
 				break;
 			case PacketType.Land:
 				HandleLand(reader);
+				break;
+			case PacketType.DropMag:
+				HandleDropMag(reader);
 				break;
 			case PacketType.Hit:
 				HandleHit(reader);
@@ -643,7 +646,7 @@ public class NetClient
 
 		if (selfSnap.HasValue && ackedInput > 0u)
 		{
-			var local = NetMain.Instance?.FindLocalPlayer();
+			var local = NetMain.Instance?.FindLocalPlayer() as LocalPlayer;
 			local?.ApplyServerCorrection(ackedInput, selfSnap.Value.Pos, selfSnap.Value.Vel);
 		}
 
@@ -732,6 +735,13 @@ public class NetClient
 		LookupPuppet(netId)?.PlayJump();
 	}
 
+	/// <summary>Routes an empty-reload event to the corresponding puppet so it drops its magazine.</summary>
+	private void HandleDropMag(NetPacketReader r)
+	{
+		Packets.ReadDropMag(r, out byte netId);
+		LookupPuppet(netId)?.PlayDropMag();
+	}
+
 	/// <summary>Routes a landing event to the corresponding puppet.</summary>
 	private void HandleLand(NetPacketReader r)
 	{
@@ -780,7 +790,7 @@ public class NetClient
 				local.CanFire = true;
 				local.Movement.Stamina = ConVars.Sv.MaxStamina;
 				local.Movement.ResetSpawnConsumables();
-				local.Movement.InitializeAmmo(local.WeaponHolder?.ActiveWeapon);
+				local.Movement.InitializeAmmo(ConVars.Weapons.M4A1);
 				local.ResetInterpToCurrentPos();
 				local.Prediction.Clear();
 			}

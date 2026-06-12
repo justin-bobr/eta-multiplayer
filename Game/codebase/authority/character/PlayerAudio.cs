@@ -2,11 +2,11 @@ using Godot;
 
 /// <summary>
 /// Aggregates the two audio banks (FootstepAudio + WeaponAudio) for a character and exposes a small
-/// wrapper API so PlayerCore and PuppetPlayer do not access the audio nodes directly.
-/// Populated by <see cref="PlayerCore._Ready"/> from the scene children "FootstepAudio" and
+/// wrapper API so NetworkPlayer and PuppetPlayer do not access the audio nodes directly.
+/// Populated by <see cref="NetworkPlayer._Ready"/> from the scene children "FootstepAudio" and
 /// "WeaponAudio" via GetNodeOrNull. Server scenes do not contain these nodes so the audio remains
 /// a null bank. All PlayX methods are null-safe: a missing bank silently no-ops, keeping the sim path
-/// in PlayerCore free of audio branches.
+/// in NetworkPlayer free of audio branches.
 /// </summary>
 public sealed class PlayerAudio
 {

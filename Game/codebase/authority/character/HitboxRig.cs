@@ -44,7 +44,10 @@ public partial class HitboxRig : Node
 	public IReadOnlyList<CollisionShape3D> CollisionShapes => _collisionShapes;
 
 	/// <summary>Scans and optionally spawns the fallback set. Call AFTER Skeleton._Ready, otherwise bone indices are -1.</summary>
-	public void Build()
+	/// <summary>Scans the authored hitbox nodes and registers their RIDs. When <paramref name="skipAutoOrient"/>
+	/// is true the capsules are assumed pre-baked in the editor (NetworkPlayer.BakeHitboxes) and the runtime
+	/// auto-orient pass is skipped — deterministic + no per-spawn cost.</summary>
+	public void Build(bool skipAutoOrient = false)
 	{
 		if (Skeleton == null)
 		{
@@ -65,78 +68,16 @@ public partial class HitboxRig : Node
 			Dbg.Print($"[HitboxRig] {_rids.Count} scene hitboxes registered");
 		}
 
-		AutoOrientFromBoneChildren();
-		AutoSizeFromMesh();
+		if (!skipAutoOrient)
+		{
+			AutoOrientFromBoneChildren();
+			AutoSizeFromMesh();
+		}
 
-		// Debug-Visualization: für Puppets (= remote-rendered Spieler) ein grünes Wireframe-Overlay je
-		// Hitbox spawnen. Initial sind die unsichtbar — werden via ConVars.Cl.DebugHitbox runtime
-		// getoggelt (default off; User aktiviert per console: cl_debug_hitbox 1).
-		// Nur für Puppets weil LocalPlayer eh FPS-View hat und ServerAgent headless-server ist.
 		Node ownerNode = Skeleton;
-		while (ownerNode != null && ownerNode is not BaseCharacter) ownerNode = ownerNode.GetParent();
-		if (ownerNode is PlayerCore ownerPc && ownerPc.IsPuppet)
-			SpawnDebugWireframes();
-
-		string ownerInfo = ownerNode is BaseCharacter ownerBc2 ? $"owner={ownerBc2.GetType().Name} netId={ownerBc2.NetId}" : "owner=null";
+		while (ownerNode != null && ownerNode is not NetworkPlayer) ownerNode = ownerNode.GetParent();
+		string ownerInfo = ownerNode is NetworkPlayer owner ? $"owner={owner.GetType().Name} netId={owner.NetId}" : "owner=null";
 		Dbg.Print($"[HitboxRig] Build complete: {_rids.Count} hitboxes, skel={Skeleton.GetPath()} {ownerInfo}");
-	}
-
-	private readonly System.Collections.Generic.List<MeshInstance3D> _debugWireframes = new();
-	private bool _lastWireframeVisible;
-	/// <summary>Per-Frame: Wireframe-Sichtbarkeit basierend auf cl_debug_hitbox ConVar togglen.
-	/// Spawn passiert einmalig in <see cref="SpawnDebugWireframes"/>, hier nur Visible-Flag.
-	/// State-Cache via _lastWireframeVisible statt _debugWireframes[0].Visible — der [0]-Pfad
-	/// war fragil (wenn die erste Mesh-Instance externally freed wurde oder ihre Visibility
-	/// von einem Parent getoggled wurde, bailte der Toggle nicht mehr → manchmal "geht nicht").</summary>
-	public override void _Process(double delta)
-	{
-		using var _prof = MiniProfiler.SampleClient("HitboxRig._Process");
-		if (_debugWireframes.Count == 0) return;
-		bool wantVisible = ConVars.Cl.DebugHitbox;
-		if (_lastWireframeVisible == wantVisible) return;
-		_lastWireframeVisible = wantVisible;
-		for (int i = _debugWireframes.Count - 1; i >= 0; i--)
-		{
-			var mi = _debugWireframes[i];
-			if (!GodotObject.IsInstanceValid(mi)) { _debugWireframes.RemoveAt(i); continue; }
-			mi.Visible = wantVisible;
-		}
-	}
-
-	/// <summary>Spawnt eine grüne wireframe MeshInstance3D pro Hitbox so dass man sehen kann wo die
-	/// Hitboxen tatsächlich im Welt-Raum sitzen. Nur Dbg-mode + Puppet (= sichtbarer Remote-Spieler).</summary>
-	private void SpawnDebugWireframes()
-	{
-		var mat = new StandardMaterial3D
-		{
-			AlbedoColor = new Color(0.2f, 1f, 0.3f, 0.45f),
-			ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-			Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-			CullMode = BaseMaterial3D.CullModeEnum.Disabled,
-			NoDepthTest = true,
-		};
-		foreach (Node n in Skeleton.GetChildren())
-		{
-			if (n is not BoneAttachment3D attach) continue;
-			Hitbox hb = null;
-			foreach (Node ch in attach.GetChildren()) if (ch is Hitbox h) { hb = h; break; }
-			if (hb == null) continue;
-			CollisionShape3D cs = null;
-			foreach (Node ch in hb.GetChildren()) if (ch is CollisionShape3D c) { cs = c; break; }
-			if (cs == null || cs.Shape == null) continue;
-
-			Mesh debugMesh = cs.Shape switch
-			{
-				CapsuleShape3D cap => new CapsuleMesh { Radius = cap.Radius, Height = cap.Height, RadialSegments = 8, Rings = 4 },
-				SphereShape3D sph => new SphereMesh { Radius = sph.Radius, Height = sph.Radius * 2f, RadialSegments = 8, Rings = 4 },
-				BoxShape3D box => new BoxMesh { Size = box.Size },
-				_ => null,
-			};
-			if (debugMesh == null) continue;
-			var mi = new MeshInstance3D { Mesh = debugMesh, MaterialOverride = mat, Transform = cs.Transform, Visible = false };
-			hb.AddChild(mi);
-			_debugWireframes.Add(mi);
-		}
 	}
 
 	/// <summary>Computes the direction from each hitbox bone to its first child bone and orients
@@ -144,12 +85,34 @@ public partial class HitboxRig : Node
 	/// scene-side transforms, so it works for any rig (mannequin, custom, mirrored L/R) without
 	/// hand-tuning. For bones without a child (e.g. head) the shape stays at the bone origin
 	/// (irrelevant for spheres).</summary>
-	private void AutoOrientFromBoneChildren()
+	/// <summary>Positions + sizes each authored capsule between its bone and the first child bone (rest pose).
+	/// Run at runtime by <see cref="Build"/> (unless pre-baked) or once in the editor by the
+	/// NetworkPlayer.BakeHitboxes button, which saves the result into the scene.</summary>
+	/// <summary>Recursively collects every BoneAttachment3D under the skeleton (handles both loose children
+	/// and the "Hitboxes" container).</summary>
+	private static System.Collections.Generic.IEnumerable<BoneAttachment3D> CollectBoneAttachments(Node root)
 	{
-		foreach (Node n in Skeleton.GetChildren())
+		foreach (Node c in root.GetChildren())
 		{
-			if (n is not BoneAttachment3D attach) continue;
-			int boneIdx = attach.BoneIdx;
+			if (c is BoneAttachment3D a) yield return a;
+			else foreach (var nested in CollectBoneAttachments(c)) yield return nested;
+		}
+	}
+
+	public void AutoOrientFromBoneChildren()
+	{
+		if (Skeleton == null) return;
+
+		// Detect the rig's unit scale. The default spec sizes are authored in centimetres (UE convention), but
+		// this rig's bones may be in metres (or any scale). Bones that get no mesh fit (hand, foot, clavicle, …)
+		// would otherwise keep cm-scale defaults and render ~100× too big. The default capsule heights were
+		// authored as ~cm bone lengths, so ratio = measured-bone-length / default-height ≈ the scale; the median
+		// over the limb capsules is robust to the few specs whose default isn't a literal bone length.
+		float rigScale = DetectRigScale();
+
+		foreach (BoneAttachment3D attach in CollectBoneAttachments(Skeleton))
+		{
+			int boneIdx = Skeleton.FindBone(attach.BoneName);
 			if (boneIdx < 0) continue;
 
 			Hitbox hb = null;
@@ -164,27 +127,41 @@ public partial class HitboxRig : Node
 			Transform3D boneRest = Skeleton.GetBoneGlobalRest(boneIdx);
 			Vector3? childPosWorld = FindFirstChildBoneRestOrigin(boneIdx);
 
-			if (cs.Shape is SphereShape3D sphereShape)
+			if (cs.Shape is BoxShape3D box)
 			{
-				// Spheres haben keine Richtung — Spec2.LocalOffset behält Vorrang wenn explizit gesetzt.
-				// Für den HEAD-Bone speziell: Bone-Origin sitzt an der Schädelbasis (Hals→Kopf-Joint).
-				// Standard-Sphere am Origin würde nur den Kiefer-Bereich treffen, Schädelkalotte wäre ungedeckt.
-				// Auto-Offset: gegen-Direction zum PARENT-Bone (= neck) = Direction Schädelmitte. Verschiebt
-				// die Sphere um sphere-radius * 0.7 in die "weg-vom-Hals"-Richtung. Rig-orientation-unabhängig.
-				if (hb.Group == HitboxGroup.Head && cs.Transform.Origin == Vector3.Zero)
+				// Box default size is in centimetres; bring it into the rig's unit scale. AutoSize overrides this
+				// for boxes whose bone has mesh verts (chest, pelvis, arms); the rest keep this geometric box.
+				Vector3 defScaled = box.Size * rigScale;
+
+				// Head (or any leaf without a usable child): leave the box axis-aligned to the bone-local frame —
+				// that frame is body-aligned, and AutoSize centres + sizes it from the bone's verts.
+				if (hb.Group == HitboxGroup.Head || !childPosWorld.HasValue)
 				{
-					int parentBoneIdx = Skeleton.GetBoneParent(boneIdx);
-					if (parentBoneIdx >= 0)
-					{
-						Vector3 parentOrigin = Skeleton.GetBoneGlobalRest(parentBoneIdx).Origin;
-						Vector3 worldDirAway = boneRest.Origin - parentOrigin;
-						if (worldDirAway.LengthSquared() > 0.0001f)
-						{
-							Vector3 dirLocalUp = (boneRest.Basis.Inverse() * worldDirAway).Normalized();
-							cs.Transform = new Transform3D(Basis.Identity, dirLocalUp * (sphereShape.Radius * 0.7f));
-						}
-					}
+					box.Size = defScaled;
+					continue;
 				}
+
+				// Orient the box LENGTH (local Y) along the bone→child direction (same basis the capsule uses).
+				// A bone-local axis-aligned box balloons when the bone runs diagonally through its local frame —
+				// the AABB then has to enclose the diagonal limb. AutoSize refits width/depth (local X/Z) from the
+				// verts in THIS oriented frame so the box hugs the limb. X/Z default = scaled cross-section.
+				Vector3 worldDir = childPosWorld.Value - boneRest.Origin;
+				float dist = worldDir.Length();
+				if (dist < 0.001f) { box.Size = defScaled; continue; }
+
+				bool boxExtremity = hb.Group == HitboxGroup.Foot || hb.Group == HitboxGroup.Hand;
+				Vector3 dirLocal = (boneRest.Basis.Inverse() * worldDir).Normalized();
+				Vector3 yAxis = dirLocal;
+				Vector3 xAxis = yAxis.Cross(Vector3.Forward);
+				if (xAxis.LengthSquared() < 0.01f) xAxis = yAxis.Cross(Vector3.Right);
+				xAxis = xAxis.Normalized();
+				Vector3 zAxis = xAxis.Cross(yAxis).Normalized();
+
+				// Extremity: extend past the child (hand→fingers, foot→toes). Limb/torso segment: span bone→child.
+				float length = boxExtremity ? dist * 2f : dist;
+				box.Size = new Vector3(defScaled.X, length, defScaled.Z);
+				float frac = boxExtremity ? 0.25f : 0.5f;
+				cs.Transform = new Transform3D(new Basis(xAxis, yAxis, zAxis), dirLocal * (length * frac));
 				continue;
 			}
 
@@ -194,10 +171,23 @@ public partial class HitboxRig : Node
 				float dist = worldDir.Length();
 				if (dist < 0.001f) continue;
 
-				// Auto-Length: Capsule-Höhe = bone-to-child Distance minus 2× radius (sodass die
-				// Hemispheres genau bei bone-origin und child-origin enden = perfekte body-shape-Coverage).
-				// Spec.Height ist nur noch Fallback wenn dist sehr klein ist.
-				float autoHeight = Mathf.Max(dist - 2f * capsule.Radius, dist * 0.4f);
+				bool isExtremity = hb.Group == HitboxGroup.Foot || hb.Group == HitboxGroup.Hand;
+
+				// Bring the cm-authored default radius into the rig's unit scale before deriving the height from
+				// it. AutoSize later overrides the radius for capsules whose bone has mesh verts; the others
+				// (clavicle, hand, foot) keep this scaled default.
+				capsule.Radius *= rigScale;
+
+				// Auto-Length: Capsule-Höhe = volle bone-to-child Distanz. Die Hemisphere-Kappen ragen dann um
+				// ~einen Radius über Bone- und Child-Origin hinaus, sodass benachbarte Capsules am Gelenk
+				// (Knie, Ellbogen, Schulter) überlappen statt nur tangential zu enden → keine Gelenk-Lücken.
+				// Hand/Foot: the bone→child span only reaches the first knuckle / the ball, so the fingers / toes
+				// would be uncovered. Use a FIXED, bounded length (a multiple of the radius) laid along the
+				// bone→child direction so it spans the whole hand / foot and can never explode on a stray child.
+				float extremityLen = hb.Group == HitboxGroup.Hand ? 4f : 3.5f;
+				float autoHeight = isExtremity
+					? capsule.Radius * extremityLen
+					: dist;
 				capsule.Height = autoHeight;
 
 				Vector3 dirLocal = (boneRest.Basis.Inverse() * worldDir).Normalized();
@@ -208,7 +198,10 @@ public partial class HitboxRig : Node
 				xAxis = xAxis.Normalized();
 				Vector3 zAxis = xAxis.Cross(yAxis).Normalized();
 
-				cs.Transform = new Transform3D(new Basis(xAxis, yAxis, zAxis), dirLocal * (dist * 0.5f));
+				// Centre: limbs at the bone→child midpoint; hand/foot shifted forward by ~⅓ of its own (fixed)
+				// length so the capsule reaches past the knuckles / ball into the fingers / toes.
+				Vector3 centreOffset = isExtremity ? dirLocal * (autoHeight * 0.3f) : dirLocal * (dist * 0.5f);
+				cs.Transform = new Transform3D(new Basis(xAxis, yAxis, zAxis), centreOffset);
 			}
 		}
 	}
@@ -228,8 +221,11 @@ public partial class HitboxRig : Node
 	private struct CachedSize
 	{
 		public bool IsCapsule;
+		public bool IsBox;
 		public float Radius;
 		public float Height;
+		public Vector3 BoxSize;
+		public Transform3D BoxTransform;   // box: full baked transform (oriented basis + centre)
 		public Vector3 OriginShiftBoneSpace;
 	}
 	private static Dictionary<int, CachedSize> _sizeCache;
@@ -324,9 +320,10 @@ public partial class HitboxRig : Node
 			var cs = _collisionShapes[h];
 			if (hb == null || cs?.Shape == null) continue;
 			if (hb.GetParent() is not BoneAttachment3D attach) continue;
-			int boneIdx = attach.BoneIdx;
-			if (boneIdx < 0 || !vertsPerBone.TryGetValue(boneIdx, out var bvs)) continue;
-			if (bvs.Count < 8) continue;
+			int boneIdx = Skeleton.FindBone(attach.BoneName);
+			if (boneIdx < 0) continue;
+
+			if (!vertsPerBone.TryGetValue(boneIdx, out var bvs) || bvs.Count < 8) continue;
 
 			// Transform vertices from Bone-Local nach Shape-Local (= inverse cs.Transform). cs ist child
 			// vom Hitbox der am Bone-Origin sitzt → cs's bone-local-frame = cs.Transform.
@@ -334,20 +331,24 @@ public partial class HitboxRig : Node
 
 			if (cs.Shape is SphereShape3D sph)
 			{
-				// 90th-Percentile statt MAX — outlier-resistent gegen Helm-Spitzen / Hair-Tips die
-				// sonst den Head-Sphere doppelt so gross machen wie den eigentlichen Kopf.
+				// Center the sphere on the centroid of the bone's weighted vertices (the real head mass).
+				// The head bone origin sits at the skull base, so a bone-origin-centered sphere bleeds into
+				// the neck. Radius = 90th-percentile distance from that centroid (outlier-resistant vs the
+				// helmet/hair tips that would otherwise double the sphere size).
+				Vector3 centroid = Vector3.Zero;
+				foreach (var bv in bvs) centroid += bv;
+				centroid /= bvs.Count;
+
 				var dists = new List<float>(bvs.Count);
 				foreach (var bv in bvs)
-				{
-					Vector3 lv = shapeLocalFromBone * bv;
-					dists.Add(lv.Length());
-				}
+					dists.Add((bv - centroid).Length());
 				dists.Sort();
 				float p90 = dists[(int)(dists.Count * 0.90f)];
 				if (p90 > 0.001f)
 				{
+					cs.Transform = new Transform3D(Basis.Identity, centroid);
 					sph.Radius = p90;
-					newCache[boneIdx] = new CachedSize { IsCapsule = false, Radius = p90 };
+					newCache[boneIdx] = new CachedSize { IsCapsule = false, Radius = p90, OriginShiftBoneSpace = centroid };
 					resized++;
 				}
 			}
@@ -374,6 +375,42 @@ public partial class HitboxRig : Node
 					resized++;
 				}
 			}
+			else if (cs.Shape is BoxShape3D box)
+			{
+				// Tight oriented box straight from the mesh — the "compute width/length/height from the verts"
+				// fit. Length stays along the bone (local Y, set by AutoOrient); width + depth come from a 2D PCA
+				// of the cross-section so the box aligns with the limb's REAL width/thickness, not arbitrary axes.
+				// This is what stops a limb box from ballooning when the bone runs diagonally through its frame.
+				var lv = new List<Vector3>(bvs.Count);
+				foreach (var bv in bvs) lv.Add(shapeLocalFromBone * bv);
+
+				// 2D PCA on the cross-section (local X,Z): principal rotation θ about the length axis (local Y).
+				float mx = 0f, mz = 0f;
+				foreach (var p in lv) { mx += p.X; mz += p.Z; }
+				mx /= lv.Count; mz /= lv.Count;
+				float cxx = 0f, cxz = 0f, czz = 0f;
+				foreach (var p in lv) { float dx = p.X - mx, dz = p.Z - mz; cxx += dx * dx; cxz += dx * dz; czz += dz * dz; }
+				float theta = 0.5f * Mathf.Atan2(2f * cxz, cxx - czz);
+
+				Basis crossRot = new Basis(Vector3.Up, theta);
+				Basis crossRotInv = crossRot.Transposed();   // rotation inverse = transpose
+				var rv = new List<Vector3>(lv.Count);
+				foreach (var p in lv) rv.Add(crossRotInv * p);
+
+				Vector3 rmin = new Vector3(AxisPercentile(rv, 0, 0.05f), AxisPercentile(rv, 1, 0.05f), AxisPercentile(rv, 2, 0.05f));
+				Vector3 rmax = new Vector3(AxisPercentile(rv, 0, 0.95f), AxisPercentile(rv, 1, 0.95f), AxisPercentile(rv, 2, 0.95f));
+				Vector3 bsize = rmax - rmin;
+				Vector3 rcenter = (rmin + rmax) * 0.5f;
+				if (bsize.LengthSquared() > 0.0001f)
+				{
+					Basis finalBasis = cs.Transform.Basis * crossRot;
+					var finalXf = new Transform3D(finalBasis, cs.Transform.Origin + finalBasis * rcenter);
+					box.Size = bsize;
+					cs.Transform = finalXf;
+					newCache[boneIdx] = new CachedSize { IsBox = true, BoxSize = bsize, BoxTransform = finalXf };
+					resized++;
+				}
+			}
 		}
 		_sizeCache = newCache;
 		Dbg.Print($"[HitboxRig] AutoSize DONE: {resized}/{_hitboxNodes.Count} hitboxes resized. Cache populated with {newCache.Count} bone entries — subsequent spawns reuse.");
@@ -390,12 +427,13 @@ public partial class HitboxRig : Node
 			var cs = _collisionShapes[h];
 			if (hb == null || cs?.Shape == null) continue;
 			if (hb.GetParent() is not BoneAttachment3D attach) continue;
-			int boneIdx = attach.BoneIdx;
+			int boneIdx = Skeleton.FindBone(attach.BoneName);
 			if (!_sizeCache.TryGetValue(boneIdx, out var spec)) continue;
 
-			if (!spec.IsCapsule && cs.Shape is SphereShape3D sph)
+			if (!spec.IsCapsule && !spec.IsBox && cs.Shape is SphereShape3D sph)
 			{
 				sph.Radius = spec.Radius;
+				cs.Transform = new Transform3D(Basis.Identity, spec.OriginShiftBoneSpace);   // centroid (absolute, not additive)
 				applied++;
 			}
 			else if (spec.IsCapsule && cs.Shape is CapsuleShape3D cap)
@@ -405,36 +443,14 @@ public partial class HitboxRig : Node
 				cs.Transform = new Transform3D(cs.Transform.Basis, cs.Transform.Origin + spec.OriginShiftBoneSpace);
 				applied++;
 			}
+			else if (spec.IsBox && cs.Shape is BoxShape3D box)
+			{
+				box.Size = spec.BoxSize;
+				cs.Transform = spec.BoxTransform;   // full baked transform (oriented basis + centre)
+				applied++;
+			}
 		}
 		return applied;
-	}
-
-	/// <summary>Sucht das skinned MeshInstance3D mit den MEISTEN Vertices irgendwo unter dem Owner-
-	/// Subtree. Mehr-Vertex = Hauptkörper-Mesh (vs Accessory wie Waffe/Helm). Rekursiv, ignoriert
-	/// MeshInstances ohne Skin.</summary>
-	private MeshInstance3D FindSkinnedMesh()
-	{
-		var owner = Skeleton.GetParent() ?? Skeleton;
-		MeshInstance3D best = null;
-		int bestVerts = 0;
-		CollectSkinnedRecursive(owner, ref best, ref bestVerts);
-		return best;
-	}
-
-	private static void CollectSkinnedRecursive(Node n, ref MeshInstance3D best, ref int bestVerts)
-	{
-		if (n is MeshInstance3D mi && mi.Skin != null && mi.Mesh != null)
-		{
-			int total = 0;
-			for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
-			{
-				var arr = mi.Mesh.SurfaceGetArrays(s);
-				if (arr.Count > (int)Mesh.ArrayType.Vertex)
-					total += arr[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length;
-			}
-			if (total > bestVerts) { best = mi; bestVerts = total; }
-		}
-		foreach (Node ch in n.GetChildren()) CollectSkinnedRecursive(ch, ref best, ref bestVerts);
 	}
 
 	/// <summary>Sammelt ALLE skinned MeshInstance3D Nodes mit lokaler Visible=true. Charakter hat
@@ -449,13 +465,64 @@ public partial class HitboxRig : Node
 		foreach (Node ch in n.GetChildren()) CollectAllSkinnedRecursive(ch, outList);
 	}
 
+	/// <summary>Detects the rig's unit scale relative to the centimetre-authored default specs. For every limb
+	/// capsule it compares the measured bone→child distance against the spec's default height (≈ a cm bone
+	/// length) and returns the median ratio. 1.0 when nothing can be measured (assume cm). The foot is excluded
+	/// (its default height is not a bone length).</summary>
+	private float DetectRigScale()
+	{
+		var samples = new List<float>();
+		foreach (BoneAttachment3D attach in CollectBoneAttachments(Skeleton))
+		{
+			int bi = Skeleton.FindBone(attach.BoneName);
+			if (bi < 0) continue;
+			Hitbox hb = null;
+			foreach (Node ch in attach.GetChildren()) if (ch is Hitbox h) { hb = h; break; }
+			if (hb == null || hb.Group == HitboxGroup.Foot) continue;
+			CollisionShape3D cs = null;
+			foreach (Node ch in hb.GetChildren()) if (ch is CollisionShape3D c) { cs = c; break; }
+			if (cs?.Shape is not CapsuleShape3D cap || cap.Height < 0.0001f) continue;
+			Vector3? child = FindFirstChildBoneRestOrigin(bi);
+			if (!child.HasValue) continue;
+			float d = (child.Value - Skeleton.GetBoneGlobalRest(bi).Origin).Length();
+			if (d > 0.0001f) samples.Add(d / cap.Height);
+		}
+		if (samples.Count == 0)
+		{
+			Dbg.Print("[HitboxRig] Rig scale not measurable -> assuming cm (×1.0)");
+			return 1f;
+		}
+		samples.Sort();
+		float scale = samples[samples.Count / 2];
+		Dbg.Print($"[HitboxRig] Detected rig scale ×{scale:0.0000} from {samples.Count} limb capsules");
+		return scale;
+	}
+
+	/// <summary>Returns the <paramref name="t"/>-percentile (0..1) of the given vert component (axis 0=X,1=Y,2=Z).
+	/// Used for outlier-resistant box fitting — full min/max would catch stray skin-falloff verts.</summary>
+	private static float AxisPercentile(List<Vector3> verts, int axis, float t)
+	{
+		var vals = new List<float>(verts.Count);
+		foreach (var v in verts) vals.Add(axis == 0 ? v.X : axis == 1 ? v.Y : v.Z);
+		vals.Sort();
+		int i = Mathf.Clamp((int)(vals.Count * t), 0, vals.Count - 1);
+		return vals[i];
+	}
+
 	/// <summary>Returns the global rest origin of the first child bone of the given bone, or null if none.</summary>
 	private Vector3? FindFirstChildBoneRestOrigin(int boneIdx)
 	{
+		// Skip twist / roll / helper / tip bones — they sit ALONG a segment (e.g. lowerarm_twist mid-forearm),
+		// so picking them as "the child" makes the capsule end early. We want the real next joint (the elbow
+		// for the upper arm, the wrist for the lower arm), so the capsule spans the full segment.
 		int count = Skeleton.GetBoneCount();
 		for (int i = 0; i < count; i++)
-			if (Skeleton.GetBoneParent(i) == boneIdx)
-				return Skeleton.GetBoneGlobalRest(i).Origin;
+		{
+			if (Skeleton.GetBoneParent(i) != boneIdx) continue;
+			string name = Skeleton.GetBoneName(i).ToLowerInvariant();
+			if (name.Contains("twist") || name.Contains("roll") || name.EndsWith("_end") || name.EndsWith("_tip")) continue;
+			return Skeleton.GetBoneGlobalRest(i).Origin;
+		}
 		return null;
 	}
 
@@ -484,36 +551,50 @@ public partial class HitboxRig : Node
 		public Shape3D Shape;
 	}
 
-	/// <summary>Fallback hitbox spec with an optional skeleton-local offset (used for the head sphere).</summary>
-	private class Spec2 : Spec
-	{
-		public Vector3 LocalOffset;
-	}
-
 	/// <summary>Returns the static fallback hitbox specification array (head + chest + waist + arms + legs + feet).</summary>
 	private static Spec[] DefaultSpecs() => new Spec[]
 	{
-		// Head: r=13cm Sphere. LocalOffset = Vector3.Zero (= am Bone-Origin) — der AutoOrient code unten
-		// berechnet jetzt automatisch den richtigen Up-Offset basierend auf der Direction vom Head-Bone
-		// zu seinem Parent (neck_02). Das verlässt sich nicht mehr auf Rig-spezifische Y-Achse-Konventionen.
-		new Spec2 { BoneName = "head", Group = HitboxGroup.Head,
-			Shape = new SphereShape3D { Radius = 13f }, LocalOffset = Vector3.Zero },
+		// Head: a box — AutoSize fits it per-axis (length/width/depth) from the skull verts and centres it on the
+		// skull mass (the head bone origin sits at the skull base, so a bone-origin shape would bleed into the neck).
+		new Spec { BoneName = "head", Group = HitboxGroup.Head,
+			Shape = new BoxShape3D { Size = new Vector3(15f, 18f, 20f) } },
+		// Torso: boxes (a torso is wider than it is deep — independent width/depth, not a round tube).
+		// spine_03 + pelvis carry mesh verts → AutoSize fits them per-axis (body-aligned, tight). The spine
+		// subdivisions have no verts → AutoOrient gives them a geometric filler box (length along the spine,
+		// square cross-section so the unknown width/depth axis can't be swapped wrong).
 		new Spec { BoneName = "spine_03", Group = HitboxGroup.Chest,
-			Shape = new CapsuleShape3D { Radius = 28f, Height = 55f } },
+			Shape = new BoxShape3D { Size = new Vector3(36f, 30f, 24f) } },
 		new Spec { BoneName = "pelvis", Group = HitboxGroup.Waist,
-			Shape = new CapsuleShape3D { Radius = 22f, Height = 32f } },
+			Shape = new BoxShape3D { Size = new Vector3(32f, 24f, 24f) } },
+		new Spec { BoneName = "spine_01", Group = HitboxGroup.Waist,
+			Shape = new BoxShape3D { Size = new Vector3(28f, 28f, 28f) } },
+		new Spec { BoneName = "spine_02", Group = HitboxGroup.Chest,
+			Shape = new BoxShape3D { Size = new Vector3(28f, 28f, 28f) } },
+		new Spec { BoneName = "spine_04", Group = HitboxGroup.Chest,
+			Shape = new BoxShape3D { Size = new Vector3(28f, 28f, 28f) } },
+		new Spec { BoneName = "spine_05", Group = HitboxGroup.Chest,
+			Shape = new BoxShape3D { Size = new Vector3(28f, 28f, 28f) } },
+		// Arms: boxes — a capsule's round cross-section forces depth = width, so it's too thick on an arm that
+		// is wider than it is deep. A box fits width/depth independently. upperarm/lowerarm have verts → per-axis
+		// fit; clavicle has none → geometric box (length along the bone, square cross-section).
+		new Spec { BoneName = "clavicle_l", Group = HitboxGroup.Arm,
+			Shape = new BoxShape3D { Size = new Vector3(7f, 14f, 7f) } },
+		new Spec { BoneName = "clavicle_r", Group = HitboxGroup.Arm,
+			Shape = new BoxShape3D { Size = new Vector3(7f, 14f, 7f) } },
 		new Spec { BoneName = "upperarm_l", Group = HitboxGroup.Arm,
-			Shape = new CapsuleShape3D { Radius = 10f, Height = 28f } },
+			Shape = new BoxShape3D { Size = new Vector3(12f, 28f, 12f) } },
 		new Spec { BoneName = "upperarm_r", Group = HitboxGroup.Arm,
-			Shape = new CapsuleShape3D { Radius = 10f, Height = 28f } },
+			Shape = new BoxShape3D { Size = new Vector3(12f, 28f, 12f) } },
 		new Spec { BoneName = "lowerarm_l", Group = HitboxGroup.Arm,
-			Shape = new CapsuleShape3D { Radius = 8f, Height = 26f } },
+			Shape = new BoxShape3D { Size = new Vector3(10f, 26f, 10f) } },
 		new Spec { BoneName = "lowerarm_r", Group = HitboxGroup.Arm,
-			Shape = new CapsuleShape3D { Radius = 8f, Height = 26f } },
+			Shape = new BoxShape3D { Size = new Vector3(10f, 26f, 10f) } },
+		// Hand: a box along wrist→finger (AutoOrient extends it past the knuckles to span the fingers). No mesh
+		// verts on the hand bone → geometric; square cross-section so the unknown width/thickness axis is safe.
 		new Spec { BoneName = "hand_l", Group = HitboxGroup.Hand,
-			Shape = new SphereShape3D { Radius = 6f } },
+			Shape = new BoxShape3D { Size = new Vector3(7f, 16f, 7f) } },
 		new Spec { BoneName = "hand_r", Group = HitboxGroup.Hand,
-			Shape = new SphereShape3D { Radius = 6f } },
+			Shape = new BoxShape3D { Size = new Vector3(7f, 16f, 7f) } },
 		new Spec { BoneName = "thigh_l", Group = HitboxGroup.Leg,
 			Shape = new CapsuleShape3D { Radius = 11f, Height = 42f } },
 		new Spec { BoneName = "thigh_r", Group = HitboxGroup.Leg,
@@ -522,34 +603,67 @@ public partial class HitboxRig : Node
 			Shape = new CapsuleShape3D { Radius = 9f, Height = 42f } },
 		new Spec { BoneName = "calf_r", Group = HitboxGroup.Leg,
 			Shape = new CapsuleShape3D { Radius = 9f, Height = 42f } },
-		// Foot: Capsule entlang Ankle→Ball-Bone-Achse (= horizontal Richtung Toes). Rig hat ball_l/r
-		// als Child-Bones → AutoOrient findet die Richtung. War vorher SphereShape weil ich falsch
-		// angenommen hatte das fehlt — Sphere am Ankle-Origin deckte die Toes nicht ab.
+		// Foot: a box along ankle→ball (AutoOrient extends it forward to cover the heel + toes). No mesh verts
+		// on the foot bone → geometric; square cross-section so the unknown width/height axis is safe.
 		new Spec { BoneName = "foot_l", Group = HitboxGroup.Foot,
-			Shape = new CapsuleShape3D { Radius = 7f, Height = 18f } },
+			Shape = new BoxShape3D { Size = new Vector3(9f, 24f, 9f) } },
 		new Spec { BoneName = "foot_r", Group = HitboxGroup.Foot,
-			Shape = new CapsuleShape3D { Radius = 7f, Height = 18f } },
+			Shape = new BoxShape3D { Size = new Vector3(9f, 24f, 9f) } },
 	};
 
 	/// <summary>Spawns the fallback default hitbox set under the skeleton at runtime.</summary>
-	private void SpawnDefaults()
+	/// <summary>Editor entry point: generates the default hitbox set (BoneAttachment3D → Hitbox → capsule per
+	/// major bone) if none are authored yet, then positions/sizes the capsules between bone+child from the
+	/// rest pose. Pass the edited scene root as <paramref name="owner"/> so the created nodes are saved.</summary>
+	public void BakeDefaultHitboxes(Node owner, Node container = null, IReadOnlyDictionary<string, string> boneRemap = null)
 	{
+		if (Skeleton == null) return;
+		_sizeCache = null;   // editor re-bake always recomputes from the mesh (the static cache is a runtime-respawn optimisation)
+		_rids.Clear(); _hitboxNodes.Clear(); _collisionShapes.Clear();
+
+		// Re-bake: wipe the existing hitboxes from the target container so changed bone/size assignments
+		// take effect cleanly (no leftover stale capsules).
+		Node3D target = (container as Node3D) ?? Skeleton.GetNodeOrNull<Node3D>("Hitboxes");
+		if (target != null)
+			foreach (Node c in target.GetChildren())
+				c.Free();
+
+		SpawnDefaults(owner, container, boneRemap);
+		AutoOrientFromBoneChildren();
+		AutoSizeFromMesh();
+	}
+
+	private void SpawnDefaults(Node owner = null, Node providedContainer = null, IReadOnlyDictionary<string, string> remap = null)
+	{
+		// All hitboxes live under one container (not loose under the skeleton). Since a BoneAttachment3D only
+		// auto-binds when it is a DIRECT child of a Skeleton3D, each attachment gets an external-skeleton ref
+		// computed back to the skeleton, so the container may live anywhere in the tree.
+		Node3D container = providedContainer as Node3D
+			?? Skeleton.GetNodeOrNull<Node3D>("Hitboxes")
+			?? new Node3D { Name = "Hitboxes" };
+		if (container.GetParent() == null)
+		{
+			Skeleton.AddChild(container);
+			if (owner != null) container.Owner = owner;
+		}
+
 		int built = 0;
 		foreach (var spec in DefaultSpecs())
 		{
-			int boneIdx = Skeleton.FindBone(spec.BoneName);
+			string boneName = remap != null && remap.TryGetValue(spec.BoneName, out var mapped) && !string.IsNullOrEmpty(mapped)
+				? mapped : spec.BoneName;
+			int boneIdx = Skeleton.FindBone(boneName);
 			if (boneIdx < 0)
 			{
-				GD.PushWarning($"[HitboxRig] Bone '{spec.BoneName}' not found -> hitbox '{spec.Group}' skipped");
+				GD.PushWarning($"[HitboxRig] Bone '{boneName}' not found -> hitbox '{spec.Group}' skipped");
 				continue;
 			}
 
-			var attach = new BoneAttachment3D
-			{
-				Name = $"hb_attach_{spec.BoneName}",
-				BoneIdx = boneIdx,
-			};
-			Skeleton.AddChild(attach);
+			var attach = new BoneAttachment3D { Name = $"hb_attach_{boneName}" };
+			container.AddChild(attach);
+			attach.SetUseExternalSkeleton(true);
+			attach.SetExternalSkeleton(attach.GetPathTo(Skeleton));
+			attach.BoneName = boneName;   // sets the name (+ resolves bone_idx now the skeleton is wired)
 
 			var body = new Hitbox
 			{
@@ -559,16 +673,22 @@ public partial class HitboxRig : Node
 			attach.AddChild(body);
 
 			var cs = new CollisionShape3D { Shape = spec.Shape };
-			if (spec is Spec2 s2 && s2.LocalOffset != Vector3.Zero)
-				cs.Transform = new Transform3D(Basis.Identity, s2.LocalOffset);
 			body.AddChild(cs);
+
+			// Editor bake: parent the created nodes to the edited scene so they're persisted on save.
+			if (owner != null)
+			{
+				attach.Owner = owner;
+				body.Owner = owner;
+				cs.Owner = owner;
+			}
 
 			_rids.Add(body.GetRid());
 			_hitboxNodes.Add(body);
 			_collisionShapes.Add(cs);
 			built++;
 		}
-		Dbg.Print($"[HitboxRig] Fallback spawn: {built}/{DefaultSpecs().Length} hitboxes generated");
+		Dbg.Print($"[HitboxRig] {(owner != null ? "Editor-baked" : "Fallback-spawned")} {built}/{DefaultSpecs().Length} hitboxes");
 	}
 
 	/// <summary>Reads the hitbox group (Head/Chest/Waist/Arm/Leg/Hand/Foot). Defaults to <see cref="HitboxGroup.Body"/>
@@ -576,16 +696,16 @@ public partial class HitboxRig : Node
 	[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 	public static HitboxGroup ReadGroup(Node3D hitCollider) => hitCollider is Hitbox hb ? hb.Group : HitboxGroup.Body;
 
-	/// <summary>Walks the parent chain from the hitbox collider upwards until a <see cref="BaseCharacter"/>
-	/// is found. Path: Hitbox -> BoneAttachment3D -> Skeleton3D -> ... -> PlayerCore/PuppetPlayer/
-	/// ServerPlayer/ServerBotPlayer owner. BaseCharacter is the common ancestor, so this works for
+	/// <summary>Walks the parent chain from the hitbox collider upwards until a <see cref="NetworkPlayer"/>
+	/// is found. Path: Hitbox -> BoneAttachment3D -> Skeleton3D -> ... -> NetworkPlayer/PuppetPlayer/
+	/// ServerPlayer/ServerBotPlayer owner. NetworkPlayer is the common ancestor, so this works for
 	/// all character variants.</summary>
-	public static BaseCharacter FindOwner(Node3D hitCollider)
+	public static NetworkPlayer FindOwner(Node3D hitCollider)
 	{
 		Node n = hitCollider;
 		while (n != null)
 		{
-			if (n is BaseCharacter bc) return bc;
+			if (n is NetworkPlayer bc) return bc;
 			n = n.GetParent();
 		}
 		return null;

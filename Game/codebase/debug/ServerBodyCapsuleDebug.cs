@@ -8,7 +8,7 @@ using Godot;
 /// Server-Authority-Body vs dein vorhergesagter ClientBody driftet (Reconcile-Issues).
 ///
 /// Datenquelle: <see cref="NetClient.LastSelfSnap"/>. Höhe wird aus <see cref="SnapshotPlayer.CrouchBlend"/>
-/// (byte 0..255) gleichen Formel wie <see cref="BaseCharacter.ApplyCrouchHeight"/> berechnet:
+/// (byte 0..255) gleichen Formel wie <see cref="NetworkPlayer.ApplyCrouchHeight"/> berechnet:
 /// <c>h = Lerp(StandHeight, CrouchHeight, blend)</c>.
 ///
 /// Toggle via Console: <c>sv_debug_capsule 1</c> (gleiche ConVar wie Puppet-Variante).

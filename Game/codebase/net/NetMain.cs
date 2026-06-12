@@ -6,7 +6,7 @@ using Godot;
 /// per the parsed <see cref="NetCli"/>.
 ///
 /// Polls LiteNetLib every physics tick with ProcessPriority = -100 so inputs and snapshots
-/// arrive BEFORE <see cref="PlayerCore._PhysicsProcess"/>.
+/// arrive BEFORE <see cref="NetworkPlayer._PhysicsProcess"/>.
 /// </summary>
 public partial class NetMain : Node
 {
@@ -18,10 +18,10 @@ public partial class NetMain : Node
 	public PuppetManager Puppets { get; private set; }
 
 	/// <summary>The local player — instantiated by NetMain into the Players container after SpawnAck.</summary>
-	public PlayerCore LocalPlayer { get; private set; }
+	public NetworkPlayer LocalPlayer { get; private set; }
 
 	/// <summary>Public helper for other systems (Crosshair, DebugOverlay, NetClient.Reconcile) — returns <see cref="LocalPlayer"/>.</summary>
-	public PlayerCore FindLocalPlayer() => LocalPlayer;
+	public NetworkPlayer FindLocalPlayer() => LocalPlayer;
 
 	private bool _localPlayerInitialized;
 
@@ -161,7 +161,8 @@ public partial class NetMain : Node
 		}
 
 		_characterScene ??= GD.Load<PackedScene>("res://character/local_player.tscn");
-		var local = _characterScene.Instantiate<PlayerCore>();
+		var local = _characterScene.Instantiate<NetworkPlayer>();
+		local.CurrentGameMode = PresentationMode.Local;
 		local.NetId = Client.OwnNetId;
 		local.Name = $"local_{Client.OwnNetId}";
 		local.Position = Client.PendingSpawnPos;
@@ -171,6 +172,14 @@ public partial class NetMain : Node
 		playersContainer.AddChild(local);
 		LocalPlayer = local;
 		local.ResetInterpToCurrentPos();
+		// Weapon viewmodel renders in its own own_world_3d SubViewport, so it inherits NONE of the
+		// level's look. Calibrate it to the loaded map: copy the level env's tonemap/grade/glow/
+		// ambient onto viewmodel_env (Sync, BEFORE Attach so the world-env finder isn't fooled by
+		// the compositor we add next), then give the viewmodel its own Compositor so screen-space
+		// post-FX (CA/sharpen/vignette/grain/MB) reach the weapon too.
+		ViewmodelMotionBlur.Reset();
+		ViewmodelEnvSync.Sync(local, tree);
+		ViewmodelMotionBlur.Attach(local);
 		// The compositor.tres ships with enabled=false (scene-default); Settings.Apply()
 		// is what flips it on plus pushes the MotionBlur/Vignette/Grain toggles down.
 		// On the server this is called from NetServer once the world is loaded; on the

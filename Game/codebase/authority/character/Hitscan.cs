@@ -221,7 +221,7 @@ public static class Hitscan
 
 	/// <summary>
 	/// Like <see cref="Cast"/>, but with a multi-RID exclude - needed for damage hitscan so the
-	/// shooter does not hit their OWN hitboxes (PlayerCore RID + all <see cref="HitboxRig.Rids"/>).
+	/// shooter does not hit their OWN hitboxes (NetworkPlayer RID + all <see cref="HitboxRig.Rids"/>).
 	/// </summary>
 	public static HitInfo CastMulti(PhysicsDirectSpaceState3D space, Vector3 origin, Vector3 direction, float range, Godot.Collections.Array<Rid> excludes, uint mask = 1)
 	{

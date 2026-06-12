@@ -10,10 +10,10 @@ using Godot;
 /// Workflow:
 /// 1. SceneLoader, just before the scene switch, calls <see cref="ShowOpaque"/>
 ///    → overlay turns fully black, sits on top of everything (LayerOrder = 1000).
-/// 2. After the switch, world.tscn is instantiated, players spawn, PlayerCore._Ready
+/// 2. After the switch, world.tscn is instantiated, players spawn, NetworkPlayer._Ready
 ///    runs the animation pre-warm. Player camera renders into the now-active
 ///    viewport but the player sees only the black overlay.
-/// 3. PlayerCore (or other "ready" trigger) calls <see cref="RequestFadeOut"/> with
+/// 3. NetworkPlayer (or other "ready" trigger) calls <see cref="RequestFadeOut"/> with
 ///    a duration — the overlay alpha lerps to zero, then sets Visible=false.
 ///
 /// As an autoload the node survives every scene switch and is reachable via the
@@ -26,7 +26,7 @@ public partial class WorldFadeOverlay : CanvasLayer
 	/// <summary>Default fade-out duration (seconds) if <see cref="RequestFadeOut"/> is called without a custom value.</summary>
 	public const float DefaultFadeDurationSec = 0.15f;
 
-	/// <summary>Singleton reference — set in <see cref="_Ready"/>. Used by callers (SceneLoader, PlayerCore) that need to drive the overlay across scene switches without going through GetTree().GetFirstNodeInGroup() every time.</summary>
+	/// <summary>Singleton reference — set in <see cref="_Ready"/>. Used by callers (SceneLoader, NetworkPlayer) that need to drive the overlay across scene switches without going through GetTree().GetFirstNodeInGroup() every time.</summary>
 	public static WorldFadeOverlay Instance { get; private set; }
 
 	private ColorRect _rect;
@@ -60,7 +60,7 @@ public partial class WorldFadeOverlay : CanvasLayer
 		SetProcess(false);
 	}
 
-	/// <summary>Begin a smooth alpha fade-out over <paramref name="duration"/> seconds. Caller is typically PlayerCore._Ready once all preloads complete and the player is spawned.</summary>
+	/// <summary>Begin a smooth alpha fade-out over <paramref name="duration"/> seconds. Caller is typically NetworkPlayer._Ready once all preloads complete and the player is spawned.</summary>
 	public void RequestFadeOut(float duration = DefaultFadeDurationSec)
 	{
 		if (_rect == null || !_rect.Visible) return;

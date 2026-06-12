@@ -195,7 +195,7 @@ public struct MovementSnapshot
 	public Vector3 LastWishDir, LastShotOrigin, LastShotDirection;
 	public Vector2 LastShotPatternEntry;
 	public float LastShotSpread;
-	public bool ActuallySprinting, RecentlyFired, DidJumpThisFrame, DidWallJumpThisFrame, DidFireThisFrame, DidDryFireThisFrame;
+	public bool ActuallySprinting, RecentlyFired, DidJumpThisFrame, DidWallJumpThisFrame, DidFireThisFrame, DidDryFireThisFrame, DidReloadThisFrame;
 }
 
 /// <summary>
@@ -256,10 +256,10 @@ public class MovementController
 
 	private bool _isAirborne;
 	private float _prevVelocityY;
-	/// <summary>Public read-only access for external systems (e.g. the mantle check in PlayerCore).</summary>
+	/// <summary>Public read-only access for external systems (e.g. the mantle check in NetworkPlayer).</summary>
 	public bool IsAirborne => _isAirborne;
 
-	/// <summary>Horizontal speed captured before MoveAndSlide. Set by PlayerCore and used by the wall-jump
+	/// <summary>Horizontal speed captured before MoveAndSlide. Set by NetworkPlayer and used by the wall-jump
 	/// check so that wall-absorbed velocity does not kill the speed gate.</summary>
 	public float PreMoveHorizSpeed;
 
@@ -290,7 +290,7 @@ public class MovementController
 	/// <summary>Horizontal speed at cling entry, saved so the cling-exit jump can bypass the wall-jump speed floor.</summary>
 	public float WallClingEntrySpeed;
 
-	/// <summary>Resets per-spawn consumables (wall-cling charges, breath-hold stamina, etc.). Called by PlayerCore on respawn.</summary>
+	/// <summary>Resets per-spawn consumables (wall-cling charges, breath-hold stamina, etc.). Called by NetworkPlayer on respawn.</summary>
 	public void ResetSpawnConsumables()
 	{
 		WallClingChargesRemaining = Sv.WallClingChargesPerSpawn;
@@ -303,7 +303,7 @@ public class MovementController
 		BreathHoldActiveNow = false;
 	}
 
-	/// <summary>Initializes ammo from weapon stats (full mag plus full reserve). Called by PlayerCore on
+	/// <summary>Initializes ammo from weapon stats (full mag plus full reserve). Called by NetworkPlayer on
 	/// spawn and on weapon switch. Server-authoritative — the client replicates this.</summary>
 	public void InitializeAmmo(WeaponStats weapon)
 	{
@@ -376,6 +376,7 @@ public class MovementController
 		DidWallJumpThisFrame = DidWallJumpThisFrame,
 		DidFireThisFrame = DidFireThisFrame,
 		DidDryFireThisFrame = DidDryFireThisFrame,
+		DidReloadThisFrame = DidReloadThisFrame,
 	};
 
 	/// <summary>Restores the full state from a <see cref="MovementSnapshot"/> (reconciliation rollback). The
@@ -437,6 +438,7 @@ public class MovementController
 		DidWallJumpThisFrame = s.DidWallJumpThisFrame;
 		DidFireThisFrame = s.DidFireThisFrame;
 		DidDryFireThisFrame = s.DidDryFireThisFrame;
+		DidReloadThisFrame = s.DidReloadThisFrame;
 	}
 
 	/// <summary>
@@ -487,6 +489,9 @@ public class MovementController
 	public bool DidFireThisFrame { get; private set; }
 	/// <summary>True on the tick the player clicked on an empty magazine (dry-fire). One-tick edge.</summary>
 	public bool DidDryFireThisFrame { get; private set; }
+	/// <summary>True on the tick any reload started. One-tick edge; drives the networked mag-drop so other
+	/// clients drop this player's magazine to the floor on every reload (CS-style).</summary>
+	public bool DidReloadThisFrame { get; private set; }
 	/// <summary>World origin of the last shot (server truth, lag-comp replayable). Camera/eye position.</summary>
 	public Vector3 LastShotOrigin { get; private set; }
 	/// <summary>World direction of the last shot including aim punch, pattern and spread. Unit vector.</summary>
@@ -504,6 +509,7 @@ public class MovementController
 	{
 		DidFireThisFrame = false;
 		DidDryFireThisFrame = false;
+		DidReloadThisFrame = false;
 		FireCooldown = Mathf.Max(0f, FireCooldown - input.Dt);
 		ReloadTimer = Mathf.Max(0f, ReloadTimer - input.Dt);
 		InspectTimer = Mathf.Max(0f, InspectTimer - input.Dt);
@@ -535,6 +541,7 @@ public class MovementController
 				ReloadTimer = input.Weapon.ReloadTime;
 				InspectTimer = 0f;
 				_pendingReloadIntoMag = needed;
+				DidReloadThisFrame = true;
 			}
 		}
 

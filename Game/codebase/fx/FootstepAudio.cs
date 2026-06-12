@@ -7,7 +7,7 @@ public enum FootstepAction { Walk, Sprint, Jump, Land }
 /// <summary>
 /// Client-side footstep audio bank. Plays material- and action-specific sounds (Walk / Sprint /
 /// Jump / Land), triggered by the cadence of <see cref="FootstepController"/> and the jump/land
-/// detection in <see cref="PlayerCore"/>. Purely cosmetic — gameplay-relevant cadence/loudness
+/// detection in <see cref="NetworkPlayer"/>. Purely cosmetic — gameplay-relevant cadence/loudness
 /// comes from the controller (server-replayable).
 ///
 /// Clip library: built at _Ready by scanning res://audio/footsteps/&lt;material&gt;/. Each subfolder
@@ -28,6 +28,7 @@ public enum FootstepAction { Walk, Sprint, Jump, Land }
 /// raycast and routed through a low-pass bus. Reverb: floors in the Godot group "tunnel" route
 /// through a reverb bus. The helper buses are created once via <see cref="AudioServer"/>.
 /// </summary>
+[Tool]
 public partial class FootstepAudio : Node3D
 {
 	[Export] public bool IsLocalPlayer = true;
@@ -90,13 +91,25 @@ public partial class FootstepAudio : Node3D
 	private static readonly Dictionary<string, AudioStream> _clipCache = new();
 	private static readonly HashSet<string> _requested = new();
 	private static readonly List<string> _pending = new();
-	/// <summary>Count of footstep audio clips still being asynchronously loaded across ALL FootstepAudio instances. PlayerCore polls this to gate WorldFadeOverlay's fade-out: while clips are still loading the world stays masked.</summary>
+	/// <summary>Count of footstep audio clips still being asynchronously loaded across ALL FootstepAudio instances. NetworkPlayer polls this to gate WorldFadeOverlay's fade-out: while clips are still loading the world stays masked.</summary>
 	public static int PendingLoadCount => _pending.Count;
+
+	/// <summary>Presents the <see cref="Bus"/> export as a dropdown of the project's audio buses.</summary>
+	public override void _ValidateProperty(Godot.Collections.Dictionary property)
+	{
+		if ((string)property["name"] != nameof(Bus)) return;
+		var buses = new string[AudioServer.BusCount];
+		for (int i = 0; i < buses.Length; i++)
+			buses[i] = AudioServer.GetBusName(i);
+		property["hint"] = (int)PropertyHint.Enum;
+		property["hint_string"] = string.Join(",", buses);
+	}
 
 	/// <summary>Builds the clip library and preloads only the materials actually used by colliders
 	/// in the current scene (plus the default fallback and any explicit extras).</summary>
 	public override void _Ready()
 	{
+		if (Engine.IsEditorHint()) return;
 		EnsureLibraryBuilt(AudioRoot);
 		// Scene-scoped preload. Previously this called EnsureMaterialLoaded for every material in
 		// the library, which finalised 3700+ AudioStreamWAV instances into ObjectDB even for maps
@@ -255,6 +268,7 @@ public partial class FootstepAudio : Node3D
 	/// per tick to avoid main-thread spikes) and disables itself once nothing is loading.</summary>
 	public override void _Process(double delta)
 	{
+		if (Engine.IsEditorHint()) return;
 		using var _prof = MiniProfiler.SampleClient("FootstepAudio._Process");
 		int finalizedThisFrame = 0;
 		for (int i = _pending.Count - 1; i >= 0 && finalizedThisFrame < MaxFinalizationsPerFrame; i--)
@@ -439,7 +453,7 @@ public partial class FootstepAudio : Node3D
 
 	/// <summary>
 	/// Builds the audio player pool lazily on first step so <see cref="IsLocalPlayer"/> (set by
-	/// PlayerCore) is guaranteed to be final, even though child _Ready runs before parent _Ready.
+	/// NetworkPlayer) is guaranteed to be final, even though child _Ready runs before parent _Ready.
 	/// </summary>
 	private void EnsurePool()
 	{

@@ -20,7 +20,7 @@ public struct BotCombatContext
 }
 
 /// <summary>
-/// Drives a bot's <see cref="ServerBaseCharacter.NetInputSource"/> so it walks across the map via
+/// Drives a bot's <see cref="NetworkPlayer.NetInputSource"/> so it walks across the map via
 /// Godot's built-in <see cref="NavigationServer3D"/>. The mapper places ONE
 /// <see cref="NavigationRegion3D"/> in the world scene and bakes it; the controller queries
 /// <see cref="NavigationServer3D.MapGetPath"/> for a path from the bot's current position to a
@@ -75,9 +75,11 @@ public class BotController
 	/// player capsule radius is ~0.4, this matches.</summary>
 	private const float ProbeHalfWidth = 0.4f;
 	/// <summary>Yaw offsets (radians) tried in order when the desired heading is blocked. Symmetric
-	/// pairs let the bot pick whichever side is clear; the increasing magnitude means it widens
-	/// the search smoothly. ~80° max sweep before giving up and going with the original heading
-	/// (= bot walks into the wall, stuck-detection picks a new target shortly after).</summary>
+	/// pairs let the bot pick whichever side is clear; the increasing magnitude widens the search
+	/// smoothly. Capped at ±1.4 rad (≈ 80°) — wider angles caused visible spinning in tight
+	/// corners (bot kept flipping between left / right ±150° backtracks per tick). When every
+	/// listed offset is blocked, the bot walks into the wall briefly and stuck-detection
+	/// re-requests a NavMesh path within ~1 second.</summary>
 	private static readonly float[] ProbeOffsets =
 	{
 		0.0f,
@@ -85,9 +87,6 @@ public class BotController
 		-0.7f,  0.7f,
 		-1.05f, 1.05f,
 		-1.4f,  1.4f,
-		-1.75f, 1.75f,    // ±100° — bot starts looking sideways
-		-2.1f,  2.1f,     // ±120° — diagonal-back
-		-2.6f,  2.6f,     // ±150° — almost full backtrack, last resort to escape dead-end corners
 	};
 
 	private Vector3 _target;
@@ -106,6 +105,12 @@ public class BotController
 	private int _navPathIndex;
 	private Vector3 _navFinalTarget;
 
+	// Last avoidance-yaw offset chosen by FindClearYaw. Reused on the next tick BEFORE the full
+	// offset sweep — gives the picker a stable preference instead of flipping between symmetric
+	// pairs (±35° / ±70°) when probes flicker on dynamic obstacles, which is what caused the
+	// visible spinning in tight corridors.
+	private float _lastChosenOffset;
+
 	// Combat state. _targetEnemyNetId is the locked target (0 if none); _targetAcquiredTick is the
 	// first tick we saw it (drives reaction-delay). _aimAtHead alternates per acquire on diff 2 so
 	// the bot mixes body+head shots instead of always picking the same point.
@@ -119,7 +124,7 @@ public class BotController
 
 	private readonly RandomNumberGenerator _rng = new();
 
-	/// <summary>Eye height of the standing body — must match BaseCharacter.StandEyeHeight default
+	/// <summary>Eye height of the standing body — must match NetworkPlayer.StandEyeHeight default
 	/// so the LOS raycast originates at the same point the snapshot/hitscan systems treat as eye.</summary>
 	private const float EyeHeight = 1.7f;
 	/// <summary>Maximum engagement distance. Beyond this bots ignore targets — keeps them from
@@ -411,18 +416,27 @@ public class BotController
 
 	/// <summary>Probes the desired heading and progressively-wider offsets, returning the first
 	/// yaw where the bot's full capsule footprint (left edge / centre / right edge at two heights:
-	/// chest + knee) has a clear forward lane. Single-strip probes missed narrow gaps and crate-
-	/// height obstacles that the body would still hit. Returns the original desiredYaw if every
-	/// offset is blocked — the bot then walks into a wall briefly and stuck-detection re-picks
-	/// the target within ~1 second.</summary>
+	/// chest + knee) has a clear forward lane. Sticks with last tick's chosen offset when it's
+	/// still clear (hysteresis) so the bot doesn't oscillate between symmetric ±offset pairs when
+	/// probe results flicker against dynamic obstacles. Returns the original desiredYaw if every
+	/// offset is blocked — the bot then walks into a wall briefly and stuck-detection re-requests
+	/// a path within ~1 second.</summary>
 	private float FindClearYaw(PhysicsDirectSpaceState3D space, Vector3 currentPos, float desiredYaw, uint probeMask)
 	{
+		// Hysteresis: keep using the previously-picked offset if its lane is still clear. Falls
+		// through to the full sweep on the first frame the previous offset becomes blocked.
+		if (_lastChosenOffset != 0f && IsLaneClear(space, currentPos, desiredYaw + _lastChosenOffset, probeMask))
+			return desiredYaw + _lastChosenOffset;
 		foreach (float offset in ProbeOffsets)
 		{
 			float candidateYaw = desiredYaw + offset;
 			if (IsLaneClear(space, currentPos, candidateYaw, probeMask))
+			{
+				_lastChosenOffset = offset;
 				return candidateYaw;
+			}
 		}
+		_lastChosenOffset = 0f;
 		return desiredYaw;
 	}
 

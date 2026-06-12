@@ -2,7 +2,7 @@ using Godot;
 using System.Collections.Generic;
 
 /// <summary>
-/// Driver node for a remote player. Holds its own <see cref="PlayerCore"/> instance
+/// Driver node for a remote player. Holds its own <see cref="NetworkPlayer"/> instance
 /// (puppet_player.tscn with IsPuppet=true) as the visual and interpolates its GlobalPosition / Rotation
 /// from a ring buffer of received snapshots.
 ///
@@ -14,21 +14,9 @@ using System.Collections.Generic;
 /// the MovementController of the visual child. LocalAnimation reads it back and drives the third-person
 /// body animation accordingly.
 /// </summary>
-public enum SpectateMode
+[GlobalClass]
+public partial class PuppetPlayer : NetworkPlayer
 {
-	/// <summary>Default — no camera active; the puppet is simply rendered in the world.</summary>
-	None,
-	/// <summary>Follow camera — third-person camera enabled.</summary>
-	Tps,
-	/// <summary>First-person — sees through the puppet's eyes without a viewmodel.</summary>
-	Fps,
-}
-
-/// <summary>Snapshot-driven visual for a remote player including spectator camera support.</summary>
-public partial class PuppetPlayer : Node3D
-{
-	/// <summary>Net id of the remote player. Set before AddChild.</summary>
-	public byte NetId;
 	/// <summary>Display name taken from the PlayerJoined event. Used only for logging.</summary>
 	public string PlayerName = "";
 
@@ -84,10 +72,9 @@ public partial class PuppetPlayer : Node3D
 	private float _lastBracketedYaw;
 	private float _lastBracketedPitch;
 	private bool _lastBracketedAnglesValid;
-	private PlayerCore _visual;
-	/// <summary>Read-only Zugriff aufs Visual-PlayerCore (= das instanziierte puppet_player.tscn).
-	/// Wird vom HudServerHitboxesDebug-Renderer gebraucht um die Hitbox-Shape-Specs des Puppets zu lesen.</summary>
-	public PlayerCore GetVisualPlayerCore() => _visual;
+	/// <summary>Read-only self-reference kept for call-sites that still ask the puppet for "its visual"
+	/// (e.g. HudServerHitboxesDebug reading the hitbox-shape specs). The puppet IS the NetworkPlayer now.</summary>
+	public NetworkPlayer GetVisual() => this;
 
 	private float _puppetBodyYaw;
 	private bool _bodyYawInitialized;
@@ -95,15 +82,7 @@ public partial class PuppetPlayer : Node3D
 	private const float BodyYawRateMoving = 12f;
 	private const float BodyYawRateStanding = 6f;
 
-	private static PackedScene _characterScene;
 
-	// === LOD-System ===
-	// Animation update frequency falls off with distance and is forced to ~zero when
-	// the puppet is outside the local camera frustum. Tier-thresholds tuned for a
-	// dust-style 64×64m map: most enemies are <40m, A/B-sites cross-map ~80m. Each
-	// tier's UpdateHz drives both TpsAnimTree.Advance() and UpdateTpsAnimations().
-	// AimModifier (SkeletonModifier3D) is disabled in tier Off because no one is
-	// looking at the puppet's spine twist when they can't see it.
 	private enum PuppetLodTier { Near, Mid, Far, Off }
 	private const float LodNearMaxDist = 15f;
 	private const float LodMidMaxDist = 40f;
@@ -136,7 +115,7 @@ public partial class PuppetPlayer : Node3D
 	/// skipped — material stayed at the default white for 2-3 s until the server finally sent a
 	/// real team-slot value. Symptom user observed: "wird grün erst nach ner Zeit wenn man davor steht".</summary>
 	private bool _hasInitialAppliedTeamColor = false;
-	/// <summary>Time.GetTicksUsec() when <c>_visual.Visible</c> was set to false in _Ready (waiting for WorldReady snapshot bit). Drives the failsafe in _Process — after <see cref="VisualRevealFailsafeUsec"/> microseconds the body is force-revealed regardless of flag state, so server-agent bots (which never send WorldInitComplete) or stale players from before this feature was deployed aren't permanently invisible.</summary>
+	/// <summary>Time.GetTicksUsec() when <c>Visible</c> was set to false in _Ready (waiting for WorldReady snapshot bit). Drives the failsafe in _Process — after <see cref="VisualRevealFailsafeUsec"/> microseconds the body is force-revealed regardless of flag state, so server-agent bots (which never send WorldInitComplete) or stale players from before this feature was deployed aren't permanently invisible.</summary>
 	private ulong _visualHiddenSinceUsec;
 	private const ulong VisualRevealFailsafeUsec = 5_000_000;
 
@@ -148,7 +127,7 @@ public partial class PuppetPlayer : Node3D
 	/// per-team split for free. Glow visibility is just a <see cref="GeometryInstance3D.Visible"/>
 	/// toggle.</summary>
 	private GlowSilhouetteMeshBaker _glowSilhouette;
-	/// <summary>World-space Label3D rendering "Name\nHP" parented directly to <see cref="_visual"/>
+	/// <summary>World-space Label3D rendering "Name\nHP" parented directly to this puppet body
 	/// (NOT to the head bone via BoneAttachment3D — the skeleton subtree is scaled 0.01, which would
 	/// shrink the Position offset to millimetres and force counter-scale gymnastics). Layered onto
 	/// the glow text viewport ONLY — the main camera does not see it; the composite shader picks it
@@ -160,45 +139,20 @@ public partial class PuppetPlayer : Node3D
 	/// <summary>Instantiates the visual child, configures animation throttling, and wires the puppet flags.</summary>
 	public override void _Ready()
 	{
-		ProcessPriority = 100;
-
-		_characterScene ??= GD.Load<PackedScene>("res://character/puppet_player.tscn");
-		if (_characterScene == null)
-		{
-			GD.PushError("[PuppetPlayer] res://character/puppet_player.tscn could not be loaded");
-			return;
-		}
-		_visual = _characterScene.Instantiate<PlayerCore>();
-		_visual.IsPuppet = true;
-		_visual.NetId = NetId;
-		_visual.Name = "visual";
-		_visual.ViewMode = ViewMode.Tps;
-		// Hide TPS body until the remote client signals WorldInitComplete (= the WorldReady
-		// snapshot flag arrives). Otherwise other players would see freshly-connecting puppets
-		// pop in with a default pose before their world is even loaded. PushSnapshot flips
-		// this back true the first time a snapshot with WorldReady=1 arrives, and the failsafe
-		// in _Process forces it visible after 5s if the flag never arrives (e.g. server-agent
-		// bots that never send WorldInitComplete, or pre-existing players from before this
-		// feature was deployed).
-		_visual.Visible = false;
+		base._Ready();   // SetupSim, anim tree, hitbox rig, OnSimReady (client collision layer)
+		if (Engine.IsEditorHint()) return;
+		ViewMode = ViewMode.Tps;
+		Visible = false;
 		_visualHiddenSinceUsec = Time.GetTicksUsec();
-		AddChild(_visual);
 		ApplySpectateMode();
 
-		if (_visual.TpsAnimTree != null)
-			_visual.TpsAnimTree.CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Manual;
+		if (TpsAnimTree != null)
+			TpsAnimTree.CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Manual;
 
-		// Debug: roter transparenter Body-Capsule auf der LAST SERVER POSITION (= AuthorityPosition aus
-		// letztem Snapshot, NICHT die interpolierte Puppet-Pose). Macht visuell sichtbar wo der Server
-		// den Spieler hat vs wo der Client ihn rendert. Mismatch zeigt Lag-Comp/Interp-Issues.
-		// Wichtig: hängt am ROOT der PuppetPlayer (parent ist World/Players), NICHT am _visual,
-		// damit Bewegungen des _visual den Capsule NICHT mitziehen. Per _Process explizit auf snap.Pos gesetzt.
-		// Always created (default invisible) damit Runtime-Toggle von sv_debug_capsule funktioniert auch wenn
-		// Puppet vor dem Toggle gespawnt wurde. Visibility wird in UpdateServerPosDebugCapsule per ConVar gegated.
 		_debugCapsuleMesh = new CapsuleMesh
 		{
-			Radius = _visual.CapsuleRadius,
-			Height = _visual.StandHeight,
+			Radius = CapsuleRadius,
+			Height = StandHeight,
 			RadialSegments = 8,
 			Rings = 4,
 		};
@@ -219,9 +173,6 @@ public partial class PuppetPlayer : Node3D
 		};
 		AddChild(_serverPosDebugCapsule);
 
-		// Deferred — _visual's own _Ready muss erst laufen damit eventuelle dynamische Meshes
-		// (z.B. via WeaponHolder spawned weapon visuals) im Tree sind. _Ready läuft post-deferred.
-		// BuildGlowVisualsDeferred also spawns the Label3D nameplate on the head bone (see method).
 		CallDeferred(MethodName.BuildGlowVisualsDeferred);
 	}
 
@@ -232,7 +183,7 @@ public partial class PuppetPlayer : Node3D
 	/// visibility flipping happens in <see cref="ApplyTeamGlow"/>.</summary>
 	private void BuildGlowVisualsDeferred()
 	{
-		_glowSilhouette = FindGlowSilhouette(_visual);
+		_glowSilhouette = FindGlowSilhouette(this);
 		if (_glowSilhouette != null) _glowSilhouette.Visible = false;
 
 		_lastShownTeamSlot = 255;
@@ -255,19 +206,14 @@ public partial class PuppetPlayer : Node3D
 			Modulate = Colors.White,
 			OutlineModulate = new Color(0f, 0f, 0f, 1f),
 			PixelSize = 0.0025f,
-			Position = new Vector3(0f, _visual.StandHeight + 0.25f, 0f),
+			Position = new Vector3(0f, StandHeight + 0.25f, 0f),
 			Layers = GlowTextVisualLayer,
 			Visible = false,
 		};
-		_visual.AddChild(_glowNameLabel);
+		AddChild(_glowNameLabel);
 
 		Dbg.Print($"[PuppetPlayer netId={NetId}] glow visuals built: silhouette={(_glowSilhouette != null)} + Label3D");
 
-		// If a snapshot is already buffered (network arrived before this deferred call ran), fire
-		// UpdateNameAndGlow immediately so team_color + glow visibility are correct on the first
-		// frame the silhouette renders. Without this, the glow appeared default-white for several
-		// seconds until the next _Process tick crossed the delta-tracker reset (user observation:
-		// "weiß für 5 sekunden bevor grün greift").
 		if (_buf.Count > 0) UpdateNameAndGlow(_buf[_buf.Count - 1].Snap);
 	}
 
@@ -315,9 +261,6 @@ public partial class PuppetPlayer : Node3D
 		byte localTeam = localTeamKnown ? localSnap.Value.Team : (byte)255;
 		bool isDeathmatch = snap.Team == (byte)Team.Deathmatch;
 		bool isTeammate = localTeamKnown && !isDeathmatch && snap.Team == localTeam;
-		// Spectator mode: local player has no team yet (still in lobby / joined as spectator) OR
-		// is dead (Hp == 0 → in death-cam / spectating remaining teammates and enemies). In both
-		// cases reveal the glow on EVERY puppet, not just teammates — matches CS2 spectator UX.
 		bool localIsSpectating = !localTeamKnown || localSnap.Value.Hp == 0;
 
 		if (!_hasInitialAppliedTeamColor || _lastShownTeamSlot != snap.TeamSlot)
@@ -369,14 +312,12 @@ public partial class PuppetPlayer : Node3D
 	private void UpdateServerPosDebugCapsule()
 	{
 		if (_serverPosDebugCapsule == null) return;
-		// Default off — User aktiviert via console: sv_debug_capsule 1 (server-weit, alle Clients).
 		bool wantVisible = ConVars.Sv.DebugCapsule && _buf.Count > 0;
 		_serverPosDebugCapsule.Visible = wantVisible;
 		if (!wantVisible) return;
 		var latestSnap = _buf[_buf.Count - 1].Snap;
-		// CrouchBlend kommt als byte 0..255 — gleiche Lerp-Formel wie BaseCharacter.ApplyCrouchHeight.
 		float crouchBlend = latestSnap.CrouchBlend / 255f;
-		float h = Mathf.Lerp(_visual.StandHeight, _visual.CrouchHeight, crouchBlend);
+		float h = Mathf.Lerp(StandHeight, CrouchHeight, crouchBlend);
 		if (!Mathf.IsEqualApprox(_debugCapsuleMesh.Height, h)) _debugCapsuleMesh.Height = h;
 		_serverPosDebugCapsule.GlobalPosition = latestSnap.Pos + new Vector3(0f, h * 0.5f, 0f);
 	}
@@ -399,12 +340,10 @@ public partial class PuppetPlayer : Node3D
 		while (_buf.Count > Capacity) _buf.RemoveAt(0);
 		_lastSnapshotPushUsec = now;
 
-		// Reveal the TPS body the first tick the server says the remote client finished its
-		// world preloads. Hidden by default in _Ready until this flag flips true.
-		if (_visual != null && !_visual.Visible
+		if (!Visible
 			&& (snap.Flags & (byte)SnapshotFlags.WorldReady) != 0)
 		{
-			_visual.Visible = true;
+			Visible = true;
 			Dbg.Print($"[PuppetPlayer netId={NetId}] world-ready → TPS body revealed");
 		}
 	}
@@ -424,8 +363,7 @@ public partial class PuppetPlayer : Node3D
 	{
 		_buf.Clear();
 		_smoothedInterpDelay = 6f;
-		if (_visual != null)
-			_visual.GlobalPosition = snap.Pos;
+			GlobalPosition = snap.Pos;
 	}
 
 	/// <summary>Resolves the effective render-delay for this frame. Locked variant (<c>cl_interp_lock</c>)
@@ -489,17 +427,12 @@ public partial class PuppetPlayer : Node3D
 	public override void _Process(double delta)
 	{
 		using var _prof = MiniProfiler.SampleClient("PuppetPlayer._Process");
-		if (_visual == null || _buf.Count == 0) return;
+		if (_buf.Count == 0) return;
 
-		// Failsafe: if 5s passed since spawn AND _visual is still hidden, force-reveal.
-		// Catches edge cases where the WorldReady snapshot bit never arrives (server-agent
-		// bots have it set at spawn, but stale players from before the feature deployment
-		// or net-glitched clients might not). Better to show a body 5s late than to leave
-		// the player permanently invisible to peers.
-		if (!_visual.Visible
+		if (!Visible
 			&& Time.GetTicksUsec() - _visualHiddenSinceUsec > VisualRevealFailsafeUsec)
 		{
-			_visual.Visible = true;
+			Visible = true;
 			Dbg.Print($"[PuppetPlayer netId={NetId}] WorldReady-failsafe → TPS revealed after 5s grace");
 		}
 
@@ -514,11 +447,6 @@ public partial class PuppetPlayer : Node3D
 
 		int effectiveDelay = ComputeEffectiveInterpDelay(tickDt, (float)delta);
 
-		// Compute the raw "target" render-tick and feed it into a smoothed virtual clock.
-		// Anchoring the renderTick to LastSnapshotServerTick + ticksSinceLast directly causes
-		// micro-snaps every time inter-arrival jitter pushes a snapshot ±1 ms off its expected
-		// cadence — visible as per-snapshot positional twitch on remote players. The virtual
-		// clock advances at constant delta × tickRate and only nudges toward the target.
 		float targetRenderTickF = (float)client.LastSnapshotServerTick - effectiveDelay + ticksSinceLast;
 		if (targetRenderTickF < 0f) targetRenderTickF = 0f;
 		float renderTickF;
@@ -533,7 +461,6 @@ public partial class PuppetPlayer : Node3D
 			float drift = targetRenderTickF - _renderClockTickF;
 			if (Mathf.Abs(drift) > RenderClockResnapTicks)
 			{
-				// Real network event (hitch, packet burst, large RTT shift) — hard-resync.
 				_renderClockTickF = targetRenderTickF;
 			}
 			else
@@ -584,9 +511,6 @@ public partial class PuppetPlayer : Node3D
 		}
 		else if (_lastBracketedAnglesValid)
 		{
-			// Hold the last bracketed orientation during extrapolation. Snapping to A.Yaw (= B.Yaw =
-			// newest snapshot) here would jump the head/aim direction relative to what we just
-			// rendered last frame — exactly the head-twitch users perceive as "lag".
 			viewYaw = _lastBracketedYaw;
 			viewPitch = _lastBracketedPitch;
 		}
@@ -612,19 +536,15 @@ public partial class PuppetPlayer : Node3D
 		if (Mathf.Abs(postTwist) > MaxTwistRad)
 			_puppetBodyYaw = viewYaw - Mathf.Sign(postTwist) * MaxTwistRad;
 
-		// Coalesce the visual root's position + body-yaw into a single GlobalTransform write.
-		// Previously: GlobalPosition setter (1 interop) + Rotation getter (1) + Rotation setter (1)
-		// + HeadPitch.Rotation getter+setter (2) = 5 interops per puppet per frame. Now we build
-		// the basis from a single yaw rotation (= column-2 only) and write once.
 		float bodyYawCos = Mathf.Cos(_puppetBodyYaw);
 		float bodyYawSin = Mathf.Sin(_puppetBodyYaw);
 		var bodyBasis = new Basis(
 			new Vector3(bodyYawCos, 0f, -bodyYawSin),
 			new Vector3(0f, 1f, 0f),
 			new Vector3(bodyYawSin, 0f, bodyYawCos));
-		_visual.GlobalTransform = new Transform3D(bodyBasis, pos);
+		GlobalTransform = new Transform3D(bodyBasis, pos);
 
-		if (_visual.HeadPitch != null)
+		if (HeadPitch != null)
 		{
 			float pitchCos = Mathf.Cos(viewPitch);
 			float pitchSin = Mathf.Sin(viewPitch);
@@ -632,21 +552,17 @@ public partial class PuppetPlayer : Node3D
 				new Vector3(1f, 0f, 0f),
 				new Vector3(0f, pitchCos, pitchSin),
 				new Vector3(0f, -pitchSin, pitchCos));
-			var headXform = _visual.HeadPitch.Transform;
+			var headXform = HeadPitch.Transform;
 			headXform.Basis = pitchBasis;
-			_visual.HeadPitch.Transform = headXform;
+			HeadPitch.Transform = headXform;
 		}
 
 		float spineTwist = Mathf.Wrap(viewYaw - _puppetBodyYaw, -Mathf.Pi, Mathf.Pi);
-		_visual.PuppetSpineTwist = Mathf.Clamp(spineTwist, -MaxTwistRad, MaxTwistRad);
+		PuppetSpineTwist = Mathf.Clamp(spineTwist, -MaxTwistRad, MaxTwistRad);
 
-		var mc = _visual.Movement;
-		// Interpolate animation blends just like position/yaw — snapping every frame to
-		// snapshot-B's value caused visible "staircase" stepping in crouch/ADS transitions
-		// and aim-punch flicker on remote players. AimPunch is dequantised from byte before
-		// the lerp so the linear interp doesn't quantise twice.
+		var mc = Movement;
 		mc.Velocity = (A.Snap.Vel.Lerp(B.Snap.Vel, t));
-		_visual.Velocity = mc.Velocity;
+		Velocity = mc.Velocity;
 		mc.AdsBlend = Mathf.Lerp(A.Snap.AdsBlend, B.Snap.AdsBlend, t) / 255f;
 		mc.CrouchBlend = Mathf.Lerp(A.Snap.CrouchBlend, B.Snap.CrouchBlend, t) / 255f;
 		mc.WeaponRaiseBlend = Mathf.Lerp(A.Snap.RaiseBlend, B.Snap.RaiseBlend, t) / 255f;
@@ -656,18 +572,15 @@ public partial class PuppetPlayer : Node3D
 		mc.AimPunch = new Vector3(apX, apY, 0f);
 		mc.IsSliding = (B.Snap.Flags & (byte)SnapshotFlags.Sliding) != 0;
 		mc.IsWallClinging = (B.Snap.Flags & (byte)SnapshotFlags.WallClinging) != 0;
-		_visual.PuppetIsAirborne = (B.Snap.Flags & (byte)SnapshotFlags.Airborne) != 0;
-		_visual.PuppetIsSprinting = (B.Snap.Flags & (byte)SnapshotFlags.Sprinting) != 0;
-		_visual.PuppetIsReloading = (B.Snap.Flags & (byte)SnapshotFlags.Reloading) != 0;
-		_visual.PuppetIsInspecting = (B.Snap.Flags & (byte)SnapshotFlags.Inspecting) != 0;
-		_visual.PuppetActiveSlot = B.Snap.ActiveSlot;
+		PuppetIsAirborne = (B.Snap.Flags & (byte)SnapshotFlags.Airborne) != 0;
+		PuppetIsSprinting = (B.Snap.Flags & (byte)SnapshotFlags.Sprinting) != 0;
+		PuppetIsReloading = (B.Snap.Flags & (byte)SnapshotFlags.Reloading) != 0;
+		PuppetIsInspecting = (B.Snap.Flags & (byte)SnapshotFlags.Inspecting) != 0;
+		PuppetActiveSlot = B.Snap.ActiveSlot;
 
-		_visual.UpdateTpsBodyAim();
+		UpdateTpsBodyAim();
+		UpdateTpsMontages();
 
-		// Cache the active camera + its basis ONCE per frame so the LOD tier resolve and the
-		// silhouette frustum check don't each call GetViewport().GetCamera3D() (interop) +
-		// IsPositionInFrustum (×7 interop) for free. Both checks now use a manual half-space
-		// test against the same cached forward / cosFovHalf.
 		Camera3D cam = GetViewport()?.GetCamera3D();
 		Vector3 camPos = Vector3.Zero;
 		Vector3 camForward = -Vector3.Forward;
@@ -685,8 +598,7 @@ public partial class PuppetPlayer : Node3D
 		_lodAnimAccum += (float)delta;
 		if (lodHz > 0f && _lodAnimAccum >= 1f / lodHz)
 		{
-			_visual.UpdateTpsAnimations();
-			_visual.TpsAnimTree?.Advance(_lodAnimAccum);
+			TpsAnimTree?.Advance(_lodAnimAccum);
 			_lodAnimAccum = 0f;
 		}
 		ApplyAimModifierLod();
@@ -703,9 +615,6 @@ public partial class PuppetPlayer : Node3D
 			_lastPushedTeamColorValid = true;
 		}
 
-		// Per-frame frustum gate on the silhouette. Uses the cached camera basis from this frame
-		// and a single manual cone test (capsule-center + radius pad), not 7 separate
-		// IsPositionInFrustum calls — same coverage at ~1/15th the interop cost.
 		if (_glowCurrentlyOn && _glowSilhouette != null && GodotObject.IsInstanceValid(_glowSilhouette))
 		{
 			bool wantVisible = _lodTier != PuppetLodTier.Off
@@ -723,17 +632,13 @@ public partial class PuppetPlayer : Node3D
 	/// <c>IsPositionInFrustum</c> sweep, but a single cone test instead of 7 interop calls.</summary>
 	private bool SilhouetteInFrustumManual(Camera3D cam, Vector3 camPos, Vector3 camForward, float cosFovHalf)
 	{
-		if (cam == null || _visual == null) return true;
-		Vector3 center = _visual.GlobalPosition + new Vector3(0f, _visual.StandHeight * 0.5f, 0f);
+		if (cam == null) return true;
+		Vector3 center = GlobalPosition + new Vector3(0f, StandHeight * 0.5f, 0f);
 		Vector3 toPuppet = center - camPos;
 		float dist = toPuppet.Length();
 		if (dist < 0.0001f) return true; // we're inside the puppet — definitely "visible"
-		// Behind camera AND further than capsule extent → cull.
 		float forwardDist = camForward.Dot(toPuppet);
-		if (forwardDist < -_visual.StandHeight) return false;
-		// Cone test with angular pad ≈ capsuleRadius / forwardDist. Generous: 17° absolute pad
-		// at short range collapses; at long range the radius pad dominates. Result: anything that
-		// would peek into the viewport is conservatively kept visible.
+		if (forwardDist < -StandHeight) return false;
 		float angularPadCos;
 		if (forwardDist <= 0.1f)
 		{
@@ -741,8 +646,7 @@ public partial class PuppetPlayer : Node3D
 		}
 		else
 		{
-			float capR = Mathf.Max(_visual.CapsuleRadius, _visual.StandHeight * 0.5f);
-			// Subtract approximate angular extent of the capsule from cosFovHalf.
+			float capR = Mathf.Max(CapsuleRadius, StandHeight * 0.5f);
 			float angularExtentRad = Mathf.Atan2(capR, forwardDist);
 			angularPadCos = Mathf.Cos(Mathf.Acos(Mathf.Clamp(cosFovHalf, -1f, 1f)) + angularExtentRad);
 		}
@@ -750,13 +654,11 @@ public partial class PuppetPlayer : Node3D
 		return dirDot >= angularPadCos;
 	}
 
-
 	/// <summary>Activates the camera matching the current <see cref="SpectateMode"/>.</summary>
 	private void ApplySpectateMode()
 	{
-		if (_visual == null) return;
-		var fpsCam = _visual.GetNodeOrNull<Camera3D>("head_pitch/fps_camera");
-		var tpsCam = _visual.GetNodeOrNull<Camera3D>("head_pitch/tps_camera");
+		var fpsCam = GetNodeOrNull<Camera3D>("head_pitch/fps_camera");
+		var tpsCam = GetNodeOrNull<Camera3D>("head_pitch/tps_camera");
 		bool wantTps = _spectateMode == SpectateMode.Tps;
 		bool wantFps = _spectateMode == SpectateMode.Fps;
 		if (fpsCam != null) fpsCam.Current = wantFps;
@@ -781,8 +683,8 @@ public partial class PuppetPlayer : Node3D
 	[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 	private PuppetLodTier ResolveLodTierCached(Camera3D cam, Vector3 camPos, Vector3 camForward, float cosFovHalf)
 	{
-		if (cam == null || _visual == null) return PuppetLodTier.Near;
-		Vector3 toPuppet = _visual.GlobalPosition - camPos;
+		if (cam == null) return PuppetLodTier.Near;
+		Vector3 toPuppet = GlobalPosition - camPos;
 		float dist = toPuppet.Length();
 		bool inFrustum = true;
 		if (dist > LodNearMaxDist)
@@ -806,9 +708,7 @@ public partial class PuppetPlayer : Node3D
 		if (!_aimModifierLookupDone)
 		{
 			_aimModifierLookupDone = true;
-			if (_visual != null)
-				foreach (Node n in _visual.FindChildren("*", "TpsAimModifier", true, false))
-					if (n is TpsAimModifier mod) { _cachedAimModifier = mod; break; }
+				_cachedAimModifier = AimModifier;
 		}
 		if (_cachedAimModifier == null) return;
 		bool wantActive = _lodTier != PuppetLodTier.Off;
@@ -832,13 +732,13 @@ public partial class PuppetPlayer : Node3D
 	/// <summary>Caches the spectator third-person camera reference and its rest position on first activation.</summary>
 	private void EnsureSpectateTpsCacheReady()
 	{
-		if (_spectateTpsRestCached || _visual == null) return;
-		_spectateTpsCam = _visual.GetNodeOrNull<Camera3D>("head_pitch/tps_camera");
+		if (_spectateTpsRestCached) return;
+		_spectateTpsCam = GetNodeOrNull<Camera3D>("head_pitch/tps_camera");
 		if (_spectateTpsCam != null)
 		{
 			_spectateTpsRestLocal = _spectateTpsCam.Position;
 			_spectateTpsRestCached = true;
-			_spectateRayQuery = new PhysicsRayQueryParameters3D { CollisionMask = SpectateCollisionMask, Exclude = new Godot.Collections.Array<Rid> { _visual.GetRid() } };
+			_spectateRayQuery = new PhysicsRayQueryParameters3D { CollisionMask = SpectateCollisionMask, Exclude = new Godot.Collections.Array<Rid> { GetRid() } };
 		}
 	}
 
@@ -847,11 +747,11 @@ public partial class PuppetPlayer : Node3D
 	private void UpdateSpectateTpsCollision(float dt)
 	{
 		if (!_spectateTpsRestCached) EnsureSpectateTpsCacheReady();
-		if (!_spectateTpsRestCached || _visual == null) return;
-		var head = _visual.HeadPitch;
+		if (!_spectateTpsRestCached) return;
+		var head = HeadPitch;
 		if (head == null || _spectateTpsCam == null) return;
 
-		var space = _visual.GetWorld3D()?.DirectSpaceState;
+		var space = GetWorld3D()?.DirectSpaceState;
 		if (space == null) return;
 
 		Vector3 worldDesired = head.GlobalTransform * _spectateTpsRestLocal;
@@ -885,17 +785,16 @@ public partial class PuppetPlayer : Node3D
 	public void PlayShot(byte weaponId, Vector3 origin, Vector3 dir, bool tracer,
 		bool hit, Vector3 hitPos, Vector3 hitNormal, string material)
 	{
-		if (_visual == null) return;
 
 		if (tracer)
 		{
 			Vector3 endpoint = hit ? hitPos : origin + dir * 80f;
-			var anim = _visual.WeaponHolder;
-			Color color = anim?.TracerColor ?? new Color(2.5f, 1.6f, 0.5f, 1f);
-			float width = anim?.TracerWidth ?? 0.02f;
-			float speed = anim?.TracerSpeed ?? 80f;
-			float streak = anim?.TracerStreakLength ?? 2f;
-			BulletTracer.Spawn(GetTree(), origin, endpoint, color, width, speed, streak);
+			Vector3 tracerStart = _tpsWeapon?.GetMuzzleWorldPosition() ?? origin;   // from the gun barrel, not the shooter's eye
+			Color color = new Color(2.5f, 1.6f, 0.5f, 1f);
+			float width = 0.02f;
+			float speed = 80f;
+			float streak = 2f;
+			BulletTracer.Spawn(GetTree(), tracerStart, endpoint, color, width, speed, streak);
 		}
 
 		if (hit)
@@ -903,49 +802,52 @@ public partial class PuppetPlayer : Node3D
 			BulletImpactManager.Instance?.Spawn(hitPos, hitNormal, (StringName)(material ?? "default"));
 		}
 
-		float shotLength = hit ? (hitPos - origin).Length() : _visual.HitscanRange;
+		float shotLength = hit ? (hitPos - origin).Length() : HitscanRange;
 		SmokeVoxelField.DisturbAll(origin, dir, shotLength);
 
-		WeaponStats weaponStats = _visual.WeaponHolder?.ActiveWeapon ?? ConVars.Weapons.M4A1;
-		_visual.Audio?.PlayShoot(weaponStats, origin, ReverbEnv.Outdoor);
+		WeaponStats weaponStats = ConVars.Weapons.M4A1;
+		Audio?.PlayShoot(weaponStats, origin, ReverbEnv.Outdoor);
 
-		_visual.TpsAnimTree?.Set(PlayerCore._aFire, (int)AnimationNodeOneShot.OneShotRequest.Fire);
+		if (_lodTier != PuppetLodTier.Off)
+		{
+			_tpsWeapon?.EjectCasing();
+			_tpsWeapon?.MuzzleSmoke();
+		}
 	}
 
 	/// <summary>Reliable-event handler for a remote footstep: plays the spatial audio sample.</summary>
 	public void PlayFootstep(Vector3 pos, string material, byte loudness, bool leftFoot, bool sprinting)
 	{
-		if (_visual?.Audio == null) return;
+		if (Audio == null) return;
 		float loud01 = loudness / 255f;
-		_visual.Audio.PlayStep(pos, (StringName)(material ?? "default"), loud01, inTunnel: false, sprinting);
+		Audio.PlayStep(pos, (StringName)(material ?? "default"), loud01, inTunnel: false, sprinting);
+	}
+
+	/// <summary>Reliable-event handler for a remote empty reload: drops the magazine to the floor from the
+	/// TPS weapon (main world). The local player drops its own mag via the FPS reload-empty montage.</summary>
+	public void PlayDropMag()
+	{
+		if (_lodTier != PuppetLodTier.Off) _tpsWeapon?.DropMagazine();
 	}
 
 	/// <summary>Reliable-event handler for a remote jump: triggers the viewmodel, one-shot animation and audio.</summary>
 	public void PlayJump()
 	{
-		if (_visual == null) return;
-		_visual.WeaponHolder?.TriggerJump(autoLand: false);
-		_visual.TpsAnimTree?.Set(PlayerCore._aJumpStart, (int)AnimationNodeOneShot.OneShotRequest.Fire);
-		if (_visual.Audio != null)
+		if (Audio != null)
 		{
 			var (mat, inTunnel) = ProbeGround();
-			_visual.Audio.PlayJump(_visual.GlobalPosition, mat, 0.75f, inTunnel);
+			Audio.PlayJump(GlobalPosition, mat, 0.75f, inTunnel);
 		}
 	}
 
 	/// <summary>Reliable-event handler for a remote landing: triggers the heavy or light land one-shot.</summary>
 	public void PlayLand(float impactSpeed)
 	{
-		if (_visual == null) return;
-		_visual.WeaponHolder?.TriggerLand(impactSpeed);
-		bool heavy = impactSpeed > _visual.TpsHeavyLandThreshold;
-		StringName param = heavy ? PlayerCore._aJumpLandHeavy : PlayerCore._aJumpLand;
-		_visual.TpsAnimTree?.Set(param, (int)AnimationNodeOneShot.OneShotRequest.Fire);
-		if (_visual.Audio != null && impactSpeed > 1.5f)
+		if (Audio != null && impactSpeed > 1.5f)
 		{
 			float impact01 = Mathf.Clamp((impactSpeed - 1.5f) / 7f, 0f, 1f);
 			var (mat, inTunnel) = ProbeGround();
-			_visual.Audio.PlayLand(_visual.GlobalPosition, mat, impact01, inTunnel);
+			Audio.PlayLand(GlobalPosition, mat, impact01, inTunnel);
 		}
 	}
 
@@ -954,8 +856,7 @@ public partial class PuppetPlayer : Node3D
 	/// excluded from the grenade's raycast so the can doesn't immediately collide with the puppet capsule.</summary>
 	public void SpawnGrenade(byte ownerNetId, uint projectileId, byte grenadeType, Vector3 origin, Vector3 velocity)
 	{
-		if (_visual == null) return;
-		SmokeGrenade.Spawn(_visual.GetParent(), origin, velocity, _visual.GetRid(),
+		SmokeGrenade.Spawn(GetParent(), origin, velocity, GetRid(),
 			ownerNetId: ownerNetId, projectileId: projectileId, isPuppet: true);
 	}
 
@@ -963,10 +864,10 @@ public partial class PuppetPlayer : Node3D
 	/// state as the local player.</summary>
 	private (StringName material, bool inTunnel) ProbeGround()
 	{
-		var space = _visual.GetWorld3D()?.DirectSpaceState;
+		var space = GetWorld3D()?.DirectSpaceState;
 		if (space == null) return ((StringName)"default", false);
-		Vector3 from = _visual.GlobalPosition + Vector3.Up * 0.4f;
-		HitInfo hit = Hitscan.Cast(space, from, Vector3.Down, 1.0f, exclude: _visual.GetRid(), mask: _visual.HitscanMask);
+		Vector3 from = GlobalPosition + Vector3.Up * 0.4f;
+		HitInfo hit = Hitscan.Cast(space, from, Vector3.Down, 1.0f, exclude: GetRid(), mask: HitscanMask);
 		var mat = hit.Hit ? hit.Material : (StringName)"default";
 		bool inTunnel = hit.Hit && hit.Collider != null && hit.Collider.IsInGroup("tunnel");
 		return (mat, inTunnel);

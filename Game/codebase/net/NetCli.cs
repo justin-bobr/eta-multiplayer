@@ -176,5 +176,5 @@ public class NetCli
 
 	/// <summary>Diagnostic string representation listing all parsed CLI fields.</summary>
 	public override string ToString() =>
-		$"Mode={Mode} AutoConnect={AutoConnect} Host={Host} Port={Port} MaxPlayers={MaxPlayers} MaxBots={MaxBots} Name=\"{PlayerName}\" Tick={TickRate} Grace={ReconnectGraceSec}s";
+		$"Mode={Mode} GameMode={GameMode} AutoConnect={AutoConnect} Host={Host} Port={Port} MaxPlayers={MaxPlayers} MaxBots={MaxBots} Name=\"{PlayerName}\" Tick={TickRate} Grace={ReconnectGraceSec}s";
 }

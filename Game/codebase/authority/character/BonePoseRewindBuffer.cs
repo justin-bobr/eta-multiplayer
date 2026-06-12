@@ -1,7 +1,7 @@
 using Godot;
 
 /// <summary>
-/// Bone-Pose-History pro <see cref="ServerBaseCharacter"/>. Speichert pro Tick die <see cref="Transform3D"/>
+/// Bone-Pose-History pro <see cref="NetworkPlayer"/>. Speichert pro Tick die <see cref="Transform3D"/>
 /// aller Hitbox-Nodes (GlobalTransform). Lag-Comp bei RunAuthoritativeHitscan rewindt damit nicht nur
 /// die Body-Position sondern auch die animierten Bone-Positions — sonst trifft ein Schuss in den Kopf
 /// daneben wenn die Server-Animation 1-2 Frames vor/hinter der Client-Animation läuft (gleicher
@@ -21,7 +21,7 @@ public class BonePoseRewindBuffer
 	/// <summary>Reusable result buffer for <see cref="QueryFractional"/> so subtick-fire hitscan does
 	/// not allocate per shot. Sized in <see cref="Init"/>. Safe to share across queries because
 	/// <see cref="Transform3D"/> is a value type: every consumer (the hitscan loop in
-	/// <c>PlayerCore.RunAuthoritativeHitscan</c>) reads the buffer slot into a local struct at use-site,
+	/// <c>ServerPlayer.RunAuthoritativeHitscan</c>) reads the buffer slot into a local struct at use-site,
 	/// so a subsequent <see cref="QueryFractional"/> call that overwrites the buffer cannot disturb a
 	/// previously-issued snapshot. Callers must still consume synchronously — do NOT cache the returned
 	/// reference across frames or hand it to async code.</summary>
