@@ -46,6 +46,14 @@ public partial class WorldCaptureRig : Node3D
 	/// layer 2 (FPS / viewmodel) so the gun doesn't appear in its own reflection cube.</summary>
 	[Export(PropertyHint.Layers3DRender)] public uint CaptureCullMask = 1;
 
+	/// <summary>Frames between single-face updates. 1 = one face/frame (full cube every 6 frames,
+	/// ~10 Hz at 60 fps — most reactive but ~1 extra world-render per frame). Higher = cheaper: 2 =
+	/// full cube every 12 frames (~5 Hz), still smooth because IBL convolution is blurry and the
+	/// player rarely needs sub-100 ms reflection latency on a gun. This rig was a measured 300→30 FPS
+	/// hit when running flat-out, so it is throttled AND gated behind Settings.Reflections.</summary>
+	[Export(PropertyHint.Range, "1,8,1")] public int FaceUpdateInterval = 2;
+	private int _frameAccum;
+
 	private static readonly Vector3[] _faceRotationsDeg = new[]
 	{
 		new Vector3(0, -90, 0),    // +X (yaw right)
@@ -106,6 +114,9 @@ public partial class WorldCaptureRig : Node3D
 	{
 		if (Engine.IsEditorHint()) return;
 		if (AnchorCamera == null) return;
+		// Shares the Reflections graphics toggle with the ReflectionProbes — lets the user kill
+		// the per-frame cube-render cost from the Settings menu if it bites their framerate.
+		if (!Settings.Reflections) return;
 
 		// Position all 6 cube cameras at the player camera's world position. Rotation
 		// remains axis-aligned per face. Done every frame so reflections track the
@@ -117,10 +128,15 @@ public partial class WorldCaptureRig : Node3D
 				_faceCams[i].GlobalPosition = anchorPos;
 		}
 
-		// Round-robin one face per frame. At 60 fps that's a full 6-face refresh every
-		// 100 ms (10 Hz cubemap). The IBL radiance convolution averages enough that
-		// 10 Hz refresh isn't visible as flicker — fast-moving reflections (player turns)
-		// stay smooth because the cubemap covers all directions, only the contents shift.
+		// Round-robin one face every FaceUpdateInterval frames. The IBL radiance convolution
+		// averages enough that a throttled refresh isn't visible as flicker — fast-moving
+		// reflections (player turns) stay smooth because the cubemap covers all directions, only
+		// the contents shift. Throttling keeps the average extra world-render cost well below
+		// one-per-frame.
+		_frameAccum++;
+		if (_frameAccum < FaceUpdateInterval) return;
+		_frameAccum = 0;
+
 		if (_currentFace < Faces.Count && Faces[_currentFace] != null)
 			Faces[_currentFace].RenderTargetUpdateMode = Godot.SubViewport.UpdateMode.Once;
 		_currentFace = (_currentFace + 1) % 6;

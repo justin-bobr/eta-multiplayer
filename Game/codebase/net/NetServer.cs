@@ -23,8 +23,7 @@ public class NetServer
 	private readonly Dictionary<string, PeerState> _disconnectedPool = new();
 	private uint _serverTick;
 	private readonly SpawnManager _spawns = new();
-	private PackedScene _serverPlayerScene;
-	private PackedScene _serverBotScene;
+	private PackedScene _characterScene;
 	private Node3D _playersContainer;
 
 	/// <summary>Spawn points loaded from the map markers.</summary>
@@ -183,9 +182,9 @@ public class NetServer
 	private const int DebugHitboxInterpDelayTicks = 6;
 
 	/// <summary>Broadcasts the rewound hitbox poses of all agents to all peers for visual lag-comp
-	/// verification. <c>vizTick</c> uses <c>_serverTick + 1</c> because PlayerCore._currentTick (the
+	/// verification. <c>vizTick</c> uses <c>_serverTick + 1</c> because NetworkPlayer._currentTick (the
 	/// hitscan frame) sits one ahead of NetServer._serverTick within the same physics frame: Poll()
-	/// increments _serverTick at the END while PlayerCore._PhysicsProcess (which runs after) increments
+	/// increments _serverTick at the END while NetworkPlayer._PhysicsProcess (which runs after) increments
 	/// _currentTick at the START of FixedTick. Without the +1 the visualised tick would trail the
 	/// actual hitscan query tick by one frame — small but visible on fast movement.</summary>
 	private void BroadcastDebugHitboxes()
@@ -206,7 +205,7 @@ public class NetServer
 			foreach (var agentState in AllPeers)
 			{
 				if (agentState == receiverState) continue;
-				if (agentState.ServerAgent is not PlayerCore pc) continue;
+				if (agentState.ServerAgent is not NetworkPlayer pc) continue;
 				var rig = pc.GetHitboxRig();
 				if (rig == null || rig.CollisionShapes.Count == 0) continue;
 
@@ -307,7 +306,7 @@ public class NetServer
 			if (s.ServerAgent == null) continue;
 			Vector3 pos = s.ServerAgent.AuthorityPosition;
 			s.Rewind.Push(_serverTick, pos);
-			if (s.ServerAgent is PlayerCore pc) pc.PushBoneHistory(_serverTick);
+			if (s.ServerAgent is NetworkPlayer pc) pc.PushBoneHistory(_serverTick);
 
 			// Position-delta validation. Catches:
 			//   - physics-engine glitches where MoveAndSlide returns nonsense (>20 m/s sustained)
@@ -342,7 +341,7 @@ public class NetServer
 		}
 	}
 
-	/// <summary>Lookup for ServerAgent → PeerState (e.g. from PlayerCore.HandleHitscan for lag-comp).</summary>
+	/// <summary>Lookup for ServerAgent → PeerState (e.g. from NetworkPlayer.HandleHitscan for lag-comp).</summary>
 	public PeerState GetPeerStateForNetId(byte netId)
 	{
 		_peersByNetId.TryGetValue(netId, out var s);
@@ -413,7 +412,7 @@ public class NetServer
 			if (s.ServerAgent == null) continue;
 			var agent = s.ServerAgent;
 			var mc = agent.Movement;
-			if (agent is PlayerCore agentCore) s.ActiveSlot = (byte)agentCore.ActiveSlot;
+			if (agent is NetworkPlayer agentCore) s.ActiveSlot = (byte)agentCore.ActiveSlot;
 			byte flags = 0;
 			if (mc.IsSliding)          flags |= (byte)SnapshotFlags.Sliding;
 			if (mc.IsAirborne)         flags |= (byte)SnapshotFlags.Airborne;
@@ -431,7 +430,7 @@ public class NetServer
 				Pos = agent.AuthorityPosition,
 				Vel = mc.Velocity,
 				Yaw = agent.Rotation.Y,
-				Pitch = (agent is PlayerCore lc1 && lc1.HeadPitch != null) ? lc1.HeadPitch.Rotation.X : 0f,
+				Pitch = (agent is NetworkPlayer lc1 && lc1.HeadPitch != null) ? lc1.HeadPitch.Rotation.X : 0f,
 				AdsBlend = (byte)Mathf.Clamp(Mathf.RoundToInt(mc.AdsBlend * 255f), 0, 255),
 				CrouchBlend = (byte)Mathf.Clamp(Mathf.RoundToInt(mc.CrouchBlend * 255f), 0, 255),
 				RaiseBlend = (byte)Mathf.Clamp(Mathf.RoundToInt(mc.WeaponRaiseBlend * 255f), 0, 255),
@@ -442,7 +441,7 @@ public class NetServer
 				WeaponId = s.WeaponId,
 				AimPunchX = (sbyte)Mathf.Clamp(Mathf.RoundToInt(mc.AimPunch.X * 16f), -128, 127),
 				AimPunchY = (sbyte)Mathf.Clamp(Mathf.RoundToInt(mc.AimPunch.Y * 16f), -128, 127),
-				FootstepPhase = (ushort)Mathf.Clamp(Mathf.RoundToInt((agent is PlayerCore lc2 ? lc2.FootstepLogic.ContinuousPhase : 0f) / 2f * 65535f), 0, 65535),
+				FootstepPhase = (ushort)Mathf.Clamp(Mathf.RoundToInt((agent is NetworkPlayer lc2 ? lc2.FootstepLogic.ContinuousPhase : 0f) / 2f * 65535f), 0, 65535),
 				Kills = s.Kills,
 				Deaths = s.Deaths,
 				PingMs = (byte)Mathf.Clamp(s.LastPingMs, 0, 255),
@@ -522,9 +521,8 @@ public class NetServer
 		if (Engine.GetMainLoop() is not SceneTree tree) return;
 		if (tree.CurrentScene == null) return;
 		if (tree.CurrentScene.Name != "World") return;
-		// MapCache.Scan must come FIRST: SpawnManager.Scan reads from MapCache.SpawnsForKind for the new
-		// Spawn type. Without this order Spawn nodes don't end up in the spawn pools.
-		MapCache.Scan(tree);
+		// SpawnManager.Scan reads spawns from World.Level (the map's registry), which resolves itself
+		// on map _Ready — no separate cache scan needed here.
 		_spawns.Scan(tree);
 		// Settings.Apply call removed: on dedicated server it's a no-op (Settings.Apply early-returns
 		// for NetMode.Server because every branch targets rendering/input which the headless server
@@ -1215,7 +1213,7 @@ public class NetServer
 			};
 			// Seed the wander AI with the spawn pose so its very first Tick has a sensible target.
 			// UpdateBotInputs in Poll() then overwrites NetInputSource each server tick.
-			if (bot.ServerAgent is ServerBotPlayer botBody)
+			if (bot.ServerAgent is NetworkPlayer botBody)
 				botBody.BotController.Init(spawnPos, spawnYaw, _serverTick);
 		}
 
@@ -1245,7 +1243,7 @@ public class NetServer
 
 	/// <summary>Per-tick AI driver for all bots. Runs in <see cref="Poll"/> right BEFORE
 	/// <c>FeedInputsToAgents</c> so the next physics step picks up the fresh InputPacket via
-	/// <see cref="ServerBaseCharacter.NetInputSource"/>. Skips dead/frozen bots so a respawning
+	/// <see cref="NetworkPlayer.NetInputSource"/>. Skips dead/frozen bots so a respawning
 	/// bot doesn't try to walk while it's in the death-collision-zeroed state. Bots whose body
 	/// isn't a ServerBotPlayer (defensive: shouldn't happen) are also skipped to avoid a cast
 	/// crash. Passes the world's physics space + an obstacle mask (world geometry bit 0 + server-
@@ -1254,18 +1252,20 @@ public class NetServer
 	/// <see cref="_botTargetCandidates"/> and BotController pools its raycast query + result.</summary>
 	private const uint BotProbeMask = 1u | (1u << 4);
 	/// <summary>Reused list of Zone / BombSpot centres handed to the bot controller as the pool of
-	/// long-range targets. Rebuilt only when its size changes (rare — only on map reload after a
-	/// <see cref="MapCache.Scan"/>). The list backs <see cref="BotController.RequestNavPath"/>; each
-	/// nav-path query picks a random entry as the destination.</summary>
+	/// long-range targets. Rebuilt only when its size changes (rare — only on map reload). The list backs
+	/// <see cref="BotController.RequestNavPath"/>; each nav-path query picks a random entry as the
+	/// destination.</summary>
 	private readonly List<Vector3> _botTargetCandidates = new();
 
 	private IReadOnlyList<Vector3> ResolveBotTargets()
 	{
-		int expected = MapCache.Zones.Count + MapCache.BombSpots.Count;
+		var level = World.Level;
+		if (level == null) return _botTargetCandidates;
+		int expected = level.Zones.Count + level.BombSpots.Count;
 		if (_botTargetCandidates.Count == expected && expected > 0) return _botTargetCandidates;
 		_botTargetCandidates.Clear();
-		foreach (var z in MapCache.Zones) _botTargetCandidates.Add(z.GlobalPosition);
-		foreach (var bs in MapCache.BombSpots) _botTargetCandidates.Add(bs.GlobalPosition);
+		foreach (var z in level.Zones) _botTargetCandidates.Add(z.GlobalPosition);
+		foreach (var bs in level.BombSpots) _botTargetCandidates.Add(bs.GlobalPosition);
 		return _botTargetCandidates;
 	}
 
@@ -1280,7 +1280,7 @@ public class NetServer
 			if (bot.PendingRemoval) continue;
 			var agent = bot.ServerAgent;
 			if (agent == null || agent.IsDead || agent.IsFrozen) continue;
-			if (agent is not ServerBotPlayer botBody) continue;
+			if (agent is not NetworkPlayer botBody) continue;
 			// Get space + nav map from the bot's OWN World3D — guaranteed valid as long as the body
 			// is in the tree. The NavigationMap RID is set when a NavigationRegion3D is baked into
 			// the world scene; an invalid RID means no NavMesh is set up and the bot just stands.
@@ -1296,7 +1296,7 @@ public class NetServer
 				SelfBodyRid = agent.GetRid(),
 				Difficulty = difficulty,
 				TickRate = tickRate,
-				NeedsReload = (agent is PlayerCore pc) && pc.NeedsReload,
+				NeedsReload = (agent is NetworkPlayer pc) && pc.NeedsReload,
 			};
 			agent.NetInputSource = botBody.BotController.Tick(_serverTick, pos, navMap, targets, space, BotProbeMask, combat);
 		}
@@ -1487,18 +1487,15 @@ public class NetServer
 			GD.PushError("[NetServer] World/Players Node3D missing in world.tscn — cannot spawn ServerAgent");
 			return;
 		}
-		PackedScene scene;
-		if (state.IsBot)
-			scene = _serverBotScene ??= GD.Load<PackedScene>("res://character/server_bot_player.tscn");
-		else
-			scene = _serverPlayerScene ??= GD.Load<PackedScene>("res://character/server_player.tscn");
+		PackedScene scene = _characterScene ??= GD.Load<PackedScene>("res://character/server_player.tscn");
 		if (scene == null)
 		{
-			GD.PushError($"[NetServer] Character scene could not be loaded (IsBot={state.IsBot})");
+			GD.PushError("[NetServer] server_player.tscn could not be loaded");
 			return;
 		}
 
-		var inst = scene.Instantiate<PlayerCore>();
+		var inst = scene.Instantiate<NetworkPlayer>();
+		inst.CurrentGameMode = PresentationMode.Server;
 		inst.NetId = state.NetId;
 		inst.Name = $"sv_agent_{state.NetId}";
 		inst.Position = state.SpawnPos;
@@ -1658,6 +1655,16 @@ public class NetServer
 		BroadcastWithFoW(writer, netId, pos, DeliveryMethod.ReliableOrdered, ChannelReliable);
 	}
 
+	/// <summary>Broadcasts an empty-reload event so every other client drops the player's magazine to the
+	/// floor from its TPS weapon. Gated by Fog-of-War from the reloading player's position.</summary>
+	public void BroadcastDropMag(byte netId)
+	{
+		var writer = Packets.WriteDropMag(netId);
+		var s = GetPeerStateForNetId(netId);
+		Vector3 pos = s?.ServerAgent != null ? s.ServerAgent.AuthorityPosition : Vector3.Zero;
+		BroadcastWithFoW(writer, netId, pos, DeliveryMethod.ReliableOrdered, ChannelReliable);
+	}
+
 	/// <summary>Broadcasts a landing event with impact speed for puppet audio playback. Gated by
 	/// Fog-of-War from the landing player's position.</summary>
 	public void BroadcastLand(byte netId, float impactSpeed)
@@ -1695,7 +1702,7 @@ public class NetServer
 		if (s.ServerAgent != null)
 		{
 			s.ServerAgent.IsDead = true;
-			if (s.ServerAgent is PlayerCore lcDeath) lcDeath.CanFire = false;
+			if (s.ServerAgent is NetworkPlayer lcDeath) lcDeath.CanFire = false;
 		}
 		if (s.Deaths < byte.MaxValue) s.Deaths++;
 		if (attackerNetId != 0 && attackerNetId != victimNetId)
@@ -1774,10 +1781,10 @@ public class NetServer
 		s.HasValidatedPos = false;
 		agent.Movement.Stamina = ConVars.Sv.MaxStamina;
 		agent.Movement.ResetSpawnConsumables();
-		if (agent is PlayerCore lcRespawn)
+		if (agent is NetworkPlayer lcRespawn)
 		{
 			lcRespawn.CanFire = true;
-			lcRespawn.Movement.InitializeAmmo(lcRespawn.WeaponHolder?.ActiveWeapon);
+			lcRespawn.Movement.InitializeAmmo(ConVars.Weapons.M4A1);
 			lcRespawn.ResetInterpToCurrentPos();
 		}
 		s.Rewind.Clear();
@@ -1842,7 +1849,7 @@ public class PeerState
 	/// <summary>True once auto-kick has fired — prevents repeated kicks while disconnect propagates.</summary>
 	public bool AntiCheatKicked;
 
-	public ServerBaseCharacter ServerAgent;
+	public NetworkPlayer ServerAgent;
 
 	public RewindBuffer Rewind = new();
 	public int LastPingMs;

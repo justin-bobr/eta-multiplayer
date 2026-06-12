@@ -30,7 +30,7 @@ public partial class PushableObject : RigidBody3D
 	[Export] public string PromptText = "Schieben";
 	[Export] public int PromptFontSize = 26;
 
-	private PlayerCore _player;
+	private NetworkPlayer _player;
 	private float _charge;
 	private Vector3 _startPos;
 	private bool _hasStart;
@@ -85,7 +85,7 @@ public partial class PushableObject : RigidBody3D
 		Vector3 pushWorld = (GlobalTransform.Basis * PushDirection).Normalized();
 		if (pushWorld.LengthSquared() < 0.0001f) return;
 
-		PlayerCore player = ResolvePlayer();
+		NetworkPlayer player = ResolvePlayer();
 		float traveled = _hasStart ? (GlobalPosition - _startPos).Length() : 0f;
 		bool atLimit = MaxPushDistance > 0f && traveled >= MaxPushDistance;
 
@@ -121,7 +121,7 @@ public partial class PushableObject : RigidBody3D
 	}
 
 	/// <summary>Diagnostic helper: lists each slide collision of the player along with its dot to PushDirection.</summary>
-	private string DescribeContacts(PlayerCore p, Vector3 pushWorld)
+	private string DescribeContacts(NetworkPlayer p, Vector3 pushWorld)
 	{
 		int n = p.GetSlideCollisionCount();
 		if (n == 0) return "no slide-contacts (player not pressing against anything)";
@@ -140,7 +140,7 @@ public partial class PushableObject : RigidBody3D
 	}
 
 	/// <summary>True when the player holds the push action and presses against this body along PushDirection.</summary>
-	private bool IsBeingPushed(PlayerCore p, Vector3 pushWorld)
+	private bool IsBeingPushed(NetworkPlayer p, Vector3 pushWorld)
 	{
 		if (p == null || !Input.IsActionPressed(PushAction)) return false;
 
@@ -155,7 +155,7 @@ public partial class PushableObject : RigidBody3D
 	}
 
 	/// <summary>Shows the 2D hint when the player is close enough behind the object.</summary>
-	private void UpdatePrompt(PlayerCore p, Vector3 pushWorld, bool atLimit)
+	private void UpdatePrompt(NetworkPlayer p, Vector3 pushWorld, bool atLimit)
 	{
 		bool near = false;
 		if (p != null && !atLimit)
@@ -253,21 +253,21 @@ public partial class PushableObject : RigidBody3D
 	}
 
 	/// <summary>Looks up the local player once via a tree search and caches the reference.</summary>
-	private PlayerCore ResolvePlayer()
+	private NetworkPlayer ResolvePlayer()
 	{
 		if (_player != null && IsInstanceValid(_player)) return _player;
-		_player = FindPlayerCore(GetTree()?.Root);
+		_player = FindNetworkPlayer(GetTree()?.Root);
 		return _player;
 	}
 
-	/// <summary>Recursive depth-first search returning the first PlayerCore under <paramref name="n"/>.</summary>
-	private static PlayerCore FindPlayerCore(Node n)
+	/// <summary>Recursive depth-first search returning the first NetworkPlayer under <paramref name="n"/>.</summary>
+	private static NetworkPlayer FindNetworkPlayer(Node n)
 	{
 		if (n == null) return null;
-		if (n is PlayerCore lc) return lc;
+		if (n is NetworkPlayer lc) return lc;
 		foreach (Node c in n.GetChildren())
 		{
-			PlayerCore r = FindPlayerCore(c);
+			NetworkPlayer r = FindNetworkPlayer(c);
 			if (r != null) return r;
 		}
 		return null;

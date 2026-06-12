@@ -203,11 +203,6 @@ public class SvConVars
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)]
 public class ClConVars
 {
-	// === Debug-Visualization Toggle (lokal, kein Server-Roundtrip) ===
-	/// <summary>Grüne Wireframes um die LOKALEN Puppet-Hitboxen (= an der interpolierten Animation-Pose).
-	/// Pure client-side, no server involvement.</summary>
-	public bool DebugHitbox = false;
-
 	/// <summary>Toggle <see cref="HudMiniProfiler"/> Overlay — zeigt NUR Samples > <see cref="ProfilerThresholdMs"/>.
 	/// Warnings bleiben sticky für ~2 Sekunden damit lesbar. GD.Print bei jedem neuen Warning.</summary>
 	public bool Profiler = false;
@@ -257,7 +252,7 @@ public class ClConVars
 	/// feels visibly delayed and competitive play suffers.</summary>
 	public int InterpMaxTicks = 12;
 
-	public float Fov = 90.0f;
+	public float Fov = 100.0f;
 	public float FovBoost = 6.0f;
 	public float CameraSwayMul = 0.15f;
 	public float FovBlendSpeed = 6.0f;

@@ -1,7 +1,7 @@
 using Godot;
 
 /// <summary>
-/// Ring buffer of local prediction states. One entry is pushed per <see cref="PlayerCore.FixedTick"/>
+/// Ring buffer of local prediction states. One entry is pushed per <see cref="NetworkPlayer.FixedTick"/>
 /// containing the post-step <see cref="MovementSnapshot"/> and position. When the server sends an
 /// authoritative snapshot with <c>ackedInputTick = N</c>, the stored position at tick N is compared
 /// against the server position at tick N to compute the mispredict drift.

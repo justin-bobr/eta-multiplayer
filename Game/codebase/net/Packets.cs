@@ -19,36 +19,29 @@ using LiteNetLib.Utils;
 public static class Packets
 {
 	/// <summary>Current protocol version. Bump when the wire format changes incompatibly.
-	/// v2: Snapshot Pos/Vel are cm-quantised int16 (instead of float Vec3). Material in
-	/// ShotFired/Footstep is a byte id instead of a string (see <see cref="MaterialNames"/>).
-	/// v3: Delta-Baseline Snapshot Compression — Snapshot trägt jetzt baselineTick + per-Player
-	/// fieldMask, schickt nur veränderte Felder. Input-Packet trägt ackedSnapshotTick (uint,
-	/// vorher byte ackDelta) damit Server die letzte ACK'd Baseline pro Peer kennt.
-	/// v4: Input-Redundancy — Input-Packet trägt jetzt inputCount + ackedSnapshotTick (hoisted
-	/// aus dem Body) + N input bodies. Client sendet die letzten <see cref="MaxInputRedundancy"/>
-	/// Inputs in jedem Packet damit Single-Packet-Loss keine Edge-triggered Intents (Jump, Reload)
-	/// killt. Server dedupliziert per tickIndex.
-	/// v5: Subtick fire-timing — Input body trägt zusätzlich 1 Byte FireSubTick (Quantisierung
-	/// 1/256-Tick = ~30µs bei 128Hz), das den Sub-Tick-Zeitpunkt des Fire-Press-Edges encoded.
-	/// Server-Hitscan rewindt Lag-Comp auf fraktionalen Tick → eliminiert tick-aliasing bei Duellen.
-	/// v6: Subtick movement — Input body trägt zusätzlich InitialBits (ushort) + Q-InitialYaw/Pitch
-	/// (2× ushort) + EventCount (byte) + N × 7-Byte SubtickEvent (TQ-Byte + StateAfter-ushort +
-	/// QYaw-ushort + QPitch-ushort). Server replays Tick als Sub-Segmente durch MovementController.Step.
-	/// Counter-strafe, Jump-Edges, Crouch-Timing landen auf 1/256-Tick statt 60Hz-quantisiert.</summary>
+	/// v2: snapshot Pos/Vel are cm-quantised int16; ShotFired/Footstep material is a byte id, not a string.
+	/// v3: delta-baseline snapshot compression — snapshot carries baselineTick + per-player field mask and
+	/// sends only changed fields; the input packet carries ackedSnapshotTick so the server knows each peer's
+	/// last ACK'd baseline.
+	/// v4: input redundancy — input packet carries inputCount + ackedSnapshotTick (hoisted) + N bodies; the
+	/// client repeats its last <see cref="MaxInputRedundancy"/> inputs so a single drop can't kill an
+	/// edge-triggered intent (Jump, Reload). Server dedupes by tickIndex.
+	/// v5: subtick fire-timing — input body adds a FireSubTick byte (1/256-tick ≈ 30 µs at 128 Hz) encoding the
+	/// sub-tick moment of the fire-press edge; the server rewinds lag-comp to the fractional tick.
+	/// v6: subtick movement — input body adds InitialBits + quantised initial yaw/pitch + EventCount + N×7-byte
+	/// SubtickEvent; the server replays the tick as sub-segments through MovementController.Step.</summary>
 	public const ushort ProtocolVersion = 6;
 
-	/// <summary>Hard wire-cap auf Subtick-Events pro Input-Body. Muss synchron sein mit
-	/// <c>PlayerCore.MaxSubtickEventsPerTick</c>; server lehnt höhere Counts ab (Cheat-Schutz +
-	/// Bandbreiten-Schutz: 16 × 7B = 112B max pro Body).</summary>
+	/// <summary>Hard wire cap on subtick events per input body. Must match <c>NetworkPlayer.MaxSubtickEventsPerTick</c>;
+	/// the server rejects higher counts (cheat + bandwidth guard: 16 × 7 B = 112 B max per body).</summary>
 	public const int MaxSubtickEventsWire = 16;
 
-	/// <summary>Maximale Anzahl Inputs die in einem Input-Packet redundant gebündelt sind. 3 deckt
-	/// 2 aufeinanderfolgende Packet-Drops ab. Mehr bringt diminishing returns + frisst MTU.</summary>
+	/// <summary>How many inputs are bundled redundantly per input packet. 3 covers 2 consecutive packet drops;
+	/// more has diminishing returns and eats MTU.</summary>
 	public const int MaxInputRedundancy = 3;
 
-	/// <summary>Sentinel-Tick für "keine Baseline" — Snapshot ist ein Full-Send, oder Client hat
-	/// noch nichts empfangen. Server beginnt bei Tick 1 damit Tick 0 nie ein valider Snapshot-Tick
-	/// ist und der Sentinel niemals mit einem echten Tick kollidiert.</summary>
+	/// <summary>Sentinel tick for "no baseline" — a full snapshot, or the client has received nothing yet. The
+	/// server starts at tick 1 so tick 0 is never a valid snapshot tick and the sentinel can't collide.</summary>
 	public const uint NoBaselineTick = 0u;
 
 	private static readonly string[] MaterialNames = new[]
@@ -276,52 +269,10 @@ public static class Packets
 	/// <summary>Restores a pitch angle in radians from its ushort quantisation.</summary>
 	public static float DequantizePitch(ushort q) => (q / 65535f) * Mathf.Pi - HalfPi;
 
-	/// <summary>Pre-quantisierte Form eines einzelnen Subtick-Events. 7 Bytes auf der Wire.
-	/// TQ = TFraction × 256 (clamp 0..255), StateAfter = InputBits-Bitmask AFTER this event,
-	/// QYaw/QPitch = view at this event quantised same as the top-level fields.</summary>
-	public struct SubtickEventEncoded
-	{
-		public byte TQ;
-		public ushort StateAfter;
-		public ushort QYaw;
-		public ushort QPitch;
-	}
-
-	/// <summary>Pre-quantisierte Form eines client-erzeugten Input-Frames für den Redundancy-Ring auf
-	/// NetClient. Quantisierung passiert beim Pushen (einmal), nicht beim Senden (3x bei voller
-	/// Redundancy). Spart pro Tick ~5 µs CPU.</summary>
-	public struct EncodedInput
-	{
-		public uint TickIndex;
-		public ushort QYaw;
-		public ushort QPitch;
-		public short QWishX;
-		public short QWishZ;
-		public byte Flags1;
-		public byte Flags2;
-		/// <summary>Sub-tick fire-press offset (0..255 → 0..0.996 of a tick). Only meaningful when
-		/// <see cref="Flags1"/> bit 7 (firePressed) is set; otherwise 0. Captures the wallclock fraction
-		/// at which the fire-press edge occurred within the client's current tick, so the server can
-		/// rewind lag-comp to a fractional tick instead of snapping to a tick boundary.</summary>
-		public byte FireSubTick;
-		/// <summary>InputBits at the start of the tick (= state at t=0). Used by server replay to seed the
-		/// subtick driver before the first event. 0 on legacy non-subtick paths.</summary>
-		public ushort InitialBits;
-		public ushort QInitialYaw;
-		public ushort QInitialPitch;
-		/// <summary>Number of valid entries in <see cref="Events"/>. 0 = no subtick events on this tick →
-		/// server takes the legacy single-segment path (no behavioural diff). Capped at <see cref="MaxSubtickEventsWire"/>.</summary>
-		public byte EventCount;
-		/// <summary>Subtick event array, length == EventCount. Null when EventCount = 0 (most ticks).</summary>
-		public SubtickEventEncoded[] Events;
-	}
-
-	/// <summary>Quantisiert + verpackt einen frisch gesampelten Input in eine wire-ready Form. Inkludiert
-	/// die Subtick-Events aus <see cref="MovementInput.Events"/> falls vorhanden — diese werden 1:1
-	/// quantisiert (TQ = TFraction×256, yaw/pitch über die Standard-Quantisierer) und in
-	/// <see cref="EncodedInput.Events"/> kopiert. EventCount wird auf <see cref="MaxSubtickEventsWire"/>
-	/// gecappt; überzählige Events werden droppt (held-state via <see cref="MovementInput.WishDir"/> /
-	/// Flags bleibt korrekt, nur die in-Tick-Reihenfolge der gedroppten ist verloren).</summary>
+	/// <summary>Quantises + packs a freshly sampled input into wire-ready form, including the subtick events
+	/// from <see cref="MovementInput.Events"/> (quantised 1:1 into <see cref="EncodedInput.Events"/>).
+	/// EventCount is capped at <see cref="MaxSubtickEventsWire"/>; surplus events are dropped — held state via
+	/// WishDir / flags stays correct, only the in-tick ordering of the dropped events is lost.</summary>
 	public static EncodedInput EncodeInput(uint tickIndex, in MovementInput mi,
 		bool firePressed, bool reloadPressed, bool inspectPressed, bool slotIsGrenade,
 		byte fireSubTick)
@@ -377,11 +328,9 @@ public static class Packets
 		};
 	}
 
-	/// <summary>Schreibt ein komplettes Input-Packet mit Header + N Input-Bodies in einen pre-
-	/// allokierten Writer. Layout: [type|count|ackedSnapshotTick|N×body]. ackedSnapshotTick ist
-	/// einmal-pro-Packet (gilt für alle Inputs, der Wert ist sowieso identisch). Inputs werden in
-	/// chronologischer Reihenfolge (oldest → newest) erwartet damit der Server sequenziell
-	/// deduplizieren kann.</summary>
+	/// <summary>Writes a full input packet (header + N bodies) into a pre-allocated writer. Layout:
+	/// [type|count|ackedSnapshotTick|N×body]. ackedSnapshotTick is once-per-packet (identical for all inputs).
+	/// Inputs are expected oldest → newest so the server can dedupe sequentially.</summary>
 	public static void WriteInputPacketInto(NetDataWriter w, uint ackedSnapshotTick,
 		EncodedInput[] inputs, int oldestIndex, int count)
 	{
@@ -403,7 +352,6 @@ public static class Packets
 		w.Put(e.Flags1);
 		w.Put(e.Flags2);
 		w.Put(e.FireSubTick);
-		// v6 subtick payload
 		w.Put(e.InitialBits);
 		w.Put(e.QInitialYaw);
 		w.Put(e.QInitialPitch);
@@ -418,7 +366,7 @@ public static class Packets
 		}
 	}
 
-	/// <summary>Reads the input-packet header (count + ackedSnapshotTick). Caller iteriert dann
+	/// <summary>Reads the input-packet header (count + ackedSnapshotTick). The caller then iterates
 	/// <paramref name="count"/>× <see cref="ReadInputBody"/>.</summary>
 	public static void ReadInputHeader(NetPacketReader r, out byte count, out uint ackedSnapshotTick)
 	{
@@ -490,12 +438,12 @@ public static class Packets
 		}
 	}
 
-	/// <summary>Schreibt ein Snapshot-Packet mit Delta-Baseline-Compression in einen pre-allokierten
-	/// Writer. <paramref name="baselineTick"/> = <see cref="NoBaselineTick"/> erzwingt Full-Snapshot
-	/// (alle Player-Blocks mit Mask=All); sonst wird per Player gegen den passenden Eintrag in
-	/// <paramref name="baselinePlayers"/> deltat (nur veränderte Feldgruppen on-wire). Caller sorgt
-	/// dafür dass <paramref name="baselinePlayers"/>/<paramref name="baselineCount"/> der tatsächlichen
-	/// Baseline (gleiche PVS-Sicht) entspricht.</summary>
+	/// <summary>Writes a delta-baseline-compressed snapshot packet into a pre-allocated writer.
+	/// <paramref name="baselineTick"/> = <see cref="NoBaselineTick"/> forces a full snapshot (every player
+	/// block with mask = All); otherwise each player is delta'd against the matching entry in
+	/// <paramref name="baselinePlayers"/> (only changed field groups on the wire). The caller must ensure
+	/// <paramref name="baselinePlayers"/>/<paramref name="baselineCount"/> matches the actual baseline (same
+	/// PVS view).</summary>
 	public static void WriteSnapshotInto(NetDataWriter w, uint serverTick, uint ackedInputTick,
 		uint baselineTick,
 		System.Collections.Generic.IReadOnlyList<SnapshotPlayer> players,
@@ -537,16 +485,16 @@ public static class Packets
 		}
 	}
 
-	/// <summary>Vergleicht alle Felder von <paramref name="cur"/> gegen <paramref name="baseline"/> und
-	/// returnt die Bitmaske der Feldgruppen die sich geändert haben. Aufgerufen pro Player pro Snapshot
-	/// auf dem Server — Hot-Path, daher kein LINQ + struct-by-ref.</summary>
+	/// <summary>Compares every field of <paramref name="cur"/> against <paramref name="baseline"/> and returns
+	/// the bitmask of the field groups that changed. Called per player per snapshot on the server — hot path,
+	/// so no LINQ + struct-by-ref.</summary>
 	private static SnapshotFieldFlags ComputeFieldMask(in SnapshotPlayer cur, in SnapshotPlayer baseline)
 	{
 		SnapshotFieldFlags m = SnapshotFieldFlags.None;
 		if (cur.Flags != baseline.Flags) m |= SnapshotFieldFlags.Flags;
 		if (cur.Pos != baseline.Pos || cur.Vel != baseline.Vel) m |= SnapshotFieldFlags.Movement;
-		// View vergleichen auf den QUANTISIERTEN Werten — sonst senden wir ständig wegen float-noise
-		// auf Yaw/Pitch obwohl on-wire dasselbe rauskommt. Spart auf idle-Aim ~4 Byte/Player/Tick.
+		// Compare view on the QUANTISED values — otherwise float noise on yaw/pitch resends constantly even
+		// though the wire bytes are identical. Saves ~4 B/player/tick while aiming idle.
 		if (QuantizeYaw(cur.Yaw) != QuantizeYaw(baseline.Yaw) || QuantizePitch(cur.Pitch) != QuantizePitch(baseline.Pitch))
 			m |= SnapshotFieldFlags.View;
 		if (cur.AdsBlend != baseline.AdsBlend || cur.CrouchBlend != baseline.CrouchBlend || cur.RaiseBlend != baseline.RaiseBlend)
@@ -563,8 +511,8 @@ public static class Packets
 		return m;
 	}
 
-	/// <summary>Linear-Scan über die Baseline-Player für NetId-Lookup. n≤16 in der Praxis — kein
-	/// Bedarf für Dictionary mit dem Allocation-Overhead.</summary>
+	/// <summary>Linear scan over the baseline players for a NetId lookup. n ≤ 16 in practice — no need for a
+	/// dictionary and its allocation overhead.</summary>
 	private static bool TryFindBaselinePlayer(SnapshotPlayer[] baseline, int count, byte netId, out SnapshotPlayer found)
 	{
 		for (int i = 0; i < count; i++)
@@ -575,11 +523,10 @@ public static class Packets
 		return false;
 	}
 
-	/// <summary>Liest ein Delta-Snapshot-Packet. Caller liefert eine Baseline-Lookup-Funktion die für
-	/// einen gegebenen Tick die Baseline-Spielerliste returnt (oder null wenn nicht in History). Wenn
-	/// <c>baselineTick == <see cref="NoBaselineTick"/></c> ist es ein Full-Snapshot — Baseline wird
-	/// nicht abgefragt. Wenn die Baseline gebraucht aber nicht da ist, returnt die Funktion <c>false</c>
-	/// (= packet droppen + nicht ack'en).</summary>
+	/// <summary>Reads a delta-snapshot packet. The caller supplies a baseline-lookup that returns the baseline
+	/// player list for a given tick (or null if not in history). When <c>baselineTick == <see cref="NoBaselineTick"/></c>
+	/// it's a full snapshot and the baseline isn't queried. If the baseline is needed but missing, this returns
+	/// <c>false</c> (drop the packet + don't ack it).</summary>
 	public static bool ReadSnapshot(NetPacketReader r, out uint serverTick, out uint ackedInputTick,
 		out uint baselineTick,
 		System.Func<uint, (SnapshotPlayer[] players, int count)?> baselineLookup,
@@ -596,9 +543,9 @@ public static class Packets
 		{
 			var lookup = baselineLookup?.Invoke(baselineTick);
 			if (!lookup.HasValue)
-				return false; // Baseline rausgealtert — packet droppen. Client behält LastReceivedSnapshotTick = der
-				              // alte Wert, Server schickt entweder noch ein delta gegen einen anderen baseline-Tick
-				              // (wenn der existiert) oder altert irgendwann zu Full → self-healing.
+				return false; // Baseline aged out — drop the packet. The client keeps its LastReceivedSnapshotTick;
+				              // the server either delta's against another baseline tick or eventually ages to a
+				              // full snapshot → self-healing.
 			basePlayers = lookup.Value.players;
 			baseCount = lookup.Value.count;
 		}
@@ -680,9 +627,8 @@ public static class Packets
 		}
 	}
 
-	/// <summary>Writes a Hit packet directed at shooter + victim. Group ist byte (HitboxGroup-Enum),
-	/// vorher String. Bytes statt String spart ~12 byte pro Hit-Event und gibt der UI direkten
-	/// Enum-Zugriff (kein string-compare).</summary>
+	/// <summary>Writes a Hit packet directed at shooter + victim. Group is a byte (HitboxGroup enum) — saves
+	/// ~12 bytes per hit event vs a string and gives the UI direct enum access (no string compare).</summary>
 	public static NetDataWriter WriteHit(byte shooterNetId, byte victimNetId, HitboxGroup group, byte damage, byte hpLeft, byte weaponId)
 	{
 		var w = Begin(PacketType.Hit);
@@ -754,8 +700,8 @@ public static class Packets
 		hp = r.GetByte();
 	}
 
-	/// <summary>Writes a Death packet — victim + attacker + weaponId + headshot-flag. Killfeed UI nutzt
-	/// das alles für die Zeile ("Player X (M4A1) → Player Y [HS]"). weaponId = 0 für unbekannt/world-damage.</summary>
+	/// <summary>Writes a Death packet — victim + attacker + weaponId + headshot flag. The killfeed UI uses all
+	/// of it for the line ("Player X (M4A1) → Player Y [HS]"). weaponId = 0 for unknown / world damage.</summary>
 	public static NetDataWriter WriteDeath(byte victimNetId, byte attackerNetId, byte weaponId, bool isHeadshot)
 	{
 		var w = Begin(PacketType.Death);
@@ -778,6 +724,11 @@ public static class Packets
 	public static NetDataWriter WriteJump(byte netId) { var w = Begin(PacketType.Jump); w.Put(netId); return w; }
 	/// <summary>Reads a Jump packet's NetId.</summary>
 	public static void ReadJump(NetPacketReader r, out byte netId) { netId = r.GetByte(); }
+
+	/// <summary>Writes a DropMag packet carrying just the reloading player's NetId.</summary>
+	public static NetDataWriter WriteDropMag(byte netId) { var w = Begin(PacketType.DropMag); w.Put(netId); return w; }
+	/// <summary>Reads a DropMag packet's NetId.</summary>
+	public static void ReadDropMag(NetPacketReader r, out byte netId) { netId = r.GetByte(); }
 
 	/// <summary>Writes a Land packet with the landing player's NetId and impact speed.</summary>
 	public static NetDataWriter WriteLand(byte netId, float impactSpeed)
@@ -872,12 +823,11 @@ public static class Packets
 		reason = r.GetByte();
 	}
 
-	// === ConVarSync (BIDIREKTIONAL Reliable) ===
-	// Client → Server (Request): "set sv_debug_hitboxes 1". Server validiert (whitelist sv_*),
-	// applied auf <see cref="ConVars.Sv"/>, broadcastet dann an ALLE Clients.
-	// Server → Client (Broadcast): "sv_debug_hitboxes 1" — Client applied lokal damit Visualisierung-
-	// Gates auf ConVars.Sv.* synchron bleiben.
-
+	// ConVarSync (bidirectional, reliable):
+	//   C2S request:   "set sv_debug_hitboxes 1" — server validates (sv_* whitelist), applies to ConVars.Sv,
+	//                  then broadcasts to all clients.
+	//   S2C broadcast: "sv_debug_hitboxes 1" — clients apply it locally so their visualisation gates on
+	//                  ConVars.Sv.* stay in sync.
 	public static NetDataWriter WriteConVarSyncRequest(string name, string value)
 	{
 		var w = Begin(PacketType.ConVarSyncRequest);
@@ -938,13 +888,12 @@ public static class Packets
 		value = r.GetString(64);
 	}
 
-	// === DebugHitboxes (S2C Unreliable, ~10Hz, gated auf Dbg.Enabled am Server) ===
-	// Pro Agent: netId + hitboxCount + Liste cm-quantized Hitbox-Positionen. Format ist absichtlich
-	// klein gehalten (~92 byte pro Agent) damit es bei 16 Spielern ~15 KB/s extra ist. Client rendert
-	// rote Spheres an jeder Position via <see cref="HudServerHitboxesDebug"/>.
+	// DebugHitboxes (S2C unreliable, ~10 Hz, gated on the server): per agent, netId + hitboxCount + a list of
+	// cm-quantised hitbox transforms. Kept deliberately small (~92 B/agent ≈ 15 KB/s extra at 16 players).
+	// The client renders red spheres at each position via HudServerHitboxesDebug.
 
-	/// <summary>ONE agent per packet — bei 15 Hitboxen × 42 byte = ~640 byte je Packet, unter LiteNetLib's
-	/// 1023 byte Unreliable-MTU. Server-Loop schickt pro Agent ein Packet.</summary>
+	/// <summary>ONE agent per packet — 15 hitboxes × 42 B ≈ 640 B per packet, under LiteNetLib's 1023 B
+	/// unreliable MTU. The server loop sends one packet per agent.</summary>
 	public static NetDataWriter WriteDebugHitboxes(uint serverTick, in DebugHitboxAgent agent)
 	{
 		var w = Begin(PacketType.DebugHitboxes);
@@ -955,9 +904,9 @@ public static class Packets
 		{
 			var t = agent.Transforms[i];
 			w.PutVec3Quantized(t.Origin);
-			// Vollständige Basis als 3 Vec3 (36 byte) — INKL Scale. Quaternion-only war ein Bug
-			// weil die tps_character-Skeleton-Scale (0.01) verloren ging → Client renderte mit
-			// scale=1 → Capsule-Radius 28 wurde 28 METER statt 28cm × 0.01 = 28cm.
+			// Full basis as 3 Vec3 (36 B) INCLUDING scale. Quaternion-only was a bug: it lost the
+			// tps_character skeleton scale (0.01), so the client rendered at scale=1 and a 28-unit capsule
+			// radius became 28 metres instead of 28 cm.
 			w.PutVec3(t.Basis.X);
 			w.PutVec3(t.Basis.Y);
 			w.PutVec3(t.Basis.Z);
@@ -997,210 +946,4 @@ public static class Packets
 	{
 		message = r.GetString(512);
 	}
-}
-
-/// <summary>Per-Agent Snapshot der Server-Hitbox-Transforms (Pos + Rot) für das Debug-Visualizations-System.</summary>
-public struct DebugHitboxAgent
-{
-	public byte NetId;
-	public Transform3D[] Transforms;
-}
-
-/// <summary>
-/// Wire identifier per packet type. Keep stable — when the wire format changes incompatibly,
-/// bump <see cref="Packets.ProtocolVersion"/>.
-/// </summary>
-public enum PacketType : byte
-{
-	ConnectRequest = 10,
-	RespawnRequest = 11,
-	/// <summary>C2S Reliable: Client requests setting a sv_* ConVar via console. Server validates +
-	/// applies + broadcasts ConVarSync to all clients.</summary>
-	ConVarSyncRequest = 12,
-	/// <summary>C2S Reliable: Client signals it has finished all asset pre-loads (audio, animations)
-	/// and is ready to be visible to other players. Server flips per-player WorldReady=true and starts
-	/// emitting the corresponding bit in subsequent snapshots so peers' PuppetPlayer can switch their
-	/// TPS body Visible=false → true. Scoreboard entry is unaffected — players appear there from the
-	/// moment they connect regardless of world-ready state.</summary>
-	WorldInitComplete = 13,
-	/// <summary>C2S Reliable: Client picks a team (CT/T) after the initial SpawnAck assigned them
-	/// Spectator in competitive mode. Server validates, assigns the team + spawn pose, and replies
-	/// with <see cref="SpawnAuthorize"/>. Deathmatch skips this entirely (initial SpawnAck already
-	/// carries the pose).</summary>
-	TeamSelect = 14,
-	/// <summary>S2C Reliable: Server grants the client its spawn pose after a successful TeamSelect.
-	/// Triggers the deferred LocalPlayer instantiation in NetMain. Carries final Team + Pose so the
-	/// client knows which side it's on and where to spawn.</summary>
-	SpawnAuthorize = 42,
-
-	SpawnAck = 20,
-	PlayerJoined = 21,
-	PlayerLeft = 22,
-	PlayerDisconnected = 23,
-	PlayerReconnected = 24,
-	ShotFired = 25,
-	Reload = 26,
-	GrenadeSpawn = 27,
-	Footstep = 28,
-	Hit = 29,
-	Death = 30,
-	Respawn = 31,
-	SlotSwitch = 32,
-	Jump = 33,
-	Land = 34,
-	Inspect = 35,
-	DryFire = 36,
-	SlideStart = 37,
-	SlideEnd = 38,
-	RoundState = 39,
-	ProjectileDespawn = 40,
-	/// <summary>S2C Reliable: Server broadcastet eine sv_* ConVar-Änderung an alle Clients (auch Initial-Sync
-	/// nach SpawnAck damit Reconnects den aktuellen Debug-State direkt haben).</summary>
-	ConVarSyncBroadcast = 41,
-
-	Input = 50,
-
-	Snapshot = 70,
-	ProjectileState = 71,
-	/// <summary>Debug-only: Server-Hitbox-Positions broadcast (~10Hz, nur wenn Dbg.Enabled auf Server).
-	/// Client rendert die als rote Spheres für visuelle Verifikation der Lag-Comp.</summary>
-	DebugHitboxes = 72,
-	/// <summary>S2C Reliable: server-side diagnostic/status string the client prints in its own log.
-	/// Used to surface server events (FoW build progress, etc.) in the client's stdout when the
-	/// server runs in a separate process whose stdout the user is not currently watching.</summary>
-	ServerLog = 73,
-}
-
-/// <summary>Per-player block in the SnapshotPacket — server-authoritative state for one tick.</summary>
-public struct SnapshotPlayer
-{
-	public byte NetId;
-	public byte Flags;
-	public Vector3 Pos;
-	public Vector3 Vel;
-	public float Yaw;
-	public float Pitch;
-	public byte AdsBlend;
-	public byte CrouchBlend;
-	public byte RaiseBlend;
-	public ushort ShotIndex;
-	public byte Hp;
-	/// <summary>Kevlar 0..50. Wird ohne Regen verbraucht; Headshots bypassen.</summary>
-	public byte Armor;
-	public byte ActiveSlot;
-	public byte WeaponId;
-	public sbyte AimPunchX;
-	public sbyte AimPunchY;
-	public ushort FootstepPhase;
-	public byte Kills;
-	public byte Deaths;
-	public byte PingMs;
-	/// <summary>Server-broadcasted team for this player (cast of <see cref="Team"/>). Used by client for
-	/// puppet team-glow + scoreboard color. None=0/CT=1/T=2/Deathmatch=3.</summary>
-	public byte Team;
-	/// <summary>Persistent index within the player's team (0..15), assigned at register-time, stable
-	/// over the session. Drives the per-player color (palette[teamSlot]). Unique within a team —
-	/// opposing teams may reuse the same slots/colors independently.</summary>
-	public byte TeamSlot;
-}
-
-/// <summary>Bit flags packed into <see cref="SnapshotPlayer.Flags"/>.</summary>
-[System.Flags]
-public enum SnapshotFlags : byte
-{
-	None           = 0,
-	Sliding        = 1 << 0,
-	Airborne       = 1 << 1,
-	Reloading      = 1 << 2,
-	Sprinting      = 1 << 3,
-	WallClinging   = 1 << 4,
-	Inspecting     = 1 << 5,
-	/// <summary>Player has finished client-side world preloads (audio + animations) and signalled
-	/// <see cref="PacketType.WorldInitComplete"/>. Cleared by default on respawn / reconnect so the
-	/// next preload cycle is awaited. Puppet TPS body is hidden while this bit is unset to avoid
-	/// showing a freshly-connecting player in mid-load on every other peer.</summary>
-	WorldReady     = 1 << 6,
-	Dead           = 1 << 7,
-}
-
-/// <summary>Per-Player Field-Mask für Delta-Baseline-Snapshot-Compression. Pro Bit wird ein
-/// Feld(-Gruppe) entweder geschickt (Bit = 1) oder weggelassen (= Wert bleibt = baseline-Wert).
-///
-/// Gruppierung folgt der "ändert sich typisch zusammen"-Heuristik: Pos+Vel beim Movement, Yaw+Pitch
-/// beim Aimen, AdsBlend/CrouchBlend/RaiseBlend bei Posture-Wechseln, etc. Weniger Bits = kleinere
-/// Mask, aber weniger Fine-Grain-Skip. 13 Bits passen in ushort.
-///
-/// <see cref="All"/> = alle Bits gesetzt → emittiert wie ein Full-Snapshot, z.B. wenn der Player
-/// nicht in der Baseline war (frisch joined / kam zurück in PVS).</summary>
-[System.Flags]
-public enum SnapshotFieldFlags : ushort
-{
-	None      = 0,
-	Flags     = 1 << 0,
-	Movement  = 1 << 1,  // Pos + Vel
-	View      = 1 << 2,  // Yaw + Pitch
-	Blends    = 1 << 3,  // AdsBlend + CrouchBlend + RaiseBlend
-	ShotIndex = 1 << 4,
-	Hp        = 1 << 5,
-	Armor     = 1 << 6,
-	Weapon    = 1 << 7,  // ActiveSlot + WeaponId
-	AimPunch  = 1 << 8,  // AimPunchX + AimPunchY
-	Footstep  = 1 << 9,
-	Score     = 1 << 10, // Kills + Deaths
-	Ping      = 1 << 11,
-	Team      = 1 << 12, // Team + TeamSlot
-	All       = (1 << 13) - 1,
-}
-
-/// <summary>Parsed contents of one input frame within a <see cref="PacketType.Input"/> packet. Der
-/// Packet-Header (count + ackedSnapshotTick) wird vorher mit <see cref="Packets.ReadInputHeader"/>
-/// gelesen — daher steckt der Ack hier nicht mehr drin.</summary>
-public struct InputPacket
-{
-	public uint TickIndex;
-	/// <summary>Subtick events from the client, ordered by TFraction ascending. Null/empty for
-	/// tick-quantised inputs; non-empty when the client recorded held-state transitions inside the tick.
-	/// Server-side <c>BuildMovementInputFromNet</c> copies this directly into <see cref="MovementInput.Events"/>.</summary>
-	public SubtickEvent[] Events;
-	public ushort InitialBits;
-	public float InitialViewYaw;
-	public float InitialViewPitch;
-	public float ViewYaw;
-	public float ViewPitch;
-	public float WishX;
-	public float WishZ;
-	public bool SprintHeld, ShiftHeld, CrouchHeld, CrouchPressed, AdsHeld, BreathHoldHeld, JumpPressed, FirePressed;
-	public bool ReloadPressed, InspectPressed, SlotIsGrenade;
-	/// <summary>Sub-tick offset of the fire-press edge (0..255 → 0..0.996 of a tick). Only meaningful
-	/// when <see cref="FirePressed"/> is true and the press occurred within the sending client's tick.
-	/// Server adds <c>FireSubTick / 256f</c> to the lag-comp rewind tick (= rewinds <em>less far</em>
-	/// = closer to the actual moment of click).</summary>
-	public byte FireSubTick;
-}
-
-/// <summary>Initial world state for a player — flows through SpawnAck + PlayerJoined.</summary>
-public struct InitialPlayerState
-{
-	public byte NetId;
-	public string PlayerName;
-	public Vector3 Position;
-	public float Yaw;
-	public byte Hp;
-	public byte ActiveSlot;
-	public byte WeaponId;
-	/// <summary>Cast of <see cref="Team"/>. Required by puppets so team-glow works on first frame
-	/// without waiting for the first snapshot.</summary>
-	public byte Team;
-	/// <summary>See <see cref="SnapshotPlayer.TeamSlot"/>. Sent at join so the puppet shows the right
-	/// color before the first snapshot arrives.</summary>
-	public byte TeamSlot;
-}
-
-/// <summary>Disconnect reason for <see cref="PacketType.PlayerLeft"/>.</summary>
-public enum LeaveReason : byte
-{
-	Quit = 0,
-	Timeout = 1,
-	Kicked = 2,
-	ServerShutdown = 3,
 }

@@ -83,7 +83,14 @@ public partial class PostProcessEffect : CompositorEffect
 	// für den vollen Lifecycle (Constructor → Init → erster RenderCallback). One-shot via Interlocked
 	// damit Multi-View / Multi-Frame nicht den Log floodet.
 	private int _firstRenderLogged;
+	private int _mbDiagLogged;
 
+
+	/// <summary>True when running with the dummy renderer (--headless / dedicated server): no
+	/// RenderingDevice exists, so the whole compute path is a no-op and trying to init it just
+	/// produces a misleading PrintErr.</summary>
+	private static bool IsHeadless() =>
+		OS.HasFeature("dedicated_server") || DisplayServer.GetName() == "headless";
 
 	/// <summary>Configures the effect callback slot, requests required render targets, and queues compute init.</summary>
 	public PostProcessEffect()
@@ -92,7 +99,7 @@ public partial class PostProcessEffect : CompositorEffect
 		AccessResolvedColor = true;
 		AccessResolvedDepth = true;
 		NeedsMotionVectors = true;
-		if (!Engine.IsEditorHint())
+		if (!Engine.IsEditorHint() && !IsHeadless())
 		{
 			GD.Print("[PostProcessFX] ctor — queueing InitializeCompute on render thread");
 			RenderingServer.CallOnRenderThread(Callable.From(InitializeCompute));
@@ -223,6 +230,8 @@ public partial class PostProcessEffect : CompositorEffect
 			if (!hasVelocity)
 				velocity = depth;
 			float motionBlur = (MotionBlur && hasVelocity) ? MotionBlurStrength : 0.0f;
+			if (System.Threading.Interlocked.Exchange(ref _mbDiagLogged, 1) == 0)
+				GD.Print($"[PostProcessFX] MB diag: MotionBlur={MotionBlur} hasVelocity={hasVelocity} strength={MotionBlurStrength} => effectiveMB={motionBlur} (no velocity layer = no TAA/FSR2 motion vectors → MB stays 0)");
 
 			if (!buffers.HasTexture(_context, _tempName))
 			{

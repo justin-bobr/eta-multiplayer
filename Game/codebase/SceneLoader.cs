@@ -13,7 +13,9 @@ public partial class SceneLoader : Control
 {
 	private const string TargetScene = "res://world.tscn";
 	private const float BarFollowSpeed = 1.6f;
-	private const float ConnectTimeoutSec = 15f;
+	// Doubled to 30s: a freshly-launched server needs a while to finish its threaded world load before it can
+	// accept the client's spawn request — the client must wait that out instead of bailing with "connection failed".
+	private const float ConnectTimeoutSec = 30f;
 
 	private static readonly Color EtaRed = new(0.7529412f, 0.007843138f, 0.003921569f);
 
@@ -28,7 +30,7 @@ public partial class SceneLoader : Control
 	/// for only the matching audio/footsteps/&lt;material&gt;/ folders, so first-step latency
 	/// stays low without the disk/memory cost of loading every surface in the library.
 	/// PreloadingAnims is a short cosmetic delay covering the AnimationTree one-shot pre-warm
-	/// that PlayerCore._Ready performs after the scene switch.</summary>
+	/// that NetworkPlayer._Ready performs after the scene switch.</summary>
 	private enum LoadPhase
 	{
 		Connecting,
@@ -92,9 +94,14 @@ public partial class SceneLoader : Control
 		_shownRatio = 0f;
 	}
 
+	private ulong _worldLoadStartMs;
+
 	/// <summary>Kicks off the threaded world load.</summary>
 	private void BeginWorldLoad()
 	{
+		_worldLoadStartMs = Time.GetTicksMsec();
+		var mode = NetMain.Instance?.Cli?.Mode ?? NetMode.Listen;
+		GD.Print($"[SceneLoader] ({mode}) Loading map {TargetScene} …");
 		Error err = ResourceLoader.LoadThreadedRequest(TargetScene);
 		if (err != Error.Ok)
 		{
@@ -171,7 +178,7 @@ public partial class SceneLoader : Control
 			case LoadPhase.PreloadingAnims:
 				// Cosmetic phase — animations are bundled inside the loaded PackedScene and
 				// won't actually do file-IO here. The real animation pre-warm runs in
-				// PlayerCore._Ready post-scene-switch. We just show the message + ramp the
+				// NetworkPlayer._Ready post-scene-switch. We just show the message + ramp the
 				// bar so the user sees "what's happening" before the audio queue starts.
 				_targetRatio = Mathf.Clamp(_phaseTimer / PreloadAnimsCosmeticSec, 0f, 1f);
 				_shownRatio = Mathf.MoveToward(_shownRatio, _targetRatio, (float)delta * BarFollowSpeed);
@@ -204,9 +211,13 @@ public partial class SceneLoader : Control
 				if (!_switched && _phaseTimer > 0.25f)
 				{
 					_switched = true;
+					var mode = NetMain.Instance?.Cli?.Mode ?? NetMode.Listen;
+					float secs = (Time.GetTicksMsec() - _worldLoadStartMs) / 1000f;
+					GD.Print($"[SceneLoader] ({mode}) Map loaded in {secs:0.0}s → switching scene"
+						+ (mode != NetMode.Client ? "  —  SERVER READY, accepting players" : ""));
 					// Snap the WorldFadeOverlay to opaque black BEFORE switching — masks
 					// the first-frame render burst (shader compile, lightmap upload, materials
-					// lazy-binding). PlayerCore._Ready later calls RequestFadeOut() once
+					// lazy-binding). NetworkPlayer._Ready later calls RequestFadeOut() once
 					// preloads + spawn are done.
 					WorldFadeOverlay.Instance?.ShowOpaque();
 					GetTree().ChangeSceneToPacked(_loadedScene);

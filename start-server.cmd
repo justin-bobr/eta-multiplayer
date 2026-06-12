@@ -28,7 +28,7 @@ echo Path:   %~dp0Game
 echo Port:   27015 UDP
 echo.
 
-"%GODOT%" --headless --debug-server tcp://127.0.0.1:7007 --path "Game" -- --server --max-players 16
+"%GODOT%" --headless --debug-server tcp://127.0.0.1:7007 --path "Game" -- --server --max-players 16 --gamemode dm
 
 echo.
 echo === Server stopped ===

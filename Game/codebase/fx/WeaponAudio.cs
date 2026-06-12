@@ -7,7 +7,7 @@ public enum ReverbEnv { Outdoor, Indoor, Tunnel }
 /// <summary>
 /// Client-side weapon audio bank. Plays shoot/reload/dry-fire sounds, triggered
 /// by the fire/reload state machine in <see cref="MovementController"/> via
-/// <see cref="PlayerCore"/>. Purely cosmetic — the gameplay-relevant fire logic
+/// <see cref="NetworkPlayer"/>. Purely cosmetic — the gameplay-relevant fire logic
 /// lives in the controller (server-replayable).
 /// Weapon manager: no fixed clip list on the node. Paths live per weapon in
 /// the <see cref="WeaponStats"/> record (ShootBodyClips / ShootMechClips / ...).
@@ -86,7 +86,7 @@ public partial class WeaponAudio : Node3D
 	/// <summary>Disables _Process until a load is in flight — saves per-tick overhead when idle.</summary>
 	public override void _Ready() => SetProcess(false);
 
-	/// <summary>Pre-loads all clips referenced by a weapon (typical caller: PlayerCore._Ready with the starting weapon).</summary>
+	/// <summary>Pre-loads all clips referenced by a weapon (typical caller: NetworkPlayer._Ready with the starting weapon).</summary>
 	public void Preload(WeaponStats weapon)
 	{
 		if (weapon == null) return;
@@ -294,7 +294,7 @@ public partial class WeaponAudio : Node3D
 
 	/// <summary>
 	/// Builds the audio-player pool lazily on the first sound, so <see cref="IsLocalPlayer"/>
-	/// (assigned by PlayerCore) is reliably set even though child _Ready runs before parent _Ready.
+	/// (assigned by NetworkPlayer) is reliably set even though child _Ready runs before parent _Ready.
 	/// </summary>
 	private void EnsurePool()
 	{

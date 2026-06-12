@@ -1,0 +1,845 @@
+using Godot;
+using System.Collections.Generic;
+
+public enum WeaponMode { FPS, TPS }
+
+[Tool, GlobalClass]
+public partial class WeaponAnimation : Node3D
+{
+	[ExportGroup("Weapon Settings")]
+	[Export] public StringName WeaponName;
+	[Export] public WeaponMode Mode = WeaponMode.FPS;
+	private static readonly HashSet<string> AnimProps = new()
+	{
+		nameof(ReferencePose), nameof(FireModeStates),
+		nameof(FpFire),
+		nameof(FpReload), nameof(FpReloadAimed),
+		nameof(FpReloadEmpty), nameof(FpReloadEmptyAimed),
+		nameof(FpReloadQuick), nameof(FpReloadQuickAimed),
+		nameof(FpMagCheck), nameof(FpMagCheckAimed),
+		nameof(FpInspect), nameof(FpEquip),
+		nameof(FpClearJamMagSwipe), nameof(FpClearJamRack),
+		nameof(TpFire),
+		nameof(TpReload), nameof(TpReloadAimed),
+		nameof(TpReloadEmpty), nameof(TpReloadEmptyAimed),
+		nameof(TpReloadQuick), nameof(TpReloadQuickAimed),
+		nameof(TpMagCheck), nameof(TpMagCheckAimed),
+		nameof(TpInspect), nameof(TpEquip),
+		nameof(TpClearJamMagSwipe), nameof(TpClearJamRack),
+	};
+	private static readonly HashSet<string> EventProps = new()
+	{
+		nameof(EvFire), nameof(EvReload), nameof(EvReloadEmpty), nameof(EvReloadQuick),
+		nameof(EvMagCheck), nameof(EvInspect), nameof(EvEquip),
+		nameof(EvClearJamMagSwipe), nameof(EvClearJamRack),
+	};
+
+	[ExportGroup("Animation Player")]
+	[Export] public NodePath AnimationPlayerPath = new("MergedAnimationPlayer");
+	[Export] public NodePath EventPlayerPath = new("EventPlayer");
+	[Export] public bool RebuildAnimationTree { get => false; set { if (value) EditorRebuildTree(); } }
+
+	[ExportGroup("Fire Modes")]
+	[Export] public Godot.Collections.Dictionary FireModes = new() { { "Safety", 0.0f }, { "Semi", 0.0333333f }, { "Auto", 0.0666667f } };
+	[Export] public string ActualFireMode = "Semi";
+
+	[ExportGroup("Animations")]
+
+	[ExportSubgroup("Base")]
+	[Export] public StringName ReferencePose;
+	[Export] public StringName FireModeStates;
+
+	[ExportSubgroup("Fire")]
+	[Export] public StringName FpFire;
+	[Export] public StringName TpFire;
+	[Export] public string EvFire = "events/fire";
+
+	[ExportSubgroup("Reload")]
+	[Export] public StringName FpReload;
+	[Export] public StringName FpReloadAimed;
+	[Export] public StringName TpReload;
+	[Export] public StringName TpReloadAimed;
+	[Export] public string EvReload = "events/reload";
+
+	[ExportSubgroup("Reload Empty")]
+	[Export] public StringName FpReloadEmpty;
+	[Export] public StringName FpReloadEmptyAimed;
+	[Export] public StringName TpReloadEmpty;
+	[Export] public StringName TpReloadEmptyAimed;
+	[Export] public string EvReloadEmpty = "events/reload_empty";
+
+	[ExportSubgroup("Reload Quick")]
+	[Export] public StringName FpReloadQuick;
+	[Export] public StringName FpReloadQuickAimed;
+	[Export] public StringName TpReloadQuick;
+	[Export] public StringName TpReloadQuickAimed;
+	[Export] public string EvReloadQuick = "events/reload_quick";
+
+	[ExportSubgroup("Mag Check")]
+	[Export] public StringName FpMagCheck;
+	[Export] public StringName FpMagCheckAimed;
+	[Export] public StringName TpMagCheck;
+	[Export] public StringName TpMagCheckAimed;
+	[Export] public string EvMagCheck = "events/mag_check";
+
+	[ExportSubgroup("Inspect")]
+	[Export] public StringName FpInspect;
+	[Export] public StringName TpInspect;
+	[Export] public string EvInspect = "events/inspect";
+
+	[ExportSubgroup("Equip")]
+	[Export] public StringName FpEquip;
+	[Export] public StringName TpEquip;
+	[Export] public string EvEquip = "events/equip";
+
+	[ExportSubgroup("Clear Jam Mag Swipe")]
+	[Export] public StringName FpClearJamMagSwipe;
+	[Export] public StringName TpClearJamMagSwipe;
+	[Export] public string EvClearJamMagSwipe = "events/clear_jam_mag_swipe";
+
+	[ExportSubgroup("Clear Jam Rack")]
+	[Export] public StringName FpClearJamRack;
+	[Export] public StringName TpClearJamRack;
+	[Export] public string EvClearJamRack = "events/clear_jam_rack";
+
+	[ExportSubgroup("Malfunctions")]
+	[Export] public StringName[] FpMalfunctions = [];
+	[Export] public StringName[] TpMalfunctions = [];
+
+	[ExportGroup("Test (Editor)")]
+	[Export] public bool TestFire { get => false; set { if (value) EditorPlay(IsTPS ? TpFire : FpFire, EvFire); } }
+	[Export] public bool TestReload { get => false; set { if (value) EditorPlay(IsTPS ? TpReload : FpReload, EvReload); } }
+	[Export] public bool TestReloadEmpty { get => false; set { if (value) EditorPlay(IsTPS ? TpReloadEmpty : FpReloadEmpty, EvReloadEmpty); } }
+	[Export] public bool TestReloadQuick { get => false; set { if (value) EditorPlay(IsTPS ? TpReloadQuick : FpReloadQuick, EvReloadQuick); } }
+	[Export] public bool TestMagCheck { get => false; set { if (value) EditorPlay(IsTPS ? TpMagCheck : FpMagCheck, EvMagCheck); } }
+	[Export] public bool TestInspect { get => false; set { if (value) EditorPlay(IsTPS ? TpInspect : FpInspect, EvInspect); } }
+	[Export] public bool TestEquip { get => false; set { if (value) EditorPlay(IsTPS ? TpEquip : FpEquip, EvEquip); } }
+	[Export] public bool TestClearJamMagSwipe { get => false; set { if (value) EditorPlay(IsTPS ? TpClearJamMagSwipe : FpClearJamMagSwipe, EvClearJamMagSwipe); } }
+	[Export] public bool TestClearJamRack { get => false; set { if (value) EditorPlay(IsTPS ? TpClearJamRack : FpClearJamRack, EvClearJamRack); } }
+	[Export] public bool TestCycleFireMode { get => false; set { if (value) { EnsureTree(); CycleFireMode(); } } }
+
+	[ExportGroup("Eject Casing")]
+	[Export] public PackedScene EjectCasingScene;
+	[Export] public int EjectCasingPoolSize = 4;
+	[Export] public Vector3 EjectMinRotation = new(-15f, -45f, -5f);
+	[Export] public Vector3 EjectMaxRotation = new(15f, 45f, 35f);
+	[Export] public float EjectMinForce = 1.5f;
+	[Export] public float EjectMaxForce = 3.5f;
+	[Export] public float EjectRotationSpeed = 20f;
+	[Export] public float EjectLifetime = 15f;
+	// Eject-bone-local direction the casing is flung along (before random spread). Default points out the
+	// right port (+X) with a little up + forward. Flip X if your weapon ejects to the left.
+	[Export] public Vector3 EjectDirectionLocal = new(1f, 0.4f, 0.15f);
+
+	[ExportGroup("Drop Magazine")]
+	[Export] public PackedScene DropMagazineScene;
+	[Export] public float DropImpulseForce = 1.5f;       // m/s along the mag socket up axis (UE: ImpulseForce, VelChange)
+	[Export] public float DropRotationForce = 360f;      // deg/s about a random axis (UE: RotationForce, VelChange)
+	[Export] public float DropMagazineLifetime = 8f;
+
+	[ExportGroup("Audio")]
+	[Export] public NodePath AudioPlayerPath = new("AudioStreamPlayer");
+	[Export] public int AudioVoices = 8;
+	[Export] public StringName AudioBus = "Master";
+
+	[ExportSubgroup("Firing")]
+	[Export] public AudioStream[] AudioFire = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeFire = 1.0f;
+	[Export] public AudioStream[] AudioFireTail = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeFireTail = 1.0f;
+	[Export] public AudioStream[] AudioEmptyCasing = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeEmptyCasing = 1.0f;
+
+	[ExportSubgroup("Handling")]
+	[Export] public AudioStream[] AudioClick = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeClick = 0.5f;
+	[Export] public AudioStream[] AudioFoleyCloth = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeFoleyCloth = 0.5f;
+	[Export] public AudioStream[] AudioBoltOpen = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeBoltOpen = 1.0f;
+	[Export] public AudioStream[] AudioBoltClose = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeBoltClose = 0.5f;
+	[Export] public AudioStream[] AudioGunSmack = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeGunSmack = 0.4f;
+	[Export] public AudioStream[] AudioMalfunction = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeMalfunction = 1.0f;
+
+	[ExportSubgroup("Magazine")]
+	[Export] public AudioStream[] AudioMagInsert = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeMagInsert = 1.0f;
+	[Export] public AudioStream[] AudioMagRemoveFull = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeMagRemoveFull = 1.0f;
+	[Export] public AudioStream[] AudioMagRemoveEmpty = [];
+	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeMagRemoveEmpty = 1.0f;
+
+	[ExportGroup("Magazine")]
+	[Export] public NodePath MainMagPath = new("Skeleton3D/SOCKET_Magazine/Magazine");
+	[Export] public NodePath ReserveMagPath = new("Skeleton3D/SOCKET_Magazine_Reserve/Magazine");
+
+	// Per-weapon recoil + view-kick feel, read by NetworkPlayer through the active weapon. Infima recoil =
+	// a damped spring (VectorSpringInterp): a kick displaces it, the spring pulls it back with a little overshoot.
+	[ExportGroup("Recoil & View Kick")]
+	[Export] public Vector3 RecoilImpulseHipfire = new(-0.8f, 0.28f, 0f);
+	[Export] public Vector3 RecoilImpulseAimed = new(-0.15f, 0.05f, 0f);
+	[Export(PropertyHint.Range, "10,600,5")] public float RecoilStiffness = 200f;
+	[Export(PropertyHint.Range, "0.1,1.5,0.05")] public float RecoilDamping = 0.6f;
+	[Export(PropertyHint.Range, "0.2,4,0.1")] public float RecoilMass = 1f;
+	[Export(PropertyHint.Range, "1,45,0.5")] public float RecoilMaxDegrees = 10f;
+	// Recoil view-kick scale while aiming (ADS): 1.0 = full, 0.5 = half. Lerped by aim blend.
+	[Export(PropertyHint.Range, "0,1,0.05")] public float AimRecoilMultiplier = 0.5f;
+	// Procedural weapon-bone recoil on top of the camera kick: rotation scales the recoil spring (deg),
+	// kickback pushes the gun toward the player (m/deg).
+	[Export(PropertyHint.Range, "0,1,0.02")] public float WeaponRecoilRotScale = 0.15f;
+	[Export(PropertyHint.Range, "0,0.05,0.001")] public float WeaponRecoilKickback = 0.005f;
+
+	// Per-weapon viewmodel ADS: iron-sight alignment offset (consumed via WeaponBoneModifier) + ADS FOV zoom.
+	[ExportGroup("ADS (Viewmodel)")]
+	[Export(PropertyHint.Range, "30,120,0.5")] public float AimFov = 78f;
+	[Export(PropertyHint.Range, "-1,1,0.0001,or_less,or_greater")] public Vector3 AdsOffsetPosition = new(-0.02f, 0.06f, 0.0205f);
+	[Export(PropertyHint.Range, "-180,180,0.01,or_less,or_greater")] public Vector3 AdsOffsetRotation = new(0f, -8.4f, 0f);
+
+	[ExportGroup("Debug")]
+	[Export] public bool LogEvents = true;
+
+	public override void _ValidateProperty(Godot.Collections.Dictionary property)
+	{
+		string name = (string)property["name"];
+		if (AnimProps.Contains(name))
+		{
+			var player = GetNodeOrNull<AnimationPlayer>(AnimationPlayerPath);
+			if (player == null) return;
+			property["hint"] = (int)PropertyHint.Enum;
+			property["hint_string"] = string.Join(",", player.GetAnimationList());
+		}
+		else if (EventProps.Contains(name))
+		{
+			var ep = GetNodeOrNull<AnimationPlayer>(EventPlayerPath);
+			if (ep == null) return;
+			property["hint"] = (int)PropertyHint.Enum;
+			property["hint_string"] = string.Join(",", ep.GetAnimationList());
+		}
+		else if (name == nameof(AudioBus))
+		{
+			var buses = new string[AudioServer.BusCount];
+			for (int i = 0; i < buses.Length; i++)
+				buses[i] = AudioServer.GetBusName(i);
+			property["hint"] = (int)PropertyHint.Enum;
+			property["hint_string"] = string.Join(",", buses);
+		}
+	}
+
+	// The player body that spawned casings / dropped mags must NOT collide with, so they fall past the
+	// character instead of bouncing off its capsule. Set by NetworkPlayer; auto-resolved as fallback.
+	public CollisionObject3D OwnerBody;
+
+	// Set on the FPS viewmodel weapon by the local player. Casings + dropped mags are authored in the
+	// viewmodel SubViewport's own World3D; these reproject their spawn transform into the main world via
+	// worldCam * viewmodelCam^-1 * local, so the props land on the real floor and the world camera sees
+	// them. Left null on TPS weapons, which already live in the main world.
+	public Camera3D RemapFromCamera;
+	public Camera3D RemapToCamera;
+
+	private const string TreeNodeName = "AnimationTree";
+	private AnimationTree _tree;
+	private AnimationPlayer _player;
+	private AnimationPlayer _eventPlayer;
+	private AnimationNodeAnimation _actionAnim;
+	private Skeleton3D _skeleton;
+	private int _fireSelectorBone = -1;
+	private int _ejectionBone = -1;
+	private Node3D _mainMag;
+	private Node3D _reserveMag;
+	private Bullet[] _bulletPool;
+	private int _bulletPoolIdx;
+	private AudioStreamPlayer3D _audioPlayer;
+	private AudioStreamPlayer3D[] _audioPool;
+	private int _audioVoiceIdx;
+	private AnimatedMagazin _mainMagAnim;
+	private AnimatedMagazin _reserveMagAnim;
+
+	public override void _Ready()
+	{
+		if (Engine.IsEditorHint())
+			return;
+		BuildAnimationTree();
+		BuildMuzzleSmoke();
+	}
+
+	public override void _Process(double delta)
+	{
+		if (_tree != null && _tree.Active)
+			_tree.Advance(delta);
+		ApplyFireSelectorPose();
+	}
+
+	private void BuildAnimationTree()
+	{
+		_player = GetNodeOrNull<AnimationPlayer>(AnimationPlayerPath);
+		_eventPlayer = GetNodeOrNull<AnimationPlayer>(EventPlayerPath);
+		_audioPlayer = GetNodeOrNull<AudioStreamPlayer3D>(AudioPlayerPath);
+		BuildAudioPool();
+		OwnerBody ??= FindOwnerBody();
+		_skeleton = GetNodeOrNull<Skeleton3D>("Skeleton3D");
+		_fireSelectorBone = _skeleton?.FindBone("Fire_Selector") ?? -1;
+		_ejectionBone = _skeleton?.FindBone("Eject_Casing") ?? -1;
+		_mainMag = GetNodeOrNull<Node3D>(MainMagPath);
+		_reserveMag = GetNodeOrNull<Node3D>(ReserveMagPath);
+		if (_reserveMag != null) _reserveMag.Visible = false;
+		if (_eventPlayer != null)
+		{
+			Callable cb = Callable.From<StringName>(OnEventAnimFinished);
+			if (!_eventPlayer.IsConnected(AnimationMixer.SignalName.AnimationFinished, cb))
+				_eventPlayer.AnimationFinished += OnEventAnimFinished;
+		}
+		if (LogEvents)
+		{
+			GD.Print($"[WeaponAnimation] MainMag '{MainMagPath}' -> {(_mainMag != null ? _mainMag.GetPath() : "NULL")}");
+			GD.Print($"[WeaponAnimation] ReserveMag '{ReserveMagPath}' -> {(_reserveMag != null ? _reserveMag.GetPath() : "NULL")}");
+			GD.Print($"[WeaponAnimation] EventPlayer '{EventPlayerPath}' -> {(_eventPlayer != null ? "OK" : "NULL")}, AudioPlayer -> {(_audioPlayer != null ? "OK" : "NULL")}");
+		}
+
+		_tree = GetNodeOrNull<AnimationTree>(TreeNodeName);
+		if (_tree?.TreeRoot is not AnimationNodeBlendTree bt || !bt.HasNode("Action"))
+		{
+			GD.PushWarning("[WeaponAnimation] No AnimationTree with an 'Action' node found in scene.");
+			return;
+		}
+		GenerateWeaponRestPose();
+		AssignTreeAnimations(bt);
+		_tree.AnimPlayer = _tree.GetPathTo(_player);
+		_actionAnim = bt.GetNode("ActionAnim") as AnimationNodeAnimation;
+		_tree.Active = true;
+		_tree.CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Manual;
+
+		_mainMagAnim = _mainMag?.GetNodeOrNull<AnimatedMagazin>("AnimatedMagazin");
+		_reserveMagAnim = _reserveMag?.GetNodeOrNull<AnimatedMagazin>("AnimatedMagazin");
+
+		BuildBulletPool();
+		SetFireMode(ActualFireMode);
+	}
+
+
+	private void GenerateWeaponRestPose()
+	{
+		if (_player == null || _skeleton == null || _player.HasAnimation("common/A_TFA_WEP_AR_Reference")) return;
+		string refKey = null;
+		foreach (StringName lib in _player.GetAnimationLibraryList())
+		{
+			var library = _player.GetAnimationLibrary(lib);
+			if (library == null) continue;
+			foreach (StringName a in library.GetAnimationList())
+			{ refKey = lib.ToString().Length > 0 ? $"{lib}/{a}" : a.ToString(); break; }
+			if (refKey != null) break;
+		}
+		if (refKey == null || !_player.HasAnimation(refKey)) return;
+		Animation src = _player.GetAnimation(refKey);
+		var rest = new Animation { Length = 0.25f, LoopMode = Animation.LoopModeEnum.Linear };
+		for (int t = 0; t < src.GetTrackCount(); t++)
+		{
+			var type = src.TrackGetType(t);
+			if (type != Animation.TrackType.Rotation3D && type != Animation.TrackType.Position3D && type != Animation.TrackType.Scale3D) continue;
+			var path = src.TrackGetPath(t);
+			if (path.GetSubNameCount() < 1) continue;
+			var bi = _skeleton.FindBone(path.GetSubName(0));
+			if (bi < 0) continue;
+			var r = _skeleton.GetBoneRest(bi);
+			var ti = rest.AddTrack(type);
+			rest.TrackSetPath(ti, path);
+			if (type == Animation.TrackType.Rotation3D) rest.RotationTrackInsertKey(ti, 0.0, r.Basis.GetRotationQuaternion());
+			else if (type == Animation.TrackType.Position3D) rest.PositionTrackInsertKey(ti, 0.0, r.Origin);
+			else rest.ScaleTrackInsertKey(ti, 0.0, r.Basis.Scale);
+		}
+		var commonLib = _player.HasAnimationLibrary("common") ? _player.GetAnimationLibrary("common") : new AnimationLibrary();
+		if (commonLib.HasAnimation("A_TFA_WEP_AR_Reference")) commonLib.RemoveAnimation("A_TFA_WEP_AR_Reference");
+		commonLib.AddAnimation("A_TFA_WEP_AR_Reference", rest);
+		if (!_player.HasAnimationLibrary("common")) _player.AddAnimationLibrary("common", commonLib);
+		if (ReferencePose == null || string.IsNullOrEmpty(ReferencePose.ToString()))
+			ReferencePose = "common/A_TFA_WEP_AR_Reference";
+	}
+
+	public void SetMagazineFill(float fill01)
+	{
+		_mainMagAnim?.SetFill(fill01);
+		_reserveMagAnim?.SetFill(fill01);
+	}
+
+	private CollisionObject3D FindOwnerBody()
+	{
+		Node n = GetParent();
+		while (n != null)
+		{
+			if (n is CharacterBody3D cb) return cb;
+			n = n.GetParent();
+		}
+		return null;
+	}
+
+	private void BuildBulletPool()
+	{
+		if (Engine.IsEditorHint() || EjectCasingScene == null || EjectCasingPoolSize <= 0) return;
+		if (_bulletPool != null)
+			foreach (var b in _bulletPool) b?.QueueFree();
+		_bulletPool = new Bullet[EjectCasingPoolSize];
+		for (var i = 0; i < EjectCasingPoolSize; i++)
+		{
+			if (EjectCasingScene.Instantiate() is not Bullet b) continue;
+			b.Visible = false;
+			b.Freeze = true;
+			if (OwnerBody != null) b.AddCollisionExceptionWith(OwnerBody);   // casings fall past the player
+			_bulletPool[i] = b;
+			GetTree().CurrentScene.CallDeferred(Node.MethodName.AddChild, b);
+		}
+		_bulletPoolIdx = 0;
+	}
+
+	private void AssignTreeAnimations(AnimationNodeBlendTree bt)
+	{
+		if (_player == null)
+			return;
+		if (bt.GetNode("Reference") is AnimationNodeAnimation r && HasAnim(ReferencePose))
+			r.Animation = ReferencePose;
+	}
+
+	public void SetFireMode(string name)
+	{
+		if (FireModes == null || string.IsNullOrEmpty(name) || !FireModes.ContainsKey(name))
+			return;
+		ActualFireMode = name;
+	}
+
+	public void CycleFireMode()
+	{
+		if (FireModes == null || FireModes.Count == 0)
+			return;
+		var keys = new List<string>();
+		foreach (var k in FireModes.Keys)
+			keys.Add(k.AsString());
+		int cur = keys.IndexOf(ActualFireMode);
+		SetFireMode(keys[(cur + 1) % keys.Count]);
+	}
+
+	private void ApplyFireSelectorPose()
+	{
+		if (_skeleton == null || _fireSelectorBone < 0 || !HasAnim(FireModeStates))
+			return;
+		var anim = _player.GetAnimation(FireModeStates);
+		float t = FireModes != null && FireModes.ContainsKey(ActualFireMode)
+			? FireModes[ActualFireMode].AsSingle() : 0f;
+		for (int i = 0; i < anim.GetTrackCount(); i++)
+		{
+			if (!((string)anim.TrackGetPath(i)).Contains("Fire_Selector"))
+				continue;
+			switch (anim.TrackGetType(i))
+			{
+				case Animation.TrackType.Rotation3D:
+					_skeleton.SetBonePoseRotation(_fireSelectorBone, anim.RotationTrackInterpolate(i, t));
+					break;
+				case Animation.TrackType.Position3D:
+					_skeleton.SetBonePosePosition(_fireSelectorBone, anim.PositionTrackInterpolate(i, t));
+					break;
+				case Animation.TrackType.Scale3D:
+					_skeleton.SetBonePoseScale(_fireSelectorBone, anim.ScaleTrackInterpolate(i, t));
+					break;
+			}
+		}
+	}
+
+	private void EditorRebuildTree()
+	{
+		if (!Engine.IsEditorHint())
+			return;
+		NotifyPropertyListChanged();
+		_player = GetNodeOrNull<AnimationPlayer>(AnimationPlayerPath);
+		if (_player == null)
+		{ GD.PushWarning("[WeaponAnimation] AnimationPlayerPath unresolved"); return; }
+		var tree = GetNodeOrNull<AnimationTree>(TreeNodeName);
+		var bt = tree?.TreeRoot as AnimationNodeBlendTree;
+		if (tree == null || bt == null)
+		{ GD.PushWarning("[WeaponAnimation] No AnimationTree in scene."); return; }
+		AssignTreeAnimations(bt);
+		tree.AnimPlayer = tree.GetPathTo(_player);
+		GD.Print("[WeaponAnimation] Animations assigned — Ctrl+S to save.");
+	}
+
+	private bool HasAnim(StringName n) =>
+		n != null && !string.IsNullOrEmpty(n.ToString()) && _player != null && _player.HasAnimation(n);
+
+	private void ResetMagazines()
+	{
+		if (_mainMag != null) _mainMag.Visible = true;
+		if (_reserveMag != null) _reserveMag.Visible = false;
+	}
+
+	// Safety net: when any event clip finishes, return mags to the idle state (main shown, reserve
+	// hidden). Guarantees the magazine reappears after a reload even if the end-of-clip restore key
+	// is missed (frame stepping past it, clip cut short, etc.).
+	private void OnEventAnimFinished(StringName _) => ResetMagazines();
+
+	public void PlayAction(StringName anim, string eventAnim = null)
+	{
+		ResetMagazines();
+		if (_tree != null && _actionAnim != null && HasAnim(anim))
+		{
+			_actionAnim.Animation = anim;
+			_tree.Set("parameters/Action/request", (int)AnimationNodeOneShot.OneShotRequest.Fire);
+		}
+		if (eventAnim != null && _eventPlayer != null && _eventPlayer.HasAnimation(eventAnim))
+		{
+			// Rapid re-fire of the SAME clip (firing) must restart from 0 so the t=0 keys
+			// (shot sound, casing) replay — Play() alone would just keep the in-progress clip running.
+			if (_eventPlayer.CurrentAnimation == eventAnim)
+				_eventPlayer.Stop();
+			_eventPlayer.Play(eventAnim);
+		}
+		else if (eventAnim != null)
+			GD.PrintErr($"[WeaponAnimation] event skip: player={_eventPlayer != null}, anim='{eventAnim}', has={_eventPlayer?.HasAnimation(eventAnim)}");
+	}
+
+	private void EnsureTree()
+	{
+		if (_tree == null || _actionAnim == null)
+			BuildAnimationTree();
+	}
+
+	private void EditorPlay(StringName anim, string eventAnim = null)
+	{
+		EnsureTree();
+		PlayAction(anim, eventAnim);
+	}
+
+	public bool Aiming { get; set; }
+	private bool IsTPS => Mode == WeaponMode.TPS;
+	private StringName Aimed(StringName hip, StringName aimed) =>
+		Aiming && !string.IsNullOrEmpty(aimed?.ToString()) ? aimed : hip;
+
+	public void Fire() => PlayAction(IsTPS ? TpFire : FpFire, EvFire);
+	public void Reload() => PlayAction(IsTPS ? Aimed(TpReload, TpReloadAimed) : Aimed(FpReload, FpReloadAimed), EvReload);
+	public void ReloadEmpty() => PlayAction(IsTPS ? Aimed(TpReloadEmpty, TpReloadEmptyAimed) : Aimed(FpReloadEmpty, FpReloadEmptyAimed), EvReloadEmpty);
+	public void ReloadQuick() => PlayAction(IsTPS ? Aimed(TpReloadQuick, TpReloadQuickAimed) : Aimed(FpReloadQuick, FpReloadQuickAimed), EvReloadQuick);
+	public void Inspect() => PlayAction(IsTPS ? TpInspect : FpInspect, EvInspect);
+	public void MagCheck() => PlayAction(IsTPS ? Aimed(TpMagCheck, TpMagCheckAimed) : Aimed(FpMagCheck, FpMagCheckAimed), EvMagCheck);
+	public void Equip() => PlayAction(IsTPS ? TpEquip : FpEquip, EvEquip);
+	public void ClearJamMagSwipe() => PlayAction(IsTPS ? TpClearJamMagSwipe : FpClearJamMagSwipe, EvClearJamMagSwipe);
+	public void ClearJamRack() => PlayAction(IsTPS ? TpClearJamRack : FpClearJamRack, EvClearJamRack);
+	public string[] GetPreloadList()
+	{
+		var paths = new HashSet<string>();
+
+		void Add(AudioStream[] arr)
+		{
+			if (arr == null) return;
+			foreach (var s in arr)
+			{
+				if (s != null && !string.IsNullOrEmpty(s.ResourcePath))
+					paths.Add(s.ResourcePath);
+			}
+		}
+
+		Add(AudioFire); Add(AudioFireTail); Add(AudioEmptyCasing);
+		Add(AudioClick); Add(AudioFoleyCloth); Add(AudioBoltOpen); Add(AudioBoltClose);
+		Add(AudioGunSmack); Add(AudioMalfunction);
+		Add(AudioMagInsert); Add(AudioMagRemoveFull); Add(AudioMagRemoveEmpty);
+
+		if (EjectCasingScene != null && !string.IsNullOrEmpty(EjectCasingScene.ResourcePath))
+			paths.Add(EjectCasingScene.ResourcePath);
+
+		return [.. paths];
+	}
+
+	public Dictionary<string, string[]> GetAttachments()
+	{
+		var groups = new Dictionary<string, List<string>>();
+
+		void Scan(Node node)
+		{
+			foreach (Node child in node.GetChildren())
+			{
+				if (child is WeaponAttachment wa)
+				{
+					var key = wa.Group.ToString();
+					if (!groups.ContainsKey(key)) groups[key] = [];
+					groups[key].Add(GetPathTo(wa).ToString());
+				}
+				Scan(child);
+			}
+		}
+
+		Scan(this);
+
+		var result = new Dictionary<string, string[]>(groups.Count);
+		foreach (var kv in groups)
+			result[kv.Key] = kv.Value.ToArray();
+		return result;
+	}
+
+	private void BuildAudioPool()
+	{
+		if (_audioPool != null)
+			foreach (var p in _audioPool) p?.QueueFree();
+		_audioPool = null;
+		_audioVoiceIdx = 0;
+		if (_audioPlayer == null || AudioVoices <= 0) return;
+		var parent = _audioPlayer.GetParent() ?? this;
+		_audioPool = new AudioStreamPlayer3D[AudioVoices];
+		for (int i = 0; i < AudioVoices; i++)
+		{
+			var voice = (AudioStreamPlayer3D)_audioPlayer.Duplicate();
+			voice.Name = $"{_audioPlayer.Name}_Voice{i}";
+			if (!string.IsNullOrEmpty(AudioBus.ToString()))
+				voice.Bus = AudioBus;
+			parent.AddChild(voice);
+			_audioPool[i] = voice;
+		}
+	}
+
+	private AudioStreamPlayer3D NextVoice()
+	{
+		if (_audioPool == null || _audioPool.Length == 0) return _audioPlayer;
+		for (int i = 0; i < _audioPool.Length; i++)
+		{
+			var p = _audioPool[(_audioVoiceIdx + i) % _audioPool.Length];
+			if (p != null && !p.Playing)
+			{
+				_audioVoiceIdx = (_audioVoiceIdx + i + 1) % _audioPool.Length;
+				return p;
+			}
+		}
+		var voice = _audioPool[_audioVoiceIdx];
+		_audioVoiceIdx = (_audioVoiceIdx + 1) % _audioPool.Length;
+		return voice;
+	}
+
+	private void Log(string msg) { if (LogEvents) GD.Print($"[WeaponAnimation] {msg}"); }
+
+	private void PlayRandom(AudioStream[] streams, float volume, [System.Runtime.CompilerServices.CallerMemberName] string label = "")
+	{
+		if (streams == null || streams.Length == 0)
+		{
+			Log($"{label} — no AudioStream assigned");
+			return;
+		}
+		var player = NextVoice();
+		if (player == null) return;
+		player.Stream = streams[GD.RandRange(0, streams.Length - 1)];
+		player.VolumeDb = volume > 0f ? Mathf.LinearToDb(volume) : -80f;
+		player.Play();
+		Log($"{label} (vol={volume:0.##})");
+	}
+
+	public virtual void PlayAudioClick() => PlayRandom(AudioClick, VolumeClick);
+	public virtual void PlayAudioFire() => PlayRandom(AudioFire, VolumeFire);
+	public virtual void PlayAudioFireTail() => PlayRandom(AudioFireTail, VolumeFireTail);
+	public virtual void PlayAudioBoltClose() => PlayRandom(AudioBoltClose, VolumeBoltClose);
+	public virtual void PlayAudioBoltOpen() => PlayRandom(AudioBoltOpen, VolumeBoltOpen);
+	public virtual void PlayAudioGunSmack() => PlayRandom(AudioGunSmack, VolumeGunSmack);
+	public virtual void PlayAudioFoleyCloth() => PlayRandom(AudioFoleyCloth, VolumeFoleyCloth);
+	public virtual void PlayAudioMagInsert() => PlayRandom(AudioMagInsert, VolumeMagInsert);
+	public virtual void PlayAudioMagRemoveFull() => PlayRandom(AudioMagRemoveFull, VolumeMagRemoveFull);
+	public virtual void PlayAudioMagRemoveEmpty() => PlayRandom(AudioMagRemoveEmpty, VolumeMagRemoveEmpty);
+	public virtual void PlayAudioEmptyCasing() => PlayRandom(AudioEmptyCasing, VolumeEmptyCasing);
+	public virtual void PlayAudioMalfunction() => PlayRandom(AudioMalfunction, VolumeMalfunction);
+	// Reprojects a transform authored in the FPS viewmodel's own World3D into the main world (identity on
+	// TPS weapons, where the cameras are unset). Keeps the apparent screen position so the prop drops from
+	// where the gun visually is.
+	private Transform3D RemapToWorld(Transform3D vmSpace)
+	{
+		if (RemapFromCamera != null && GodotObject.IsInstanceValid(RemapFromCamera)
+			&& RemapToCamera != null && GodotObject.IsInstanceValid(RemapToCamera))
+			return RemapToCamera.GlobalTransform * RemapFromCamera.GlobalTransform.AffineInverse() * vmSpace;
+		return vmSpace;
+	}
+
+	public virtual void EjectCasing()
+	{
+		Log("EjectCasing");
+		if (_bulletPool == null || _skeleton == null || _ejectionBone < 0) return;
+		var bullet = _bulletPool[_bulletPoolIdx];
+		_bulletPoolIdx = (_bulletPoolIdx + 1) % _bulletPool.Length;
+		if (bullet == null) return;
+
+		var boneWorld = RemapToWorld(_skeleton.GlobalTransform * _skeleton.GetBoneGlobalPose(_ejectionBone));
+		var randEuler = new Vector3(
+			Mathf.DegToRad((float)GD.RandRange(EjectMinRotation.X, EjectMaxRotation.X)),
+			Mathf.DegToRad((float)GD.RandRange(EjectMinRotation.Y, EjectMaxRotation.Y)),
+			Mathf.DegToRad((float)GD.RandRange(EjectMinRotation.Z, EjectMaxRotation.Z))
+		);
+		var dir = (boneWorld.Basis * Basis.FromEuler(randEuler) * EjectDirectionLocal).Normalized();
+		var randomUnit = new Vector3((float)GD.RandRange(-1f, 1f), (float)GD.RandRange(-1f, 1f), (float)GD.RandRange(-1f, 1f)).Normalized();
+
+		bullet.Launch(
+			new Transform3D(boneWorld.Basis, boneWorld.Origin),
+			dir * (float)GD.RandRange(EjectMinForce, EjectMaxForce) + randomUnit,
+			dir * Mathf.DegToRad(EjectRotationSpeed),
+			EjectLifetime
+		);
+	}
+	public virtual void HideMainMag()
+	{
+		Log(_mainMag != null ? "HideMainMag" : "HideMainMag — _mainMag NULL");
+		if (_mainMag != null) _mainMag.Visible = false;
+	}
+	public virtual void ShowMainMag()
+	{
+		Log(_mainMag != null ? "ShowMainMag" : "ShowMainMag — _mainMag NULL");
+		if (_mainMag != null) _mainMag.Visible = true;
+	}
+	public virtual void ShowReserveMag()
+	{
+		Log(_reserveMag != null ? "ShowReserveMag" : "ShowReserveMag — _reserveMag NULL");
+		if (_reserveMag != null) _reserveMag.Visible = true;
+	}
+	public virtual void HideReserveMag()
+	{
+		Log(_reserveMag != null ? "HideReserveMag" : "HideReserveMag — _reserveMag NULL");
+		if (_reserveMag != null) _reserveMag.Visible = false;
+	}
+	public virtual void DropMagazine()
+	{
+		if (_mainMag == null) { Log("DropMagazine — _mainMag NULL"); return; }
+
+		// spawn at the visible mag mesh's world transform (falls back to the socket node)
+		MeshInstance3D srcMesh = FindMesh(_mainMag);
+		Transform3D spawn = RemapToWorld(srcMesh != null ? srcMesh.GlobalTransform : _mainMag.GlobalTransform);
+
+		RigidBody3D mag = DropMagazineScene?.Instantiate() as RigidBody3D ?? BuildRuntimeMagBody(srcMesh);
+		if (mag == null) { Log("DropMagazine — no DropMagazineScene and no mag mesh to build from"); return; }
+
+		// the dropped mag must collide + simulate (in-socket mags default to non-colliding/frozen)
+		if (mag is AnimatedMagazin am) am.CollisionEnabled = true;
+		GetTree().CurrentScene.AddChild(mag);
+		mag.Freeze = false;
+		mag.CollisionLayer = 1u << 3;   // DEBRIS layer (4) — players don't collide with dropped mags (no step-up cost)
+		mag.CollisionMask = 1u;         // collide with WORLD only, so it rests on the floor
+		mag.GlobalTransform = spawn;
+		// UE AddImpulse (VelChange) along the socket up axis -> set velocity directly
+		mag.LinearVelocity = spawn.Basis.Y.Normalized() * DropImpulseForce;
+		// UE AddAngularImpulseInDegrees (VelChange) about a random axis
+		Vector3 axis = new Vector3(
+			(float)GD.RandRange(-1.0, 1.0),
+			(float)GD.RandRange(-1.0, 1.0),
+			(float)GD.RandRange(-1.0, 1.0)).Normalized();
+		mag.AngularVelocity = axis * Mathf.DegToRad(DropRotationForce);
+		Log($"DropMagazine @ {spawn.Origin}");
+		GetTree().CreateTimer(DropMagazineLifetime).Timeout += () => { if (IsInstanceValid(mag)) mag.QueueFree(); };
+	}
+
+	private static MeshInstance3D FindMesh(Node root)
+	{
+		if (root is MeshInstance3D mi) return mi;
+		foreach (Node child in root.GetChildren())
+		{
+			var found = FindMesh(child);
+			if (found != null) return found;
+		}
+		return null;
+	}
+
+	private static RigidBody3D BuildRuntimeMagBody(MeshInstance3D srcMesh)
+	{
+		if (srcMesh?.Mesh == null) return null;
+		var body = new RigidBody3D();
+		body.AddChild(new MeshInstance3D { Mesh = srcMesh.Mesh });
+		body.AddChild(new CollisionShape3D { Shape = srcMesh.Mesh.CreateConvexShape() });
+		return body;
+	}
+
+	// World position of the active barrel tip, used to start tracers/muzzle FX at the gun. Reprojected into
+	// the main world for the FPS viewmodel weapon (its emitter lives in the SubViewport's own world); identity
+	// for the TPS weapon. Resolved per call (cheap, only on shots) so handguard swaps are picked up.
+	public Vector3 GetMuzzleWorldPosition()
+	{
+		Node3D tip = FindMuzzleTip(this);
+		Vector3 pos = tip != null ? tip.GlobalPosition : GlobalPosition;
+		return RemapToWorld(new Transform3D(Basis.Identity, pos)).Origin;
+	}
+
+	// The active handguard variant's "Muzzle" node is visible-in-tree (inactive variants are hidden); its
+	// "SOCKET_Emitter" descendant is the barrel tip and is valid even when the silencer MESH it hangs under is
+	// hidden — so we gate on the Muzzle's visibility, not the emitter's. Falls back to any visible emitter.
+	private static Node3D FindMuzzleTip(Node root)
+	{
+		Node3D muzzle = FindVisibleNamed(root, "Muzzle");
+		if (muzzle == null) return FindVisibleNamed(root, "SOCKET_Emitter");
+		return FindNamed(muzzle, "SOCKET_Emitter") ?? muzzle;
+	}
+
+	private static Node3D FindVisibleNamed(Node root, string name)
+	{
+		if (root is Node3D n3 && root.Name == name && n3.IsVisibleInTree()) return n3;
+		foreach (Node child in root.GetChildren())
+		{
+			var found = FindVisibleNamed(child, name);
+			if (found != null) return found;
+		}
+		return null;
+	}
+
+	private static Node3D FindNamed(Node root, string name)
+	{
+		if (root is Node3D n3 && root.Name == name) return n3;
+		foreach (Node child in root.GetChildren())
+		{
+			var found = FindNamed(child, name);
+			if (found != null) return found;
+		}
+		return null;
+	}
+
+	private GpuParticles3D _muzzleSmoke;
+
+	// Muzzle smoke puff — exact port of the old smg.tscn "smoke" GpuParticles (fx/smoke/smoke.tres material +
+	// growth/fade curves). Parented to the barrel tip so it renders in the weapon's own world (FPS viewmodel
+	// SubViewport for the local gun, main world for the TPS gun) — every client spawns its own, so it's
+	// world-wide. Triggered per shot via MuzzleSmoke().
+	private void BuildMuzzleSmoke()
+	{
+		Node3D tip = FindMuzzleTip(this);
+		var mat = ResourceLoader.Load<Material>("res://fx/smoke/smoke.tres");
+		if (tip == null || mat == null) return;
+
+		var ppm = new ParticleProcessMaterial
+		{
+			Direction = new Vector3(0, 0, -1),
+			Spread = 25f,
+			InitialVelocityMin = 2f,
+			InitialVelocityMax = 6f,
+			Gravity = Vector3.Zero,
+			LinearAccelMin = 1f,
+			LinearAccelMax = 3f,
+			DampingMin = 1f,
+			DampingMax = 3f,
+			ScaleMin = 0.8f,
+			ScaleCurve = MakeCurve((0f, 0.033f), (0.364f, 0.688f), (1f, 1f)),
+			Color = new Color(0.149f, 0.149f, 0.149f, 1f),
+			AlphaCurve = MakeCurve((0f, 0f), (0.494f, 0.967f), (1f, 0f)),
+			AngleMin = -360f,
+			AngleMax = 360f,
+			AnimOffsetMax = 1f,
+			InheritVelocityRatio = 1f,
+		};
+		ppm.SetParticleFlag(ParticleProcessMaterial.ParticleFlags.DampingAsFriction, true);
+
+		_muzzleSmoke = new GpuParticles3D
+		{
+			Name = "MuzzleSmoke",
+			Amount = 6,
+			Lifetime = 0.5,
+			OneShot = true,
+			Emitting = false,
+			LocalCoords = false,
+			ProcessMaterial = ppm,
+			DrawPass1 = new QuadMesh { Size = new Vector2(0.5f, 0.5f) },
+			MaterialOverride = mat,
+		};
+		tip.AddChild(_muzzleSmoke);
+	}
+
+	public void MuzzleSmoke() => _muzzleSmoke?.Restart();
+
+	private static CurveTexture MakeCurve(params (float X, float Y)[] points)
+	{
+		var c = new Curve();
+		foreach (var p in points) c.AddPoint(new Vector2(p.X, p.Y));
+		return new CurveTexture { Curve = c };
+	}
+}

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 /// Debug-Renderer für die SERVER-Hitbox-Transforms (kommt via <see cref="PacketType.DebugHitboxes"/>
 /// vom Server ~10Hz). Anders als <see cref="HitboxRig"/>'s grüne Wireframes (= LOKALE Puppet-Bones)
 /// zeigt das hier wo + WIE die HITBOXEN AUF DEM SERVER aktuell sind — exakt das was der Server-Cast
-/// in <see cref="PlayerCore.RunAuthoritativeHitscan"/> trifft, inkl. Shape-Größen + Rotation.
+/// in <see cref="ServerPlayer.RunAuthoritativeHitscan"/> trifft, inkl. Shape-Größen + Rotation.
 ///
 /// Shape-Größen werden aus dem PUPPET's HitboxRig gelesen (= identische Specs zum Server, dort wo
 /// die Default-Shapes definiert sind). Position + Rotation kommt vom Server via Packet.
@@ -70,7 +70,7 @@ public partial class HudServerHitboxesDebug : Node3D
 			HitboxRig puppetRig = null;
 			if (puppetMgr != null && puppetMgr.Puppets.TryGetValue(netId, out var puppet))
 			{
-				var visualPc = puppet.GetVisualPlayerCore();
+				var visualPc = puppet.GetVisual();
 				puppetRig = visualPc?.GetHitboxRig();
 			}
 

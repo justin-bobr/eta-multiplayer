@@ -13,7 +13,7 @@ using Godot;
 /// </summary>
 public partial class SettingsMenu : CanvasLayer
 {
-	/// <summary>Static flag: other systems (PlayerCore etc.) consult this to block input while the menu is open.</summary>
+	/// <summary>Static flag: other systems (NetworkPlayer etc.) consult this to block input while the menu is open.</summary>
 	public static bool IsAnyOpen { get; private set; }
 
 	[Export]

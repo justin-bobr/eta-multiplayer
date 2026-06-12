@@ -9,7 +9,7 @@ using Godot;
 public partial class HudCs2 : Node
 {
 	/// <summary>Optional player reference. When set, stamina is read from the movement controller.</summary>
-	[Export] public PlayerCore Player;
+	[Export] public NetworkPlayer Player;
 	[Export] public int CanvasLayerOrder = 40;
 	[Export] public float Scale = 1.0f;
 
@@ -33,9 +33,9 @@ public partial class HudCs2 : Node
 	/// <summary>Smoke count; -1 renders as the infinity glyph for test mode.</summary>
 	[Export] public int SmokeCount = -1;
 
-	// Bombsite navigation: BombSpot lookups go through MapCache.BombSpotForSlot — no groups, no string
-	// exports. The mapper places BombSpot nodes with the Slot dropdown, the Map cache scans by
-	// type, the HUD asks for the BombSpot of each slot every frame.
+	// Bombsite navigation: BombSpot lookups go through World.Level.BombSpotForSlot — no groups, no string
+	// exports. The mapper places BombSpot nodes with the Slot dropdown and lists them in Level.BombSpotPaths,
+	// the HUD asks for the BombSpot of each slot every frame.
 
 	private CanvasLayer _layer;
 	private Label _moneyLabel, _roundLabel;
@@ -93,7 +93,7 @@ public partial class HudCs2 : Node
 			Node n = GetParent();
 			while (n != null && Player == null)
 			{
-				if (n is PlayerCore lc) Player = lc;
+				if (n is NetworkPlayer lc) Player = lc;
 				n = n.GetParent();
 			}
 		}
@@ -140,12 +140,12 @@ public partial class HudCs2 : Node
 
 			UpdateZoneLabel();
 
-			if (!_navChecked && MapCache.Initialized)
+			if (!_navChecked && World.Level is { Resolved: true } level)
 			{
 				_navChecked = true;
-				Dbg.Print($"[HUD] BombSpots from Map: A={(MapCache.BombSpotForSlot(BombSpot.BombSlot.A) != null ? "OK" : "MISSING")}" +
-					$" · B={(MapCache.BombSpotForSlot(BombSpot.BombSlot.B) != null ? "OK" : "MISSING")}" +
-					$" · C={(MapCache.BombSpotForSlot(BombSpot.BombSlot.C) != null ? "OK" : "MISSING")}");
+				Dbg.Print($"[HUD] BombSpots from Level: A={(level.BombSpotForSlot(BombSpot.BombSlot.A) != null ? "OK" : "MISSING")}" +
+					$" · B={(level.BombSpotForSlot(BombSpot.BombSlot.B) != null ? "OK" : "MISSING")}" +
+					$" · C={(level.BombSpotForSlot(BombSpot.BombSlot.C) != null ? "OK" : "MISSING")}");
 			}
 		}
 
@@ -155,7 +155,7 @@ public partial class HudCs2 : Node
 			Stamina = Mathf.RoundToInt(mc.Stamina / Mathf.Max(1f, ConVars.Sv.MaxStamina) * 100f);
 			AmmoCurrent = mc.CurrentMag;
 			AmmoReserve = mc.ReserveAmmo;
-			WeaponName = Player.WeaponHolder?.ActiveWeapon?.Name ?? "—";
+			WeaponName = ConVars.Weapons.M4A1?.Name ?? "—";
 			var snap = NetMain.Instance?.Client?.LastSelfSnap;
 			if (snap.HasValue)
 			{
@@ -381,19 +381,13 @@ public partial class HudCs2 : Node
 	}
 
 	/// <summary>Finds the <see cref="Zone"/> the player currently stands in and writes its name
-	/// into the zone label under the compass. Delegates to <see cref="MapCache.ZoneAt"/> which handles
-	/// the point-in-box test + smallest-volume tiebreak (innermost nested zone wins). Triggers a
-	/// lazy <see cref="MapCache.Scan"/> the first time the world scene is up — the server's NetServer
-	/// scan already populated it, but a listen-server / standalone client without the server-side
-	/// scan still ends up with a populated cache.</summary>
+	/// into the zone label under the compass. Delegates to <see cref="Level.ZoneAt"/> which handles
+	/// the point-in-box test + smallest-volume tiebreak (innermost nested zone wins). The Level
+	/// registry resolves itself on map _Ready, so there's nothing to lazily scan here.</summary>
 	private void UpdateZoneLabel()
 	{
 		if (_zoneLabel == null || Player == null) return;
-		var tree = GetTree();
-		if (tree == null) return;
-		if (!MapCache.Initialized && tree.CurrentScene != null && tree.CurrentScene.Name == "World")
-			MapCache.Scan(tree);
-		var z = MapCache.ZoneAt(Player.GlobalPosition);
+		var z = World.Level?.ZoneAt(Player.GlobalPosition);
 		_activeZone = z;
 		string text = z != null ? z.ZoneName : "";
 		if (text == _lastZoneText) return;
@@ -403,13 +397,13 @@ public partial class HudCs2 : Node
 
 	/// <summary>
 	/// Compass bearing (0..360 degrees, north = -Z) from the player to the BombSpot with the
-	/// given slot. Resolved via <see cref="MapCache.BombSpotForSlot"/>. Returns NaN when the map has no
+	/// given slot. Resolved via <see cref="Level.BombSpotForSlot"/>. Returns NaN when the map has no
 	/// BombSpot for that slot (so e.g. C-less 2-site maps skip drawing the C diamond).
 	/// </summary>
 	private float BearingToBombSpot(BombSpot.BombSlot slot)
 	{
-		if (Player == null || !MapCache.Initialized) return float.NaN;
-		var spot = MapCache.BombSpotForSlot(slot);
+		if (Player == null) return float.NaN;
+		var spot = World.Level?.BombSpotForSlot(slot);
 		if (spot == null) return float.NaN;
 		Vector3 d = spot.GlobalPosition - Player.GlobalPosition;
 		if (d.X * d.X + d.Z * d.Z < 0.01f) return float.NaN;

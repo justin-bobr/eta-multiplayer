@@ -1,239 +1,47 @@
 using Godot;
-using System.Collections.Generic;
 
 /// <summary>
-/// Local client character — the owning player's body. Instantiated by
-/// <see cref="NetMain.TryInitializeLocalPlayer"/> from <c>res://character/local_player.tscn</c> once
-/// SpawnAck is received. Sets the mode flags (<c>IsLocalPlayer=true</c>, <c>IsServerAgent=false</c>,
-/// <c>IsPuppet=false</c>) so the local-player code path runs. Holds all local-only fields and logic:
-/// FPS and third-person cameras, FpsVisual + shadow tuning, third-person spring-arm collision + ADS
-/// blend, mouse input handlers (mouse-look, fire-mode toggle, view-mode toggle), aim guide for grenade
-/// trajectory preview, third-person foot IK ground snap, and mouse pitch state. PlayerCore contains
-/// only the shared simulation (movement / hitscan / mantle / crouch / footsteps / grenade) plus puppet
-/// and server specifics. All local-only methods are implemented here as overrides
-/// (UpdateAimGuide / UpdateFootIk / UpdateTpsCameraCollision / ApplyViewMode / ActiveCamera).
+/// The local player's character (the one this client controls). Drives its own sim, prediction, input
+/// and viewmodel. Spawned from <c>local_player.tscn</c>.
 /// </summary>
-public partial class LocalPlayer : PlayerCore
+[Tool, GlobalClass]
+public partial class LocalPlayer : NetworkPlayer
 {
-	[ExportGroup("Cameras / Visuals")]
-	[Export] public Camera3D Camera;
-	[Export] public Camera3D TpsCamera;
-	[Export] public Node3D FpsVisual;
+	private bool _reloadAudioWasActive;
 
-	[ExportGroup("TPS Shadow (FPS-Mode)")]
-	[Export] public GeometryInstance3D.ShadowCastingSetting TpsShadowInFpsMode = GeometryInstance3D.ShadowCastingSetting.ShadowsOnly;
-	[Export] public bool TpsLowerBodyShadowOnly = false;
-	[Export] public Vector3 TpsShadowOffsetInFps = Vector3.Zero;
-	[Export(PropertyHint.Range, "0.5,2.5,0.05")] public float TpsShadowScaleInFps = 1.0f;
-
-	[ExportGroup("TPS Camera Collision")]
-	[Export] public float TpsCamWallMargin = 0.15f;
-	[Export] public uint TpsCamCollisionMask = 1;
-	[Export] public float TpsCamSmoothRate = 12f;
-
-	[ExportGroup("TPS ADS Camera")]
-	[Export(PropertyHint.Range, "0,1,0.05")] public float TpsAdsCloserFactor = 0.45f;
-	[Export] public float TpsAdsFov = 50f;
-	[Export] public float TpsAdsLerpRate = 8f;
-
-	[ExportGroup("Input — LocalPlayer Only")]
-	[Export] public Key MouseCaptureToggleKey = Key.Escape;
-	[Export] public Key FireModeToggleKey = Key.G;
-	[Export] public Key UnlimitedAmmoToggleKey = Key.F1;
-	[Export] public Key ViewModeToggleKey = Key.F7;
-	[Export] public bool MouseLookEnabled = true;
-	[Export] public bool CaptureMouseOnStart = true;
-
-	private float _pitch;
-
-	private Vector3 _tpsCamRestLocal;
-	private bool _tpsCamRestCached;
-	private float _tpsCamBaseFov;
-	private float _tpsAdsBlend;
-
-	private Vector3 _tpsVisualOrigPos;
-	private Vector3 _tpsVisualOrigScale = Vector3.One;
-	private bool _tpsVisualOrigPosCached;
-
-	private GrenadeAimGuide _aimGuide;
-	private readonly List<Vector3> _aimPath = new();
-	private int _aimDbg;
-
-	/// <summary>Derived from the concrete type — a LocalPlayer instance is by definition the local player.</summary>
-	public override bool IsLocalPlayer => true;
-
-	/// <summary>Caches the third-person rest position and base FOV, captures the mouse, and adds the aim guide.</summary>
-	public override void _Ready()
+	private void SendNetInput()
 	{
-		base._Ready();
-
-		if (TpsCamera != null)
-		{
-			_tpsCamRestLocal = TpsCamera.Position;
-			_tpsCamRestCached = true;
-			_tpsCamBaseFov = TpsCamera.Fov;
-		}
-
-		if (CaptureMouseOnStart)
-			Input.MouseMode = Input.MouseModeEnum.Captured;
-
-		_aimGuide = new GrenadeAimGuide();
-		GetParent().CallDeferred(Node.MethodName.AddChild, _aimGuide);
+		if (_isReplaying) return;
+		if (InputGate.LocalPlayerFrozen) return;
+		var client = NetMain.Instance?.Client;
+		if (client == null || !client.Spawned) return;
+		bool blocked = InputGate.Blocked;
+		bool firePressed = !blocked && Input.IsActionPressed(InputActions.Fire);
+		bool reloadPressed = !blocked && Input.IsActionPressed(InputActions.Reload);
+		bool inspectPressed = !blocked && Input.IsActionPressed(InputActions.Inspect);
+		bool slotIsGrenade = _activeSlot == 1;
+		byte fireSubTick = ComputeFireSubTick(firePressed);
+		client.SendInput(CurrentTick, _lastMovementInput, firePressed, reloadPressed, inspectPressed, slotIsGrenade, fireSubTick);
 	}
 
-	/// <summary>Active camera used by logic reads (shoot origin, grenade spawn, HUD FOV).</summary>
-	public override Camera3D ActiveCamera =>
-		(ViewMode == ViewMode.Tps && TpsCamera != null) ? TpsCamera : Camera;
-
-	/// <summary>Applies the live third-person shadow offset and scale while in FPS mode each frame.</summary>
-	public override void _Process(double delta)
+	private byte ComputeFireSubTick(bool firePressed)
 	{
-		using var _prof = MiniProfiler.SampleClient("LocalPlayer._Process");
-		base._Process(delta);
-		if (ViewMode == ViewMode.Fps && TpsVisual != null && _tpsVisualOrigPosCached)
-		{
-			TpsVisual.Position = _tpsVisualOrigPos + TpsShadowOffsetInFps;
-			TpsVisual.Scale = _tpsVisualOrigScale * TpsShadowScaleInFps;
-		}
+		if (!firePressed || _lastFirePressUsec == 0) return 0;
+		if (_prevTickStartUsec == 0 || _tickStartUsec <= _prevTickStartUsec) return 0;
+		if (_lastFirePressUsec < _prevTickStartUsec) return 0;
+		if (_lastFirePressUsec >= _tickStartUsec) return 0;
+		ulong period = _tickStartUsec - _prevTickStartUsec;
+		ulong offset = _lastFirePressUsec - _prevTickStartUsec;
+		return (byte)Mathf.Clamp((int)((offset * 256UL) / period), 0, 255);
 	}
 
-	/// <summary>Switches between FPS / TPS / Disabled cameras and applies shadow tuning.</summary>
-	protected override void ApplyViewMode()
-	{
-		bool wantTps = ViewMode == ViewMode.Tps && TpsCamera != null;
-		bool wantDisabled = ViewMode == ViewMode.Disabled;
-		bool wantFps = !wantTps && !wantDisabled;
-
-		if (ViewMode == ViewMode.Tps && TpsCamera == null)
-			GD.PushWarning("[LocalPlayer] ViewMode=Tps but TpsCamera not wired — staying in FPS.");
-
-		if (Camera != null) Camera.Current = wantFps;
-		if (TpsCamera != null) TpsCamera.Current = wantTps;
-
-		if (FpsVisual != null) SetLayers(FpsVisual, 1u << 1);
-		if (TpsVisual != null) SetLayers(TpsVisual, 1u << 0);
-
-		if (TpsVisual != null && !_tpsVisualOrigPosCached)
-		{
-			_tpsVisualOrigPos = TpsVisual.Position;
-			_tpsVisualOrigScale = TpsVisual.Scale;
-			_tpsVisualOrigPosCached = true;
-		}
-
-		if (wantFps)
-		{
-			if (FpsVisual != null) { FpsVisual.Visible = true; SetShadowMode(FpsVisual, GeometryInstance3D.ShadowCastingSetting.Off); }
-			if (TpsVisual != null)
-			{
-				bool needsActive = TpsShadowInFpsMode != GeometryInstance3D.ShadowCastingSetting.Off;
-				TpsVisual.Visible = needsActive;
-				TpsVisual.Position = _tpsVisualOrigPos + TpsShadowOffsetInFps;
-				TpsVisual.Scale = _tpsVisualOrigScale * TpsShadowScaleInFps;
-				if (TpsLowerBodyShadowOnly && TpsShadowInFpsMode == GeometryInstance3D.ShadowCastingSetting.ShadowsOnly)
-					SetShadowModeFiltered(TpsVisual);
-				else
-				{
-					RestoreFilteredVisibility(TpsVisual);
-					SetShadowMode(TpsVisual, TpsShadowInFpsMode);
-				}
-			}
-		}
-		else if (wantTps)
-		{
-			if (FpsVisual != null) FpsVisual.Visible = false;
-			if (TpsVisual != null)
-			{
-				TpsVisual.Visible = true;
-				TpsVisual.Position = _tpsVisualOrigPos;
-				TpsVisual.Scale = _tpsVisualOrigScale;
-				RestoreFilteredVisibility(TpsVisual);
-				SetShadowMode(TpsVisual, GeometryInstance3D.ShadowCastingSetting.On);
-			}
-		}
-		else
-		{
-			if (FpsVisual != null) FpsVisual.Visible = false;
-			if (TpsVisual != null) TpsVisual.Visible = false;
-		}
-	}
-
-	/// <summary>Third-person spring-arm + ADS blend (FOV + closer factor). Skipped while not in TPS mode.</summary>
-	protected override void UpdateTpsCameraCollision()
-	{
-		if (!_tpsCamRestCached || TpsCamera == null || HeadPitch == null) return;
-		if (ViewMode != ViewMode.Tps) return;
-
-		var space = GetWorld3D()?.DirectSpaceState;
-		if (space == null) return;
-
-		float dt = _fixedDt;
-
-		bool adsHeld = !InputGate.Blocked && Input.IsActionPressed(InputActions.Ads);
-		_tpsAdsBlend = Mathf.Lerp(_tpsAdsBlend, adsHeld ? 1f : 0f, 1f - Mathf.Exp(-TpsAdsLerpRate * dt));
-
-		Vector3 adsLocal = _tpsCamRestLocal.Lerp(Vector3.Zero, TpsAdsCloserFactor * _tpsAdsBlend);
-		Vector3 worldDesired = HeadPitch.GlobalTransform * adsLocal;
-		Vector3 pivot = HeadPitch.GlobalPosition;
-
-		_rayQuery.From = pivot;
-		_rayQuery.To = worldDesired;
-		_rayQuery.CollisionMask = TpsCamCollisionMask;
-
-		Vector3 targetLocal;
-		if (space.IntersectRayInto(_rayQuery, _rayResult))
-		{
-			Vector3 hitPos = _rayResult.GetPosition();
-			Vector3 dir = worldDesired - pivot;
-			float desiredDist = dir.Length();
-			if (desiredDist > 0.001f)
-			{
-				float hitDist = (hitPos - pivot).Length();
-				float safeDist = Mathf.Max(0.1f, hitDist - TpsCamWallMargin);
-				Vector3 safeWorld = pivot + dir / desiredDist * safeDist;
-				targetLocal = HeadPitch.GlobalTransform.AffineInverse() * safeWorld;
-			}
-			else targetLocal = adsLocal;
-		}
-		else targetLocal = adsLocal;
-
-		float posLerpT = TpsCamSmoothRate > 0f ? (1f - Mathf.Exp(-TpsCamSmoothRate * dt)) : 1f;
-		TpsCamera.Position = TpsCamera.Position.Lerp(targetLocal, posLerpT);
-
-		float targetFov = Mathf.Lerp(_tpsCamBaseFov, TpsAdsFov, _tpsAdsBlend);
-		float fovLerpT = 1f - Mathf.Exp(-TpsAdsLerpRate * dt);
-		TpsCamera.Fov = Mathf.Lerp(TpsCamera.Fov, targetFov, fovLerpT);
-	}
-
-	/// <summary>Routes raw input events into the mouse-look, mouse-capture, and view-mode handlers.
-	/// Also records the wallclock timestamp of any fire-press edge into <see cref="PlayerCore._lastFirePressUsec"/>
-	/// for the subtick-fire pipeline — captured here rather than in <see cref="PlayerCore.SendNetInput"/>
-	/// because the input-event handler fires at the exact moment of the press (sub-tick precision),
-	/// not at the tick poll boundary.</summary>
-	public override void _Input(InputEvent @event)
-	{
-		HandleMouseLook(@event);
-		HandleMouseCaptureToggle(@event);
-		HandleViewModeToggle(@event);
-		if (@event.IsActionPressed(InputActions.Fire))
-			_lastFirePressUsec = Time.GetTicksUsec();
-
-		if (@event is InputEventKey || @event is InputEventMouseButton || @event is InputEventJoypadButton)
-			RecordSubtickInputEvent();
-	}
-
-	/// <summary>Applies mouse motion to body yaw and head pitch. Reads <c>InputEventMouseMotion.Relative</c>
-	/// (Godot's accumulated raw delta when MouseMode is Captured — already 1000Hz mouse-friendly, no OS
-	/// acceleration injection) and scales it by the master sensitivity, per-axis yaw/pitch multipliers
-	/// (Source-style <c>cl_m_yaw</c>/<c>cl_m_pitch</c>), and an ADS-time weapon-specific multiplier.
-	/// Pitch is clamped to [<see cref="ClConVars.MinPitch"/>, <see cref="ClConVars.MaxPitch"/>]; yaw is
-	/// applied directly to the body via <see cref="Node3D.RotateY"/>.</summary>
 	private void HandleMouseLook(InputEvent @event)
 	{
 		if (@event is not InputEventMouseMotion mm) return;
 		if (!MouseLookEnabled || Input.MouseMode != Input.MouseModeEnum.Captured) return;
 
 		float sensMul = 1f;
-		var weapon = WeaponHolder?.ActiveWeapon;
+		var weapon = ConVars.Weapons.M4A1;
 		if (weapon != null && Movement.AdsBlend > 0f)
 			sensMul = Mathf.Lerp(1f, weapon.AdsSensitivityMul, Movement.AdsBlendVisual);
 		float masterSens = ConVars.Cl.MouseSensitivity * sensMul;
@@ -243,62 +51,434 @@ public partial class LocalPlayer : PlayerCore
 		RotateY(Mathf.DegToRad(-mm.Relative.X * yawSens));
 
 		float pitchDelta = mm.Relative.Y * pitchSens;
-		_pitch -= ConVars.Cl.InvertMouseY ? -pitchDelta : pitchDelta;
-		_pitch = Mathf.Clamp(_pitch, ConVars.Cl.MinPitch, ConVars.Cl.MaxPitch);
+		float pitchDeg = Mathf.RadToDeg(_lookPitch) - (ConVars.Cl.InvertMouseY ? -pitchDelta : pitchDelta);
+		pitchDeg = Mathf.Clamp(pitchDeg, ConVars.Cl.MinPitch, ConVars.Cl.MaxPitch);
+		_lookPitch = Mathf.DegToRad(pitchDeg);
 		if (HeadPitch != null)
 		{
 			Vector3 rot = HeadPitch.RotationDegrees;
-			rot.X = _pitch;
+			rot.X = pitchDeg;
 			HeadPitch.RotationDegrees = rot;
 		}
+		_lookYaw = Rotation.Y;
+		_lookDelta += new Vector2(-mm.Relative.X * yawSens, mm.Relative.Y * pitchSens);
 	}
 
-	/// <summary>Handles key-edge toggles for fire-mode switching and unlimited-ammo cheat.</summary>
-	private void HandleMouseCaptureToggle(InputEvent @event)
+	private void HandleKeyToggles(InputEvent @event)
 	{
-		if (@event is not InputEventKey k) return;
-		if (!k.Pressed || k.Echo) return;
-		if (k.Keycode == FireModeToggleKey)
-		{
+		if (@event is not InputEventKey k || !k.Pressed || k.Echo) return;
+		if (k.Keycode == Key.G)
 			Movement.FireMode = (Movement.FireMode + 1) % 2;
-			Dbg.Print($"[fire] FireMode: {(Movement.FireMode == 0 ? "Automatic" : "SingleShot")}");
-		}
-		if (k.Keycode == UnlimitedAmmoToggleKey)
+		else if (k.Keycode == Key.F1)
 		{
 			Movement.UnlimitedAmmo = !Movement.UnlimitedAmmo;
-			if (Movement.UnlimitedAmmo && WeaponHolder?.ActiveWeapon != null)
-				Movement.CurrentMag = WeaponHolder.ActiveWeapon.MagazineSize;
-			Dbg.Print($"[ammo] UnlimitedAmmo: {Movement.UnlimitedAmmo}");
+			if (Movement.UnlimitedAmmo)
+				Movement.CurrentMag = ConVars.Weapons.M4A1.MagazineSize;
+		}
+		else if (k.Keycode == Key.F7)
+		{ ViewMode = ViewMode == ViewMode.Tps ? ViewMode.Fps : ViewMode.Tps; ApplyModeVisibility(); }
+		else if (k.Keycode == Key.Escape)
+			Input.MouseMode = Input.MouseMode == Input.MouseModeEnum.Captured
+				? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
+	}
+
+	private void RecordSubtickInputEvent()
+	{
+		InputBits newBits = ReadInputBitsFromGodot();
+		if (newBits == _liveBits) return;
+		_liveBits = newBits;
+		if (_subtickBuffer.Count >= Packets.MaxSubtickEventsWire) return;
+		float yaw = Rotation.Y;
+		float pitch = HeadPitch != null ? HeadPitch.Rotation.X : 0f;
+		_subtickBuffer.Add(new BufferedSubtickEvent
+		{
+			Usec = Time.GetTicksUsec(),
+			State = newBits,
+			Yaw = yaw,
+			Pitch = pitch,
+		});
+	}
+
+	private InputBits ReadInputBitsFromGodot()
+	{
+		if (InputGate.Blocked) return InputBits.None;
+		InputBits b = InputBits.None;
+		if (Input.IsActionPressed(InputActions.Forward))  b |= InputBits.Forward;
+		if (Input.IsActionPressed(InputActions.Back))     b |= InputBits.Back;
+		if (Input.IsActionPressed(InputActions.Left))     b |= InputBits.Left;
+		if (Input.IsActionPressed(InputActions.Right))    b |= InputBits.Right;
+		if (Input.IsActionPressed(InputActions.Jump))     b |= InputBits.Jump;
+		if (Input.IsActionPressed(InputActions.Crouch))   b |= InputBits.Crouch;
+		if (Input.IsActionPressed(InputActions.Sprint))   b |= InputBits.Sprint;
+		if (Input.IsActionPressed(InputActions.Shift))    b |= InputBits.ShiftWalk;
+		if (Input.IsActionPressed(InputActions.Fire))     b |= InputBits.Fire;
+		if (Input.IsActionPressed(InputActions.Ads))      b |= InputBits.Ads;
+		if (Input.IsActionPressed(InputActions.Reload))   b |= InputBits.Reload;
+		if (Input.IsActionPressed(InputActions.Inspect))  b |= InputBits.Inspect;
+		if (Input.IsActionPressed(InputActions.Breath))   b |= InputBits.BreathHold;
+		return b;
+	}
+
+	private SubtickEvent[] FlushSubtickEvents()
+	{
+		int count = _subtickBuffer.Count;
+		if (count == 0 || _prevTickStartUsec == 0 || _tickStartUsec <= _prevTickStartUsec)
+		{
+			_subtickBuffer.Clear();
+			return null;
+		}
+		ulong period = _tickStartUsec - _prevTickStartUsec;
+		float invPeriod = 1f / (float)period;
+		SubtickEvent[] arr = new SubtickEvent[count];
+		for (int i = 0; i < count; i++)
+		{
+			BufferedSubtickEvent b = _subtickBuffer[i];
+			ulong offset = b.Usec >= _prevTickStartUsec ? b.Usec - _prevTickStartUsec : 0UL;
+			if (offset > period) offset = period;
+			arr[i] = new SubtickEvent
+			{
+				TFraction = Mathf.Clamp((float)offset * invPeriod, 0f, 1f),
+				StateAfter = b.State,
+				ViewYaw = b.Yaw,
+				ViewPitch = b.Pitch,
+			};
+		}
+		_subtickBuffer.Clear();
+		return arr;
+	}
+
+	/// <summary>Classifies the gunshot reverb environment via an upward ceiling raycast.
+	/// Tunnel-tagged ground returns Tunnel, a ceiling hit returns Indoor, otherwise Outdoor.</summary>
+	private ReverbEnv ProbeReverbEnv(HitInfo ground)
+	{
+		if (IsTunnelGround(ground)) return ReverbEnv.Tunnel;
+		var space = GetWorld3D()?.DirectSpaceState;
+		if (space == null) return ReverbEnv.Outdoor;
+		Vector3 from = GlobalPosition + Vector3.Up * 1.0f;
+		HitInfo ceiling = Hitscan.Cast(space, from, Vector3.Up, 8f, exclude: GetRid(), mask: 1u);
+		return ceiling.Hit ? ReverbEnv.Indoor : ReverbEnv.Outdoor;
+	}
+
+	/// <summary>Re-simulates a single tick with the saved user input. Physics state (OnFloor etc.) is
+	/// re-derived from the current position. Audio, FX and net-send are skipped via <see cref="_isReplaying"/>.
+	/// A streamlined variant of <see cref="FixedTick"/>.</summary>
+	private void ReplayOneTick(MovementInput savedInput)
+	{
+		Movement.Velocity = Velocity;
+		Movement.Step(savedInput);
+		Velocity = Movement.Velocity;
+
+		var fireIn = new FireInput
+		{
+			TickIndex = savedInput.TickIndex,
+			FirePressed = false,
+			ReloadPressed = false,
+			InspectPressed = false,
+			AdsHeld = savedInput.AdsHeld,
+			CanFire = false,
+			Weapon = savedInput.Weapon,
+			Speed = Movement.HorizontalSpeed,
+			ShooterPosition = GlobalPosition,
+			ViewYaw = savedInput.ViewYaw,
+			ViewPitch = savedInput.ViewPitch,
+			Dt = savedInput.Dt,
+		};
+		Movement.FireStep(fireIn);
+
+		_preMoveVelocityY = Velocity.Y;
+		Movement.PreMoveHorizSpeed = new Vector3(Velocity.X, 0f, Velocity.Z).Length();
+		TryStepUp(_fixedDt);
+		MoveAndSlide();
+	}
+
+	protected override void OnTickApplied()
+	{
+		Prediction.Push(CurrentTick, _lastMovementInput, Movement.Snapshot(), GlobalPosition, Velocity);
+		LastAppliedInputTick = CurrentTick;
+		SendNetInput();
+	}
+
+	protected override void OnSimReady()
+	{
+		base.OnSimReady();
+		_waitingForFadeOut = true;
+		InputGate.LocalPlayerFrozen = true;
+	}
+
+	// The server does authoritative hit-reg; the local player needs no hitbox rig (the cosmetic hitscan
+	// self-excludes via the body RID, not the rig).
+	protected override bool NeedsHitboxRig => false;
+
+	protected override MovementInput BuildMovementInput(float dt)
+	{
+		bool blocked = InputGate.Blocked;
+
+		Vector3 wish = Vector3.Zero;
+		bool sprintHeld, shiftHeld, crouchHeld, crouchPressed, adsHeld, breathHeld, jumpPressed;
+		using (MiniProfiler.SampleClient("LocalPlayer.BuildMovementInput.InputReads"))
+		{
+			if (!blocked)
+			{
+				if (Input.IsActionPressed(InputActions.Forward)) wish.Z -= 1f;
+				if (Input.IsActionPressed(InputActions.Back)) wish.Z += 1f;
+				if (Input.IsActionPressed(InputActions.Left)) wish.X -= 1f;
+				if (Input.IsActionPressed(InputActions.Right)) wish.X += 1f;
+				if (wish.LengthSquared() > 1f) wish = wish.Normalized();
+			}
+			sprintHeld    = !blocked && Input.IsActionPressed(InputActions.Sprint);
+			shiftHeld     = !blocked && Input.IsActionPressed(InputActions.Shift);
+			crouchHeld    = !blocked && Input.IsActionPressed(InputActions.Crouch);
+			crouchPressed = !blocked && Input.IsActionJustPressed(InputActions.Crouch);
+			adsHeld       = !blocked && Input.IsActionPressed(InputActions.Ads);
+			breathHeld    = !blocked && Input.IsActionPressed(InputActions.Breath);
+			jumpPressed   = !blocked && Input.IsActionJustPressed(InputActions.Jump);
+		}
+
+		bool onFloor, onWall;
+		Vector3 wallNormal;
+		using (MiniProfiler.SampleClient("LocalPlayer.BuildMovementInput.CollisionState"))
+		{
+			onFloor    = IsOnFloor();
+			onWall     = IsOnWall();
+			wallNormal = onWall ? GetWallNormal() : Vector3.Zero;
+		}
+
+		WeaponStats weapon;
+		using (MiniProfiler.SampleClient("LocalPlayer.BuildMovementInput.WeaponLookup"))
+		{
+			weapon = ConVars.Weapons.M4A1;
+		}
+
+		float currentYaw = Rotation.Y;
+		float currentPitch = HeadPitch != null ? HeadPitch.Rotation.X : 0f;
+
+		InputBits initialBits = _intervalStartBits;
+		float initialYaw = _intervalStartViewYaw;
+		float initialPitch = _intervalStartViewPitch;
+		SubtickEvent[] events = FlushSubtickEvents();
+
+		_intervalStartBits = _liveBits;
+		_intervalStartViewYaw = currentYaw;
+		_intervalStartViewPitch = currentPitch;
+
+		return new MovementInput
+		{
+			TickIndex = CurrentTick,
+			WishDir = wish,
+			ViewYaw = currentYaw,
+			ViewPitch = currentPitch,
+			SprintHeld = sprintHeld,
+			ShiftHeld = shiftHeld,
+			CrouchHeld = crouchHeld,
+			CrouchPressed = crouchPressed,
+			AdsHeld = adsHeld,
+			BreathHoldHeld = breathHeld,
+			Weapon = weapon,
+			JumpPressed = jumpPressed,
+			OnFloor = onFloor,
+			TouchingWall = onWall,
+			WallNormal = wallNormal,
+			Dt = dt,
+			Events = events,
+			InitialBits = initialBits,
+			InitialViewYaw = initialYaw,
+			InitialViewPitch = initialPitch,
+		};
+	}
+
+	protected override WeaponButtons SampleWeaponButtons()
+	{
+		if (InputGate.Blocked) return default;
+		return new WeaponButtons
+		{
+			Fire = Input.IsActionPressed(InputActions.Fire),
+			Reload = Input.IsActionPressed(InputActions.Reload),
+			Inspect = Input.IsActionPressed(InputActions.Inspect),
+			Ads = Input.IsActionPressed(InputActions.Ads),
+		};
+	}
+
+	protected override void ResolveActiveSlot()
+	{
+		if (InputGate.Blocked) return;
+		if (Input.IsActionJustPressed(InputActions.SlotWeapon)) _activeSlot = 0;
+		if (Input.IsActionJustPressed(InputActions.SlotGrenade)) _activeSlot = 1;
+	}
+
+	protected override (uint projectileId, byte ownerNetId) RegisterGrenadeThrow(Vector3 origin, Vector3 vel)
+	{
+		var client = NetMain.Instance?.Client;
+		uint pid = client != null ? client.AllocateProjectileId() : 0u;
+		if (client != null)
+			client.SendGrenadeSpawn(pid, grenadeType: 0, origin, vel);
+		return (pid, NetId);
+	}
+
+	protected override void WarmUpAudio()
+	{
+		if (Audio == null) return;
+		Vector3 hiddenPos = new Vector3(0f, -10000f, 0f);
+		StringName warmMat = (StringName)"default";
+		Audio.PlayStep(hiddenPos, warmMat, 0f, false, sprinting: false);
+		Audio.PlayStep(hiddenPos, warmMat, 0f, false, sprinting: true);
+		Audio.PlayJump(hiddenPos, warmMat, 0f, false);
+		Audio.PlayLand(hiddenPos, warmMat, 0f, false);
+	}
+
+	/// <summary>Per-tick weapon audio: shoot, dry-fire and reload on the movement controller's fire-state
+	/// edges. Replay-gated so reconciliation doesn't re-trigger sounds.</summary>
+	protected override void HandleWeaponAudio()
+	{
+		if (_isReplaying) return;
+		WeaponStats weapon = ConVars.Weapons.M4A1;
+		if (weapon == null) return;
+
+		Vector3 muzzlePos = GlobalPosition;
+
+		if (Movement.DidFireThisFrame)
+			Audio.PlayShoot(weapon, muzzlePos, ProbeReverbEnv(CastGround()));
+
+		if (Movement.DidDryFireThisFrame)
+			Audio.PlayDryFire(weapon, muzzlePos);
+
+		bool reloadingNow = Movement.IsReloading;
+		if (reloadingNow && !_reloadAudioWasActive)
+			Audio.PlayReload(weapon, muzzlePos);
+		_reloadAudioWasActive = reloadingNow;
+	}
+
+	protected override void OnFootstepEvent(HitInfo ground, StringName material)
+	{
+		bool inTunnel = IsTunnelGround(ground);
+		Audio.PlayStep(GlobalPosition, material, FootstepLogic.StepLoudness, inTunnel, Movement.ActuallySprinting);
+		Dbg.Print($"[footstep] tick={CurrentTick} {(FootstepLogic.StepIsLeftFoot ? "L" : "R")} mat={material}{(inTunnel ? " tunnel" : "")} loud={FootstepLogic.StepLoudness:F2} speed={Movement.HorizontalSpeed:F1}");
+	}
+
+	protected override void OnLandEvent(float impact)
+	{
+		if (impact > 1.5f)
+		{
+			float impact01 = Mathf.Clamp((impact - 1.5f) / 7f, 0f, 1f);
+			HitInfo ground = CastGround();
+			StringName mat = ground.Hit ? ground.Material : (StringName)"default";
+			Audio.PlayLand(GlobalPosition, mat, impact01, IsTunnelGround(ground));
+		}
+		Dbg.Print($"[land] impact={impact:F1} m/s | pos=({GlobalPosition.X:F1},{GlobalPosition.Y:F1},{GlobalPosition.Z:F1})");
+	}
+
+	protected override void OnJumpEvent()
+	{
+		HitInfo ground = CastGround();
+		StringName mat = ground.Hit ? ground.Material : (StringName)"default";
+		Audio.PlayJump(GlobalPosition, mat, Movement.ActuallySprinting ? 1f : 0.75f, IsTunnelGround(ground));
+		if (Dbg.Enabled)
+		{
+			string label = _lastMovementInput.CrouchHeld ? "crouch-jump" : "jump";
+			Dbg.Print($"[{label}] vY={Velocity.Y:F2} | horizSpeed={Movement.HorizontalSpeed:F1} | crouch={Movement.CrouchBlend:F1}");
 		}
 	}
 
-	/// <summary>Toggles between first-person and third-person view on key press.</summary>
-	private void HandleViewModeToggle(InputEvent ev)
+	public override void _Process(double delta)
 	{
-		if (ev is not InputEventKey k || !k.Pressed || k.Echo) return;
-		if (k.Keycode != ViewModeToggleKey) return;
-		ViewMode = ViewMode == ViewMode.Tps ? ViewMode.Fps : ViewMode.Tps;
-		ApplyViewMode();
+		if (Engine.IsEditorHint()) { RenderLocalView(delta); return; }
+		float fraction = (float)Engine.GetPhysicsInterpolationFraction();
+		GlobalPosition = _prevPhysicsPos.Lerp(_currentPhysicsPos, fraction) + _visualErrorOffset;
+		if (_waitingForFadeOut && FootstepAudio.PendingLoadCount == 0)
+		{
+			_waitingForFadeOut = false;
+			InputGate.LocalPlayerFrozen = false;
+			NetMain.Instance?.Client?.SendWorldInitComplete();
+			WorldFadeOverlay.Instance?.RequestFadeOut();
+			Dbg.Print("[LocalPlayer] world preloads done → unfrozen + WorldInitComplete sent + fade-out requested");
+		}
+		RenderLocalView(delta);
 	}
 
-	/// <summary>Renders the trajectory preview while the grenade slot is active and the fire key is held.</summary>
-	protected override void UpdateAimGuide()
+	public override void _Input(InputEvent @event)
 	{
-		if (_aimGuide == null) return;
-		bool show = ActiveSlot == 1 && !InputGate.Blocked
-			&& Input.IsActionPressed(InputActions.Fire) && _pendingThrowValid;
-		_aimGuide.SetGuideVisible(show);
-		if (!show) return;
+		if (Engine.IsEditorHint()) return;
+		HandleMouseLook(@event);
+		HandleKeyToggles(@event);
+		if (@event.IsActionPressed(InputActions.Fire))
+			_lastFirePressUsec = Time.GetTicksUsec();
+		if (@event is InputEventKey || @event is InputEventMouseButton || @event is InputEventJoypadButton)
+			RecordSubtickInputEvent();
+	}
 
-		var space = GetWorld3D()?.DirectSpaceState;
-		if (space == null) return;
+	/// <summary>Called by <see cref="NetClient"/> after each received snapshot. Compares the server position
+	/// at the acked tick with the locally stored prediction. Small drifts are bled out smoothly, large
+	/// drifts trigger a full replay with a visual smoothing offset.</summary>
+	public void ApplyServerCorrection(uint ackedTick, Vector3 serverPos, Vector3 serverVel)
+	{
+		if (!IsLocalPlayer || ackedTick == 0u) return;
+		if (_ticksSinceSpawn < SpawnSettleTicks) return;
+		if (_isMantling || CurrentTick < _mantleReconcileBlockUntilTick) return;
+		if (!Prediction.TryGet(ackedTick, out var entry)) return;
 
-		GrenadeTrajectory.Predict(space, _pendingThrowOrigin, _pendingThrowVel, GetRid(), _aimPath,
-			out Vector3 landing, out Vector3 landingNormal);
-		_aimGuide.UpdatePath(_aimPath, landing, landingNormal);
+		Vector3 drift = serverPos - entry.PostPos;
+		float driftLen = drift.Length();
 
-		if (Dbg.Enabled && (++_aimDbg & 31) == 0)
-			Dbg.Print($"[aimguide] slot={ActiveSlot} charge={GrenadeCharge:F2} pts={_aimPath.Count} " +
-				$"landing=({landing.X:F1},{landing.Y:F1},{landing.Z:F1})");
+		Vector3 horizDrift = new Vector3(drift.X, 0f, drift.Z);
+		float horizDriftLen = horizDrift.Length();
+		float vertDriftLen = Mathf.Abs(drift.Y);
+		const float horizEpsilon = 0.08f;
+		const float vertEpsilon = 0.20f;
+		if (horizDriftLen < horizEpsilon && vertDriftLen < vertEpsilon) return;
+
+		Vector3 visualPosBefore = _currentPhysicsPos + _visualErrorOffset;
+
+		Movement.Restore(entry.State);
+		GlobalPosition = serverPos;
+		Velocity = serverVel;
+		Movement.Velocity = serverVel;
+		_isMantling = false;
+
+		const int MaxReplayPerFrame = 64;
+		_isReplaying = true;
+		try
+		{
+			int startIdx = Prediction.FindFirstIndexAfter(ackedTick);
+			int endIdx = Mathf.Min(Prediction.Count, startIdx + MaxReplayPerFrame);
+			for (int i = startIdx; i < endIdx; i++)
+			{
+				var laterEntry = Prediction.GetAt(i);
+				ReplayOneTick(laterEntry.Input);
+				Prediction.UpdateEntryState(laterEntry.Tick, Movement.Snapshot(), GlobalPosition, Velocity);
+			}
+		}
+		finally
+		{
+			_isReplaying = false;
+		}
+
+		_prevPhysicsPos = GlobalPosition;
+		_currentPhysicsPos = GlobalPosition;
+		_correctionPending = Vector3.Zero;
+
+		Vector3 visualDelta = visualPosBefore - GlobalPosition;
+		float visualMag = visualDelta.Length();
+		float hardSnapThreshold = Mathf.Max(0.01f, ConVars.Cl.ReconSnapThresholdM);
+		if (visualMag > hardSnapThreshold)
+		{
+			_visualErrorOffset = Vector3.Zero;
+			_activeBleedRate = Mathf.Max(0.01f, ConVars.Cl.ReconBleedNormal);
+		}
+		else
+		{
+			_visualErrorOffset = visualDelta;
+			float largeThreshold = Mathf.Max(0f, ConVars.Cl.ReconBleedLargeThresholdM);
+			_activeBleedRate = visualMag > largeThreshold
+				? Mathf.Max(0.01f, ConVars.Cl.ReconBleedLarge)
+				: Mathf.Max(0.01f, ConVars.Cl.ReconBleedNormal);
+		}
+
+		if (driftLen > 0.5f && Dbg.Enabled)
+			Dbg.Print($"[NetReconcile] REPLAY @ tick={ackedTick} drift={driftLen:F2}m replayed-ticks={Prediction.Count - 1} visualBleed={visualDelta.Length():F2}m");
+
+		NetStats.LastReconcileDriftM = driftLen;
+		NetStats.LastReconcileDriftHorizM = horizDriftLen;
+		NetStats.LastReconcileDriftVertM = vertDriftLen;
+		NetStats.LastReconcileTimeSec = Time.GetTicksMsec() / 1000.0;
+		_reconcileCountWindow++;
 	}
 }

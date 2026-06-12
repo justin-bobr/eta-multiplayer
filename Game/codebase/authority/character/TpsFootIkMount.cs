@@ -3,7 +3,7 @@ using Godot;
 /// <summary>
 /// Standalone Node3D mount for the TPS Foot IK. Attached as a child node inside
 /// <c>local_player.tscn</c> and <c>puppet_player.tscn</c> — completely self-contained, no hook
-/// in PlayerCore.
+/// in NetworkPlayer.
 ///
 /// Per tick: reads <see cref="CharacterBody3D.Velocity"/>, position, and basis from the parent
 /// CharacterBody3D and feeds them into the <see cref="TpsFootIk"/> sim (ground snap via raycast +

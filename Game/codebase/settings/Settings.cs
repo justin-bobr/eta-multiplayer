@@ -99,7 +99,7 @@ public static class Settings
 	public static bool CameraShake = true;
 
 	public static float MouseSensitivity = 2.0f;
-	public static float Fov = 90f;
+	public static float Fov = 100f;
 
 	public static float HudMarginH = 26f;
 	public static float HudMarginV = 20f;
@@ -349,7 +349,7 @@ public static class Settings
 	/// not fully initialised. Setting Vp.UseTaa/Msaa3D/Scaling3DMode in that phase
 	/// produces "Uniforms were never supplied for set 1" errors out of Godot's
 	/// TAA/velocity pipeline. Those parts are deferred to <see cref="Apply"/> later
-	/// once PlayerCore spawns and the world is loaded.</summary>
+	/// once NetworkPlayer spawns and the world is loaded.</summary>
 	/// <summary>
 	/// Atomic window-mode + resolution apply.
 	///
@@ -857,13 +857,17 @@ public static class Settings
 		// User Sharpening toggle gates the whole thing — Off forces the pass off in
 		// every mode regardless of upscaler.
 		bool upscalerProvidesSharpen = effective != UpscalingMode.Bilinear;
+		bool ppeFound = false;
+		bool ppeEnabled = false;
 		if (we?.Compositor is Compositor comp)
 			foreach (CompositorEffect effect in comp.CompositorEffects)
 			{
 				if (effect == null) continue;
 				if (effect is PostProcessEffect ppe)
 				{
+					ppeFound = true;
 					ppe.Enabled = PostProcessing && !useFullCanvas;
+					ppeEnabled = ppe.Enabled;
 					ppe.MotionBlur = MotionBlur;
 					ppe.FilmGrain = FilmGrain;
 					ppe.Vignette = Vignette;
@@ -879,6 +883,19 @@ public static class Settings
 			PostCanvasFx.Instance.VignetteEnabled = useFullCanvas && Vignette;
 			PostCanvasFx.Instance.FilmGrainEnabled = useFullCanvas && FilmGrain;
 		}
+		// Mirror the world post-FX onto the per-viewmodel Compositor so the weapon gets the
+		// same look. Gated identically to the world effect (compositor path only) so it never
+		// stacks on top of the FSR2 PostCanvasFx pass, which already wraps the weapon.
+		ViewmodelMotionBlur.Configure(
+			enabled: PostProcessing && !useFullCanvas,
+			chromaticAberration: ChromaticAberration,
+			sharpening: Sharpening && !upscalerProvidesSharpen,
+			vignette: Vignette,
+			filmGrain: FilmGrain,
+			motionBlur: MotionBlur);
+		GD.Print($"[Settings.FX] worldEnv={we?.Name} hasCompositor={we?.Compositor is Compositor} ppeFound={ppeFound} " +
+			$"upscaler={Upscaler} effective={effective} useFullCanvas={useFullCanvas} PostProcessing={PostProcessing} " +
+			$"=> ppeEnabled={ppeEnabled} | canvasInstance={PostCanvasFx.Instance != null} canvasVisible={PostCanvasFx.Instance?.Visible}");
 		// Toggle camera auto-exposure on every Camera3D with a CameraAttributesPractical
 		// resource. Scene-default is on (in local_player.tscn). Kompetitiv-Spieler bevorzugen
 		// fixed brightness so dark areas read consistently — Settings.AutoExposure exposes it.
@@ -901,6 +918,9 @@ public static class Settings
 		foreach (Node n in tree.Root.FindChildren("*", "WorldEnvironment", true, false))
 		{
 			if (n is not WorldEnvironment we) continue;
+			// Skip the weapon viewmodel's own env — it carries its own Compositor (per-viewmodel
+			// post-FX), which would otherwise be mistaken for the level's WorldEnvironment here.
+			if (ViewmodelMotionBlur.IsViewmodelEnvironment(we)) continue;
 			if (we.Compositor != null) return we;
 			first ??= we;
 		}

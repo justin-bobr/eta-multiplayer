@@ -2,8 +2,9 @@ using Godot;
 using System.Collections.Generic;
 
 /// <summary>
-/// Cycles through every <see cref="Camera3D"/> in the Godot group "preview_cam" while the LocalPlayer
-/// hasn't spawned yet (competitive team-select phase, or spectator-mode). Each camera is shown for
+/// Cycles through every preview <see cref="Camera3D"/> the active map lists in <see cref="Level.PreviewCams"/>
+/// (via <see cref="World.Level"/>) while the LocalPlayer hasn't spawned yet (competitive team-select phase,
+/// or spectator-mode). Each camera is shown for
 /// <see cref="DwellSec"/> seconds, then a smooth cross-fade transitions to the next:
 ///
 /// 1. Capture the current viewport texture into a frozen ImageTexture.
@@ -24,7 +25,6 @@ public partial class PreviewCameraController : Node
 {
 	[Export] public float DwellSec = 10.0f;
 	[Export] public float CutFadeSec = 1.20f;
-	[Export] public StringName GroupName = new("preview_cam");
 
 	private readonly List<Camera3D> _cams = new();
 	private int _index;
@@ -41,7 +41,7 @@ public partial class PreviewCameraController : Node
 		RefreshCameraList();
 		if (_cams.Count == 0)
 		{
-			GD.PushWarning("[PreviewCam] No nodes in group \"" + GroupName + "\" — controller disabled");
+			GD.PushWarning("[PreviewCam] Level has no PreviewCams — controller disabled");
 			QueueFree();
 			return;
 		}
@@ -137,14 +137,15 @@ public partial class PreviewCameraController : Node
 		_crossfadeRect = null;
 	}
 
-	/// <summary>Re-scans the scene tree for cameras in <see cref="GroupName"/>. Called once on _Ready; can be invoked from outside if cameras are added/removed at runtime.</summary>
+	/// <summary>Pulls the preview cameras from the active map's <see cref="Level.PreviewCams"/>. Called once
+	/// on _Ready; can be invoked from outside if the map changes at runtime.</summary>
 	public void RefreshCameraList()
 	{
 		_cams.Clear();
-		foreach (Node n in GetTree().GetNodesInGroup(GroupName))
-		{
-			if (n is Camera3D c && GodotObject.IsInstanceValid(c)) _cams.Add(c);
-		}
+		var level = World.Level;
+		if (level == null) return;
+		foreach (Camera3D c in level.PreviewCams)
+			if (GodotObject.IsInstanceValid(c)) _cams.Add(c);
 	}
 
 	private void ActivateCam(int idx)

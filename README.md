@@ -125,7 +125,7 @@ Compass with 360° strip + bombsite A/B markers. Vitals (HP / armor / stamina), 
 
 - **In-game console** (`F10` / `^`) — tab-completion, history, ConVar registry. `sv_*` server-authoritative, `cl_*` local.
 - **ConVars**: ~80 server-side + ~95 client-side runtime-tunable fields, per-weapon scoped overrides (recoil patterns etc.).
-- Debug commands: `sv_debug_hitboxes`, `sv_debug_capsule`, `sv_debug_aimray`, `cl_debug_hitbox`.
+- Debug commands: `sv_debug_hitboxes`, `sv_debug_capsule`, `sv_debug_aimray`.
 - **NetGraph**: ping / loss / pps / tick / choke / reconcile-drift, jitter line graphs.
 - **DebugOverlay**: smoothed proc/phys ms, FPS with rolling min, RAM/VRAM/draws, player state.
 

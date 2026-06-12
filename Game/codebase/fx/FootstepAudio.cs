@@ -7,7 +7,7 @@ public enum FootstepAction { Walk, Sprint, Jump, Land }
 /// <summary>
 /// Client-side footstep audio bank. Plays material- and action-specific sounds (Walk / Sprint /
 /// Jump / Land), triggered by the cadence of <see cref="FootstepController"/> and the jump/land
-/// detection in <see cref="PlayerCore"/>. Purely cosmetic — gameplay-relevant cadence/loudness
+/// detection in <see cref="NetworkPlayer"/>. Purely cosmetic — gameplay-relevant cadence/loudness
 /// comes from the controller (server-replayable).
 ///
 /// Clip library: built at _Ready by scanning res://audio/footsteps/&lt;material&gt;/. Each subfolder
@@ -91,7 +91,7 @@ public partial class FootstepAudio : Node3D
 	private static readonly Dictionary<string, AudioStream> _clipCache = new();
 	private static readonly HashSet<string> _requested = new();
 	private static readonly List<string> _pending = new();
-	/// <summary>Count of footstep audio clips still being asynchronously loaded across ALL FootstepAudio instances. PlayerCore polls this to gate WorldFadeOverlay's fade-out: while clips are still loading the world stays masked.</summary>
+	/// <summary>Count of footstep audio clips still being asynchronously loaded across ALL FootstepAudio instances. NetworkPlayer polls this to gate WorldFadeOverlay's fade-out: while clips are still loading the world stays masked.</summary>
 	public static int PendingLoadCount => _pending.Count;
 
 	/// <summary>Presents the <see cref="Bus"/> export as a dropdown of the project's audio buses.</summary>
@@ -453,7 +453,7 @@ public partial class FootstepAudio : Node3D
 
 	/// <summary>
 	/// Builds the audio player pool lazily on first step so <see cref="IsLocalPlayer"/> (set by
-	/// PlayerCore) is guaranteed to be final, even though child _Ready runs before parent _Ready.
+	/// NetworkPlayer) is guaranteed to be final, even though child _Ready runs before parent _Ready.
 	/// </summary>
 	private void EnsurePool()
 	{

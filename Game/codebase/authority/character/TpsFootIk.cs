@@ -17,7 +17,7 @@ using Godot;
 ///        - settings/0/end_bone_name = "foot_l" / "foot_r"
 ///   2. Per leg a Marker3D (TargetFoot_L, TargetFoot_R) plus a pole Marker3D (PoleKnee_L, PoleKnee_R).
 ///   3. Wire settings/0/target_node and settings/0/pole_node.
-///   4. Assign the 6 fields under "TPS Foot IK" in the PlayerCore inspector.
+///   4. Assign the 6 fields under "TPS Foot IK" in the NetworkPlayer inspector.
 /// </summary>
 public class TpsFootIk
 {
@@ -63,7 +63,7 @@ public class TpsFootIk
 
 		if (IkLeftNode == null || IkRightNode == null || TargetLeft == null || TargetRight == null)
 		{
-			GD.PushWarning("[TpsFootIk] TwoBoneIK3D / target markers not wired in PlayerCore inspector. " +
+			GD.PushWarning("[TpsFootIk] TwoBoneIK3D / target markers not wired in NetworkPlayer inspector. " +
 						   "Foot IK disabled — setup instructions in TpsFootIk class doc.");
 			return false;
 		}

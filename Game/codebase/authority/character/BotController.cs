@@ -20,7 +20,7 @@ public struct BotCombatContext
 }
 
 /// <summary>
-/// Drives a bot's <see cref="ServerBaseCharacter.NetInputSource"/> so it walks across the map via
+/// Drives a bot's <see cref="NetworkPlayer.NetInputSource"/> so it walks across the map via
 /// Godot's built-in <see cref="NavigationServer3D"/>. The mapper places ONE
 /// <see cref="NavigationRegion3D"/> in the world scene and bakes it; the controller queries
 /// <see cref="NavigationServer3D.MapGetPath"/> for a path from the bot's current position to a
@@ -124,7 +124,7 @@ public class BotController
 
 	private readonly RandomNumberGenerator _rng = new();
 
-	/// <summary>Eye height of the standing body — must match BaseCharacter.StandEyeHeight default
+	/// <summary>Eye height of the standing body — must match NetworkPlayer.StandEyeHeight default
 	/// so the LOS raycast originates at the same point the snapshot/hitscan systems treat as eye.</summary>
 	private const float EyeHeight = 1.7f;
 	/// <summary>Maximum engagement distance. Beyond this bots ignore targets — keeps them from

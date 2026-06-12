@@ -2,8 +2,8 @@ using Godot;
 
 /// <summary>
 /// Central constants for all Godot InputMap actions the character reads. Previously lived as
-/// [Export] StringName fields on <see cref="PlayerCore"/> - which is the wrong place
-/// (PlayerCore only holds shared sim logic; input action names are game-wide constants).
+/// [Export] StringName fields on <see cref="NetworkPlayer"/> - which is the wrong place
+/// (NetworkPlayer only holds shared sim logic; input action names are game-wide constants).
 ///
 /// Per-player customization is no longer possible here (it was unused anyway - all scenes used
 /// the defaults). To change action names, go to Project Settings -> Input Map.
