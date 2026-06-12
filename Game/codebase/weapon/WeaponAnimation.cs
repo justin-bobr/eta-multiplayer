@@ -800,18 +800,19 @@ public partial class WeaponAnimation : Node3D
 		var ppm = new ParticleProcessMaterial
 		{
 			Direction = new Vector3(0, 0, -1),
-			Spread = 25f,
-			InitialVelocityMin = 2f,
-			InitialVelocityMax = 6f,
-			Gravity = Vector3.Zero,
-			LinearAccelMin = 1f,
-			LinearAccelMax = 3f,
-			DampingMin = 1f,
-			DampingMax = 3f,
-			ScaleMin = 0.8f,
-			ScaleCurve = MakeCurve((0f, 0.033f), (0.364f, 0.688f), (1f, 1f)),
-			Color = new Color(0.149f, 0.149f, 0.149f, 1f),
-			AlphaCurve = MakeCurve((0f, 0f), (0.494f, 0.967f), (1f, 0f)),
+			Spread = 22f,
+			InitialVelocityMin = 0.8f,
+			InitialVelocityMax = 2.0f,
+			Gravity = new Vector3(0, 0.35f, 0),   // hot smoke drifts up
+			LinearAccelMin = 0f,
+			LinearAccelMax = 0f,
+			DampingMin = 1.2f,
+			DampingMax = 2.4f,                     // the puff shoots out then slows to a hanging cloud
+			ScaleMin = 0.45f,
+			ScaleMax = 0.7f,
+			ScaleCurve = MakeCurve((0f, 0.25f), (0.4f, 1f), (1f, 1.6f)),   // expands as it dissipates
+			Color = new Color(0.16f, 0.16f, 0.16f, 1f),
+			AlphaCurve = MakeCurve((0f, 0f), (0.2f, 0.85f), (1f, 0f)),     // quick fade-in, slow fade-out
 			AngleMin = -360f,
 			AngleMax = 360f,
 			AnimOffsetMax = 1f,
@@ -822,19 +823,24 @@ public partial class WeaponAnimation : Node3D
 		_muzzleSmoke = new GpuParticles3D
 		{
 			Name = "MuzzleSmoke",
-			Amount = 6,
-			Lifetime = 0.5,
+			Amount = 14,
+			Lifetime = 1.4,
 			OneShot = true,
 			Emitting = false,
 			LocalCoords = false,
 			ProcessMaterial = ppm,
-			DrawPass1 = new QuadMesh { Size = new Vector2(0.5f, 0.5f) },
+			DrawPass1 = new QuadMesh { Size = new Vector2(0.4f, 0.4f) },
 			MaterialOverride = mat,
 		};
 		tip.AddChild(_muzzleSmoke);
 	}
 
-	public void MuzzleSmoke() => _muzzleSmoke?.Restart();
+	public void MuzzleSmoke()
+	{
+		if (_muzzleSmoke == null || !GodotObject.IsInstanceValid(_muzzleSmoke))
+			BuildMuzzleSmoke();   // lazy retry: the muzzle/handguard may not have been visible yet at _Ready
+		_muzzleSmoke?.Restart();
+	}
 
 	private static CurveTexture MakeCurve(params (float X, float Y)[] points)
 	{

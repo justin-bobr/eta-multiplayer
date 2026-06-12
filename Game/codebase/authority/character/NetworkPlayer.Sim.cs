@@ -642,8 +642,8 @@ public partial class NetworkPlayer : CharacterBody3D
 		if (_fpsWeapon != null && _currentWeapon != null)
 		{
 			Vector3 start = _currentWeapon.GetMuzzleWorldPosition();
-			Vector3 end = hit.Hit ? hit.Position : Movement.LastShotOrigin + Movement.LastShotDirection * HitscanRange;
-			BulletTracer.Spawn(GetTree(), start, end, new Color(2.5f, 1.6f, 0.5f, 1f), 0.02f, 80f, 2f);
+			Vector3 end = hit.Hit ? hit.Position : start + Movement.LastShotDirection * HitscanRange;
+			BulletTracer.Spawn(GetTree(), start, end, new Color(2.5f, 1.6f, 0.5f, 1f), 0.014f, 80f, 2f);
 			_currentWeapon.MuzzleSmoke();
 		}
 

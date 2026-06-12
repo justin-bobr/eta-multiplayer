@@ -788,13 +788,11 @@ public partial class PuppetPlayer : NetworkPlayer
 
 		if (tracer)
 		{
-			Vector3 endpoint = hit ? hitPos : origin + dir * 80f;
-			Vector3 tracerStart = _tpsWeapon?.GetMuzzleWorldPosition() ?? origin;   // from the gun barrel, not the shooter's eye
-			Color color = new Color(2.5f, 1.6f, 0.5f, 1f);
-			float width = 0.02f;
-			float speed = 80f;
-			float streak = 2f;
-			BulletTracer.Spawn(GetTree(), tracerStart, endpoint, color, width, speed, streak);
+			// Pure cosmetic: anchor the beam at the puppet's CURRENT muzzle, not the networked shot origin
+			// (which is stale by the time the event arrives — the shooter has moved). Only the target matters.
+			Vector3 tracerStart = _tpsWeapon != null ? _tpsWeapon.GetMuzzleWorldPosition() : GlobalPosition + Vector3.Up * 1.4f;
+			Vector3 endpoint = hit ? hitPos : tracerStart + dir * 80f;
+			BulletTracer.Spawn(GetTree(), tracerStart, endpoint, new Color(2.5f, 1.6f, 0.5f, 1f), 0.014f, 80f, 2f);
 		}
 
 		if (hit)

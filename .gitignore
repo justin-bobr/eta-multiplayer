@@ -35,3 +35,7 @@ desktop.ini
 .claude
 *.blend
 .vscode
+
+*.bak*
+
+*.bak
