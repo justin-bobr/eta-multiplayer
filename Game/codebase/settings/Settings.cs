@@ -154,7 +154,7 @@ public static class Settings
 				// dann aber PostProcessEffect + Motion Blur (Godot's pipeline kann nicht beides).
 				// VolFog bleibt Low (statt Off) — Smoke-Grenade-Rendering nutzt dasselbe Voxel-Volume,
 				// Off würde Smokes komplett unsichtbar machen.
-				RenderScale = 0.50f; Upscaler = UpscalingMode.Fsr1; AntiAliasing = AntiAliasingMode.Fxaa;
+				RenderScale = 0.50f; Upscaler = UpscalingMode.Fsr2; AntiAliasing = AntiAliasingMode.Smaa;
 				Shadows = ShadowQuality.Low; AmbientOcclusion = false;
 				Reflections = false; ReflectionProbes = ReflectionProbeQuality.Low; VolumetricFog = VolumetricFogQuality.Low;
 				Sky = true; CloudShadows = false; CloudShadowDistance = 60f; GodRays = false; LensFlare = false; DustMotes = false;
@@ -165,7 +165,7 @@ public static class Settings
 				// FSR1 Balanced — 75% scale. Mainstream-GPU. VolFog Low, kein SSR, kein GodRay.
 				// God-Rays/Lens-Flare sind in Medium aus, daher Render-Scale etwas niedriger als
 				// High erlaubt (kein Sub-pixel-Stabilitätsproblem). TAA-Pflicht trotzdem.
-				RenderScale = 0.75f; Upscaler = UpscalingMode.Fsr1; AntiAliasing = AntiAliasingMode.Taa;
+				RenderScale = 0.75f; Upscaler = UpscalingMode.Fsr2; AntiAliasing = AntiAliasingMode.Taa;
 				Shadows = ShadowQuality.Medium; AmbientOcclusion = true;
 				Reflections = false; ReflectionProbes = ReflectionProbeQuality.Medium; VolumetricFog = VolumetricFogQuality.Low;
 				Sky = true; CloudShadows = true; CloudShadowDistance = 60f; GodRays = false; LensFlare = true; DustMotes = false;
@@ -178,7 +178,7 @@ public static class Settings
 				// God-Rays Screen-Space-Shadern bei zu niedriger Scale Sub-pixel-jittern. 0.85 ist
 				// ein guter Kompromiss: ~12-15% GPU-Win, kaum noch sichtbare Stabilität-Probleme.
 				// TAA-Pflicht für jegliche Render-Scale < 1.0.
-				RenderScale = 0.85f; Upscaler = UpscalingMode.Fsr1; AntiAliasing = AntiAliasingMode.Taa;
+				RenderScale = 0.85f; Upscaler = UpscalingMode.Fsr2; AntiAliasing = AntiAliasingMode.Taa;
 				Shadows = ShadowQuality.High; AmbientOcclusion = true;
 				Reflections = true; ReflectionProbes = ReflectionProbeQuality.High; VolumetricFog = VolumetricFogQuality.Medium;
 				Sky = true; CloudShadows = true; CloudShadowDistance = 120f; GodRays = true; LensFlare = true; DustMotes = true;
@@ -547,10 +547,11 @@ public static class Settings
 		// frames disagree, and the result is visible flicker + PCF-shadow noise that never
 		// gets averaged out. Treat both FSR modes as TAA-incompatible.
 		bool taaCompatible = scalingMode == Viewport.Scaling3DModeEnum.Bilinear;
-		// If the user picked TAA but the active upscaler can't honour it, fall back to FXAA
-		// for the screen-space pass so they still get SOME anti-aliasing instead of nothing.
+		// If the user picked TAA but the active upscaler can't honour it, fall back to SMAA — never
+		// FXAA: FXAA's edge blur is the "washed out" smear users reported (soft weapon, mushy fences),
+		// SMAA resolves the same edges without smearing texture detail at near-identical cost.
 		AntiAliasingMode effectiveAa = (AntiAliasing == AntiAliasingMode.Taa && !taaCompatible)
-			? AntiAliasingMode.Fxaa
+			? AntiAliasingMode.Smaa
 			: AntiAliasing;
 		Viewport.ScreenSpaceAAEnum ssAa = fsr2Active
 			? Viewport.ScreenSpaceAAEnum.Disabled
@@ -571,6 +572,9 @@ public static class Settings
 			vp.Msaa3D = Viewport.Msaa.Disabled;
 			vp.Scaling3DScale = RenderScale;
 			vp.Scaling3DMode = scalingMode;
+			// CoD-style anti-mush: FSR's RCAS sharpening at (near-)max. 0.0 = sharpest, 2.0 = soft;
+			// Godot's 0.2 default leaves sub-native FSR visibly washed out on thin geometry.
+			vp.FsrSharpness = 0.1f;
 			vp.UseTaa = useTaa;
 			vp.ScreenSpaceAA = ssAa;
 			// 2D MSAA on the root viewport — smooths Control edges (HUD/text/menu)

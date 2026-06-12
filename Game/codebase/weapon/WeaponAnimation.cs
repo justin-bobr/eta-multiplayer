@@ -207,14 +207,16 @@ public partial class WeaponAnimation : Node3D
 		if (AnimProps.Contains(name))
 		{
 			var player = GetNodeOrNull<AnimationPlayer>(AnimationPlayerPath);
-			if (player == null) return;
+			if (player == null)
+				return;
 			property["hint"] = (int)PropertyHint.Enum;
 			property["hint_string"] = string.Join(",", player.GetAnimationList());
 		}
 		else if (EventProps.Contains(name))
 		{
 			var ep = GetNodeOrNull<AnimationPlayer>(EventPlayerPath);
-			if (ep == null) return;
+			if (ep == null)
+				return;
 			property["hint"] = (int)PropertyHint.Enum;
 			property["hint_string"] = string.Join(",", ep.GetAnimationList());
 		}
@@ -281,7 +283,8 @@ public partial class WeaponAnimation : Node3D
 
 	private void ApplyWeaponActive()
 	{
-		if (_tree == null) return;
+		if (_tree == null)
+			return;
 		_tree.CallbackModeProcess = _weaponActive
 			? AnimationMixer.AnimationCallbackModeProcess.Idle
 			: AnimationMixer.AnimationCallbackModeProcess.Manual;
@@ -299,7 +302,8 @@ public partial class WeaponAnimation : Node3D
 		_ejectionBone = _skeleton?.FindBone("Eject_Casing") ?? -1;
 		_mainMag = GetNodeOrNull<Node3D>(MainMagPath);
 		_reserveMag = GetNodeOrNull<Node3D>(ReserveMagPath);
-		if (_reserveMag != null) _reserveMag.Visible = false;
+		if (_reserveMag != null)
+			_reserveMag.Visible = false;
 		if (_eventPlayer != null)
 		{
 			Callable cb = Callable.From<StringName>(OnEventAnimFinished);
@@ -308,9 +312,9 @@ public partial class WeaponAnimation : Node3D
 		}
 		if (LogEvents)
 		{
-			GD.Print($"[WeaponAnimation] MainMag '{MainMagPath}' -> {(_mainMag != null ? _mainMag.GetPath() : "NULL")}");
-			GD.Print($"[WeaponAnimation] ReserveMag '{ReserveMagPath}' -> {(_reserveMag != null ? _reserveMag.GetPath() : "NULL")}");
-			GD.Print($"[WeaponAnimation] EventPlayer '{EventPlayerPath}' -> {(_eventPlayer != null ? "OK" : "NULL")}, AudioPlayer -> {(_audioPlayer != null ? "OK" : "NULL")}");
+			Dbg.Print($"[WeaponAnimation] MainMag '{MainMagPath}' -> {(_mainMag != null ? _mainMag.GetPath() : "NULL")}");
+			Dbg.Print($"[WeaponAnimation] ReserveMag '{ReserveMagPath}' -> {(_reserveMag != null ? _reserveMag.GetPath() : "NULL")}");
+			Dbg.Print($"[WeaponAnimation] EventPlayer '{EventPlayerPath}' -> {(_eventPlayer != null ? "OK" : "NULL")}, AudioPlayer -> {(_audioPlayer != null ? "OK" : "NULL")}");
 		}
 
 		_tree = GetNodeOrNull<AnimationTree>(TreeNodeName);
@@ -343,38 +347,50 @@ public partial class WeaponAnimation : Node3D
 
 	private void GenerateWeaponRestPose()
 	{
-		if (_player == null || _skeleton == null || _player.HasAnimation("common/A_TFA_WEP_AR_Reference")) return;
+		if (_player == null || _skeleton == null || _player.HasAnimation("common/A_TFA_WEP_AR_Reference"))
+			return;
 		string refKey = null;
 		foreach (StringName lib in _player.GetAnimationLibraryList())
 		{
 			var library = _player.GetAnimationLibrary(lib);
-			if (library == null) continue;
+			if (library == null)
+				continue;
 			foreach (StringName a in library.GetAnimationList())
 			{ refKey = lib.ToString().Length > 0 ? $"{lib}/{a}" : a.ToString(); break; }
-			if (refKey != null) break;
+			if (refKey != null)
+				break;
 		}
-		if (refKey == null || !_player.HasAnimation(refKey)) return;
+		if (refKey == null || !_player.HasAnimation(refKey))
+			return;
 		Animation src = _player.GetAnimation(refKey);
 		var rest = new Animation { Length = 0.25f, LoopMode = Animation.LoopModeEnum.Linear };
 		for (int t = 0; t < src.GetTrackCount(); t++)
 		{
 			var type = src.TrackGetType(t);
-			if (type != Animation.TrackType.Rotation3D && type != Animation.TrackType.Position3D && type != Animation.TrackType.Scale3D) continue;
+			if (type != Animation.TrackType.Rotation3D && type != Animation.TrackType.Position3D && type != Animation.TrackType.Scale3D)
+				continue;
 			var path = src.TrackGetPath(t);
-			if (path.GetSubNameCount() < 1) continue;
+			if (path.GetSubNameCount() < 1)
+				continue;
 			var bi = _skeleton.FindBone(path.GetSubName(0));
-			if (bi < 0) continue;
+			if (bi < 0)
+				continue;
 			var r = _skeleton.GetBoneRest(bi);
 			var ti = rest.AddTrack(type);
 			rest.TrackSetPath(ti, path);
-			if (type == Animation.TrackType.Rotation3D) rest.RotationTrackInsertKey(ti, 0.0, r.Basis.GetRotationQuaternion());
-			else if (type == Animation.TrackType.Position3D) rest.PositionTrackInsertKey(ti, 0.0, r.Origin);
-			else rest.ScaleTrackInsertKey(ti, 0.0, r.Basis.Scale);
+			if (type == Animation.TrackType.Rotation3D)
+				rest.RotationTrackInsertKey(ti, 0.0, r.Basis.GetRotationQuaternion());
+			else if (type == Animation.TrackType.Position3D)
+				rest.PositionTrackInsertKey(ti, 0.0, r.Origin);
+			else
+				rest.ScaleTrackInsertKey(ti, 0.0, r.Basis.Scale);
 		}
 		var commonLib = _player.HasAnimationLibrary("common") ? _player.GetAnimationLibrary("common") : new AnimationLibrary();
-		if (commonLib.HasAnimation("A_TFA_WEP_AR_Reference")) commonLib.RemoveAnimation("A_TFA_WEP_AR_Reference");
+		if (commonLib.HasAnimation("A_TFA_WEP_AR_Reference"))
+			commonLib.RemoveAnimation("A_TFA_WEP_AR_Reference");
 		commonLib.AddAnimation("A_TFA_WEP_AR_Reference", rest);
-		if (!_player.HasAnimationLibrary("common")) _player.AddAnimationLibrary("common", commonLib);
+		if (!_player.HasAnimationLibrary("common"))
+			_player.AddAnimationLibrary("common", commonLib);
 		if (ReferencePose == null || string.IsNullOrEmpty(ReferencePose.ToString()))
 			ReferencePose = "common/A_TFA_WEP_AR_Reference";
 	}
@@ -390,7 +406,8 @@ public partial class WeaponAnimation : Node3D
 		Node n = GetParent();
 		while (n != null)
 		{
-			if (n is CharacterBody3D cb) return cb;
+			if (n is CharacterBody3D cb)
+				return cb;
 			n = n.GetParent();
 		}
 		return null;
@@ -398,16 +415,20 @@ public partial class WeaponAnimation : Node3D
 
 	private void BuildBulletPool()
 	{
-		if (Engine.IsEditorHint() || EjectCasingScene == null || EjectCasingPoolSize <= 0) return;
+		if (Engine.IsEditorHint() || EjectCasingScene == null || EjectCasingPoolSize <= 0)
+			return;
 		if (_bulletPool != null)
-			foreach (var b in _bulletPool) b?.QueueFree();
+			foreach (var b in _bulletPool)
+				b?.QueueFree();
 		_bulletPool = new Bullet[EjectCasingPoolSize];
 		for (var i = 0; i < EjectCasingPoolSize; i++)
 		{
-			if (EjectCasingScene.Instantiate() is not Bullet b) continue;
+			if (EjectCasingScene.Instantiate() is not Bullet b)
+				continue;
 			b.Visible = false;
 			b.Freeze = true;
-			if (OwnerBody != null) b.AddCollisionExceptionWith(OwnerBody);   // casings fall past the player
+			if (OwnerBody != null)
+				b.AddCollisionExceptionWith(OwnerBody);   // casings fall past the player
 			_bulletPool[i] = b;
 			GetTree().CurrentScene.CallDeferred(Node.MethodName.AddChild, b);
 		}
@@ -505,7 +526,7 @@ public partial class WeaponAnimation : Node3D
 		{ GD.PushWarning("[WeaponAnimation] No AnimationTree in scene."); return; }
 		AssignTreeAnimations(bt);
 		tree.AnimPlayer = tree.GetPathTo(_player);
-		GD.Print("[WeaponAnimation] Animations assigned — Ctrl+S to save.");
+		Dbg.Print("[WeaponAnimation] Animations assigned — Ctrl+S to save.");
 	}
 
 	private bool HasAnim(StringName n) =>
@@ -513,8 +534,10 @@ public partial class WeaponAnimation : Node3D
 
 	private void ResetMagazines()
 	{
-		if (_mainMag != null) _mainMag.Visible = true;
-		if (_reserveMag != null) _reserveMag.Visible = false;
+		if (_mainMag != null)
+			_mainMag.Visible = true;
+		if (_reserveMag != null)
+			_reserveMag.Visible = false;
 	}
 
 	// Safety net: when any event clip finishes, return mags to the idle state (main shown, reserve
@@ -575,7 +598,8 @@ public partial class WeaponAnimation : Node3D
 
 		void Add(AudioStream[] arr)
 		{
-			if (arr == null) return;
+			if (arr == null)
+				return;
 			foreach (var s in arr)
 			{
 				if (s != null && !string.IsNullOrEmpty(s.ResourcePath))
@@ -583,10 +607,18 @@ public partial class WeaponAnimation : Node3D
 			}
 		}
 
-		Add(AudioFire); Add(AudioFireTail); Add(AudioEmptyCasing);
-		Add(AudioClick); Add(AudioFoleyCloth); Add(AudioBoltOpen); Add(AudioBoltClose);
-		Add(AudioGunSmack); Add(AudioMalfunction);
-		Add(AudioMagInsert); Add(AudioMagRemoveFull); Add(AudioMagRemoveEmpty);
+		Add(AudioFire);
+		Add(AudioFireTail);
+		Add(AudioEmptyCasing);
+		Add(AudioClick);
+		Add(AudioFoleyCloth);
+		Add(AudioBoltOpen);
+		Add(AudioBoltClose);
+		Add(AudioGunSmack);
+		Add(AudioMalfunction);
+		Add(AudioMagInsert);
+		Add(AudioMagRemoveFull);
+		Add(AudioMagRemoveEmpty);
 
 		if (EjectCasingScene != null && !string.IsNullOrEmpty(EjectCasingScene.ResourcePath))
 			paths.Add(EjectCasingScene.ResourcePath);
@@ -605,7 +637,8 @@ public partial class WeaponAnimation : Node3D
 				if (child is WeaponAttachment wa)
 				{
 					var key = wa.Group.ToString();
-					if (!groups.ContainsKey(key)) groups[key] = [];
+					if (!groups.ContainsKey(key))
+						groups[key] = [];
 					groups[key].Add(GetPathTo(wa).ToString());
 				}
 				Scan(child);
@@ -623,10 +656,12 @@ public partial class WeaponAnimation : Node3D
 	private void BuildAudioPool()
 	{
 		if (_audioPool != null)
-			foreach (var p in _audioPool) p?.QueueFree();
+			foreach (var p in _audioPool)
+				p?.QueueFree();
 		_audioPool = null;
 		_audioVoiceIdx = 0;
-		if (_audioPlayer == null || AudioVoices <= 0) return;
+		if (_audioPlayer == null || AudioVoices <= 0)
+			return;
 		var parent = _audioPlayer.GetParent() ?? this;
 		_audioPool = new AudioStreamPlayer3D[AudioVoices];
 		for (int i = 0; i < AudioVoices; i++)
@@ -642,7 +677,8 @@ public partial class WeaponAnimation : Node3D
 
 	private AudioStreamPlayer3D NextVoice()
 	{
-		if (_audioPool == null || _audioPool.Length == 0) return _audioPlayer;
+		if (_audioPool == null || _audioPool.Length == 0)
+			return _audioPlayer;
 		for (int i = 0; i < _audioPool.Length; i++)
 		{
 			var p = _audioPool[(_audioVoiceIdx + i) % _audioPool.Length];
@@ -657,7 +693,7 @@ public partial class WeaponAnimation : Node3D
 		return voice;
 	}
 
-	private void Log(string msg) { if (LogEvents) GD.Print($"[WeaponAnimation] {msg}"); }
+	private void Log(string msg) { if (LogEvents) Dbg.Print($"[WeaponAnimation] {msg}"); }
 
 	private void PlayRandom(AudioStream[] streams, float volume, [System.Runtime.CompilerServices.CallerMemberName] string label = "")
 	{
@@ -667,7 +703,8 @@ public partial class WeaponAnimation : Node3D
 			return;
 		}
 		var player = NextVoice();
-		if (player == null) return;
+		if (player == null)
+			return;
 		player.Stream = streams[GD.RandRange(0, streams.Length - 1)];
 		player.VolumeDb = volume > 0f ? Mathf.LinearToDb(volume) : -80f;
 		player.Play();
@@ -700,10 +737,12 @@ public partial class WeaponAnimation : Node3D
 	public virtual void EjectCasing()
 	{
 		Log("EjectCasing");
-		if (_bulletPool == null || _skeleton == null || _ejectionBone < 0) return;
+		if (_bulletPool == null || _skeleton == null || _ejectionBone < 0)
+			return;
 		var bullet = _bulletPool[_bulletPoolIdx];
 		_bulletPoolIdx = (_bulletPoolIdx + 1) % _bulletPool.Length;
-		if (bullet == null) return;
+		if (bullet == null)
+			return;
 
 		var boneWorld = RemapToWorld(_skeleton.GlobalTransform * _skeleton.GetBoneGlobalPose(_ejectionBone));
 		var randEuler = new Vector3(
@@ -724,36 +763,43 @@ public partial class WeaponAnimation : Node3D
 	public virtual void HideMainMag()
 	{
 		Log(_mainMag != null ? "HideMainMag" : "HideMainMag — _mainMag NULL");
-		if (_mainMag != null) _mainMag.Visible = false;
+		if (_mainMag != null)
+			_mainMag.Visible = false;
 	}
 	public virtual void ShowMainMag()
 	{
 		Log(_mainMag != null ? "ShowMainMag" : "ShowMainMag — _mainMag NULL");
-		if (_mainMag != null) _mainMag.Visible = true;
+		if (_mainMag != null)
+			_mainMag.Visible = true;
 	}
 	public virtual void ShowReserveMag()
 	{
 		Log(_reserveMag != null ? "ShowReserveMag" : "ShowReserveMag — _reserveMag NULL");
-		if (_reserveMag != null) _reserveMag.Visible = true;
+		if (_reserveMag != null)
+			_reserveMag.Visible = true;
 	}
 	public virtual void HideReserveMag()
 	{
 		Log(_reserveMag != null ? "HideReserveMag" : "HideReserveMag — _reserveMag NULL");
-		if (_reserveMag != null) _reserveMag.Visible = false;
+		if (_reserveMag != null)
+			_reserveMag.Visible = false;
 	}
 	public virtual void DropMagazine()
 	{
-		if (_mainMag == null) { Log("DropMagazine — _mainMag NULL"); return; }
+		if (_mainMag == null)
+		{ Log("DropMagazine — _mainMag NULL"); return; }
 
 		// spawn at the visible mag mesh's world transform (falls back to the socket node)
 		MeshInstance3D srcMesh = FindMesh(_mainMag);
 		Transform3D spawn = RemapToWorld(srcMesh != null ? srcMesh.GlobalTransform : _mainMag.GlobalTransform);
 
 		RigidBody3D mag = DropMagazineScene?.Instantiate() as RigidBody3D ?? BuildRuntimeMagBody(srcMesh);
-		if (mag == null) { Log("DropMagazine — no DropMagazineScene and no mag mesh to build from"); return; }
+		if (mag == null)
+		{ Log("DropMagazine — no DropMagazineScene and no mag mesh to build from"); return; }
 
 		// the dropped mag must collide + simulate (in-socket mags default to non-colliding/frozen)
-		if (mag is AnimatedMagazin am) am.CollisionEnabled = true;
+		if (mag is AnimatedMagazin am)
+			am.CollisionEnabled = true;
 		GetTree().CurrentScene.AddChild(mag);
 		mag.Freeze = false;
 		mag.CollisionLayer = 1u << 3;   // DEBRIS layer (4) — players don't collide with dropped mags (no step-up cost)
@@ -773,18 +819,21 @@ public partial class WeaponAnimation : Node3D
 
 	private static MeshInstance3D FindMesh(Node root)
 	{
-		if (root is MeshInstance3D mi) return mi;
+		if (root is MeshInstance3D mi)
+			return mi;
 		foreach (Node child in root.GetChildren())
 		{
 			var found = FindMesh(child);
-			if (found != null) return found;
+			if (found != null)
+				return found;
 		}
 		return null;
 	}
 
 	private static RigidBody3D BuildRuntimeMagBody(MeshInstance3D srcMesh)
 	{
-		if (srcMesh?.Mesh == null) return null;
+		if (srcMesh?.Mesh == null)
+			return null;
 		var body = new RigidBody3D();
 		body.AddChild(new MeshInstance3D { Mesh = srcMesh.Mesh });
 		body.AddChild(new CollisionShape3D { Shape = srcMesh.Mesh.CreateConvexShape() });
@@ -807,28 +856,33 @@ public partial class WeaponAnimation : Node3D
 	private static Node3D FindMuzzleTip(Node root)
 	{
 		Node3D muzzle = FindVisibleNamed(root, "Muzzle");
-		if (muzzle == null) return FindVisibleNamed(root, "SOCKET_Emitter");
+		if (muzzle == null)
+			return FindVisibleNamed(root, "SOCKET_Emitter");
 		return FindNamed(muzzle, "SOCKET_Emitter") ?? muzzle;
 	}
 
 	private static Node3D FindVisibleNamed(Node root, string name)
 	{
-		if (root is Node3D n3 && root.Name == name && n3.IsVisibleInTree()) return n3;
+		if (root is Node3D n3 && root.Name == name && n3.IsVisibleInTree())
+			return n3;
 		foreach (Node child in root.GetChildren())
 		{
 			var found = FindVisibleNamed(child, name);
-			if (found != null) return found;
+			if (found != null)
+				return found;
 		}
 		return null;
 	}
 
 	private static Node3D FindNamed(Node root, string name)
 	{
-		if (root is Node3D n3 && root.Name == name) return n3;
+		if (root is Node3D n3 && root.Name == name)
+			return n3;
 		foreach (Node child in root.GetChildren())
 		{
 			var found = FindNamed(child, name);
-			if (found != null) return found;
+			if (found != null)
+				return found;
 		}
 		return null;
 	}
@@ -843,7 +897,8 @@ public partial class WeaponAnimation : Node3D
 	{
 		Node3D tip = FindMuzzleTip(this);
 		var mat = ResourceLoader.Load<Material>("res://fx/smoke/smoke.tres");
-		if (tip == null || mat == null) return;
+		if (tip == null || mat == null)
+			return;
 
 		var ppm = new ParticleProcessMaterial
 		{
@@ -893,7 +948,8 @@ public partial class WeaponAnimation : Node3D
 	private static CurveTexture MakeCurve(params (float X, float Y)[] points)
 	{
 		var c = new Curve();
-		foreach (var p in points) c.AddPoint(new Vector2(p.X, p.Y));
+		foreach (var p in points)
+			c.AddPoint(new Vector2(p.X, p.Y));
 		return new CurveTexture { Curve = c };
 	}
 }
