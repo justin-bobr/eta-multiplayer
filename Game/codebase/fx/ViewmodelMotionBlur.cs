@@ -17,6 +17,12 @@ using Godot;
 /// </summary>
 public static class ViewmodelMotionBlur
 {
+	/// <summary>Weapon motion blur is deliberately weaker than the world's (compositor.tres: 2.0,
+	/// PostProcessEffect class default: 3.0): the muzzle's angular velocity during sway and fire/reload
+	/// animations is far higher than typical world motion, so full-strength reconstruction smears the
+	/// front of the gun into mush whenever the player moves while the stock stays sharp.</summary>
+	private const float WeaponBlurStrength = 1.2f;
+
 	private static PostProcessEffect _effect;
 
 	/// <summary>The per-viewmodel PostProcessEffect, or null before <see cref="Attach"/>. Exposed so
@@ -34,7 +40,7 @@ public static class ViewmodelMotionBlur
 			return;
 		}
 		var comp = new Compositor();
-		_effect = new PostProcessEffect { MotionBlur = true, Enabled = true };
+		_effect = new PostProcessEffect { MotionBlur = true, Enabled = true, MotionBlurStrength = WeaponBlurStrength };
 		comp.CompositorEffects = new Godot.Collections.Array<CompositorEffect> { _effect };
 		vmEnv.Compositor = comp;
 		Dbg.Print("[ViewmodelMotionBlur] attached PostProcessEffect to viewmodel_env");
