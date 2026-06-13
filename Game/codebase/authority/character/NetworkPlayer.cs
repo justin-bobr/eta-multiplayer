@@ -27,8 +27,14 @@ public partial class NetworkPlayer : CharacterBody3D
 	public uint ViewmodelRenderLayer = 2;
 	[Export]
 	public bool MouseLookEnabled = true;
-	[Export(PropertyHint.Range, "10,89,1")]
-	public float LookPitchLimitDeg = 85f;
+
+	[ExportSubgroup("Head")]
+	[Export]
+	public Node3D HeadPitch;
+
+	[ExportSubgroup("Body")]
+	[Export(PropertyHint.Range, "0,1,0.01")]
+	public float CrouchCameraDrop = 0.32f;
 
 	[ExportGroup("TPS")]
 	[ExportSubgroup("Camera")]
@@ -40,8 +46,6 @@ public partial class NetworkPlayer : CharacterBody3D
 	public float TpsBasePitchDeg = -8f;
 	[Export]
 	public Vector3 TpsCameraOffset = new(0.4f, 0.0f, 1.5f);
-	[Export(PropertyHint.Range, "20,90,1")]
-	public float TpsAimFov = 50f;
 	[Export(PropertyHint.Range, "0,0.5,0.01")]
 	public float TpsCamWallMargin = 0.2f;
 	[Export(PropertyHint.Layers3DPhysics)]
@@ -56,8 +60,6 @@ public partial class NetworkPlayer : CharacterBody3D
 	public float TpsZoomStep = 0.3f;
 
 	[ExportSubgroup("Body")]
-	[Export]
-	public NodePath GlowVisualPath;
 	[Export(PropertyHint.Range, "-180,180,1")]
 	public float TpsBodyYawOffsetDeg = 0f;
 	[Export(PropertyHint.Range, "1,30,0.5")]
@@ -65,11 +67,18 @@ public partial class NetworkPlayer : CharacterBody3D
 	[Export(PropertyHint.Range, "-2,2,0.05")]
 	public float TpsRecoilPitchScale = 0.5f;
 
-	[ExportGroup("Body")]
+	[ExportSubgroup("Visual")]
 	[Export]
-	public NodePath BodyNodePath;
-	[Export(PropertyHint.Range, "0,1,0.01")]
-	public float CrouchCameraDrop = 0.32f;
+	public Node3D TpsVisual;
+
+	// Character-rig aim-pitch posing (which spine bone twists + how much) — runs server-side for
+	// hitbox/aim posing + on puppets, so it is NOT weapon data. The per-weapon ADS zoom (TpsAimFov)
+	// lives on WeaponAnimation alongside the FPS AimFov.
+	[ExportSubgroup("Aim Posing")]
+	[Export]
+	public string TpsAimBoneName = "spine_03";
+	[Export(PropertyHint.Range, "0,1,0.05")]
+	public float TpsAimPitchScale = 0.6f;
 
 	[ExportGroup("Animations")]
 	[ExportSubgroup("FPS")]
@@ -224,9 +233,7 @@ public partial class NetworkPlayer : CharacterBody3D
 	[Export]
 	public NodePath TpsAnimationPath;
 	[Export]
-	public NodePath TpsTreePath;
-	[Export]
-	public bool RebuildTpsAnimationTree { get => false; set { if (value) EditorRebuildTpsTree(); } }
+	public AnimationTree TpsAnimTree;
 
 	[ExportSubgroup("TPS/Locomotion")]
 	[Export]
@@ -310,36 +317,16 @@ public partial class NetworkPlayer : CharacterBody3D
 	[Export]
 	public string TpsIdlePoseGripVertical = "poses/A_TFA_TP_AR_Idle_Pose_Grip_Vertical_Unreal Take";
 
-	[ExportGroup("ADS")]
+	[ExportGroup("Grip")]
 	/// <summary>Hip-fire FOV = the live user setting (<see cref="ConVars.Cl.Fov"/>), so the FOV slider in
 	/// Settings takes effect immediately. AimFov (per-weapon) is blended in on ADS.</summary>
 	protected float HipFov => ConVars.Cl.Fov;
-	[Export(PropertyHint.Range, "1,30,0.1")]
-	public float AimBlendSpeed = 12f;
 	[Export(PropertyHint.Range, "1,60,0.5")]
 	public float GripPoseBlendSpeed = 15f;
 	[Export(PropertyHint.Range, "0.05,0.5,0.005")]
 	public float GripAimBlendTime = 0.18f;
 	[Export(PropertyHint.Range, "0.05,0.5,0.005")]
 	public float GripChangeNotifyTime = 0.133f;
-	[Export(PropertyHint.Range, "-1,1,0.0001,or_less,or_greater")]
-	public Vector3 CrouchOffsetPosition = new(0.015f, 0.02f, -0.015f);
-	[Export(PropertyHint.Range, "-180,180,0.01,or_less,or_greater")]
-	public Vector3 CrouchOffsetRotation = new(0f, 4.3f, 0f);
-	[Export(PropertyHint.Range, "-1,1,0.0001,or_less,or_greater")]
-	public Vector3 CantedOffsetPosition = new(-0.05f, -0.015f, -0.01f);
-	[Export(PropertyHint.Range, "-180,180,0.01,or_less,or_greater")]
-	public Vector3 CantedOffsetRotation = new(0f, 35.0f, 0f);
-
-	[ExportSubgroup("Test (Editor)")]
-	[Export]
-	public bool AdsTestMode { get => _adsTestMode; set { _adsTestMode = value; if (Engine.IsEditorHint()) ApplyEditorPreview(); } }
-	[Export(PropertyHint.Range, "0.1,5,0.05")]
-	public float AdsCalibrationDistance = 1.0f;
-	[Export(PropertyHint.Range, "0.001,0.05,0.0005")]
-	public float AdsCalibrationSize = 0.004f;
-	[Export]
-	public Color AdsCalibrationColor = new(1f, 0f, 0f, 1f);
 
 	[ExportGroup("Sway")]
 	[Export(PropertyHint.Range, "0,1,0.001")]
@@ -426,8 +413,22 @@ public partial class NetworkPlayer : CharacterBody3D
 	/// factor then stays constant whatever FOV the player picks, instead of snapping to a fixed angle.</summary>
 	protected const float AdsFovDesignBase = 100f;
 	protected float AimFov => HipFov * ((_currentWeapon?.AimFov ?? 78f) / AdsFovDesignBase);
+	protected float TpsAimFov => _currentWeapon?.TpsAimFov ?? 50f;
 	protected Vector3 AdsOffsetPosition => _currentWeapon?.AdsOffsetPosition ?? new Vector3(-0.02f, 0.06f, 0.0205f);
 	protected Vector3 AdsOffsetRotation => _currentWeapon?.AdsOffsetRotation ?? new Vector3(0f, -8.4f, 0f);
+	// Per-weapon ADS/crouch/canted calibration — moved onto WeaponAnimation; the character only reads them
+	// here and composes with its own blend state. Editor preview polls AdsTestMode/AdsCalibration* the same way.
+	protected float AimBlendSpeed => _currentWeapon?.AimBlendSpeed ?? 12f;
+	protected Vector3 CrouchOffsetPosition => _currentWeapon?.CrouchOffsetPosition ?? new Vector3(0.015f, 0.02f, -0.015f);
+	protected Vector3 CrouchOffsetRotation => _currentWeapon?.CrouchOffsetRotation ?? new Vector3(0f, 4.3f, 0f);
+	protected Vector3 CantedOffsetPosition => _currentWeapon?.CantedOffsetPosition ?? new Vector3(-0.05f, -0.015f, -0.01f);
+	protected Vector3 CantedOffsetRotation => _currentWeapon?.CantedOffsetRotation ?? new Vector3(0f, 35.0f, 0f);
+	protected bool AdsTestMode => _currentWeapon?.AdsTestMode ?? false;
+	protected bool CrouchTestMode => _currentWeapon?.CrouchTestMode ?? false;
+	protected bool CantedTestMode => _currentWeapon?.CantedTestMode ?? false;
+	protected float AdsCalibrationDistance => _currentWeapon?.AdsCalibrationDistance ?? 1.0f;
+	protected float AdsCalibrationSize => _currentWeapon?.AdsCalibrationSize ?? 0.004f;
+	protected Color AdsCalibrationColor => _currentWeapon?.AdsCalibrationColor ?? new Color(1f, 0f, 0f, 1f);
 	protected Vector3 RecoilImpulseHipfire => _currentWeapon?.RecoilImpulseHipfire ?? new Vector3(-1.2f, 0.4f, 0f);
 	protected Vector3 RecoilImpulseAimed => _currentWeapon?.RecoilImpulseAimed ?? new Vector3(-0.6f, 0.2f, 0f);
 	protected float RecoilStiffness => _currentWeapon?.RecoilStiffness ?? 200f;
@@ -454,6 +455,11 @@ public partial class NetworkPlayer : CharacterBody3D
 	public NodePath CurrentWeaponPath;
 	[Export]
 	public NodePath TpsWeaponPath;
+	/// <summary>The WeaponBoneModifier on the FPS skeleton that applies the ADS/crouch/canted/recoil
+	/// offset to ik_hand_gun. Resolved by node path (NOT a static singleton — that reset on every C#
+	/// rebuild and silently broke the editor ADS preview until a scene reload).</summary>
+	[Export]
+	public NodePath WeaponBoneModifierPath;
 
 	[ExportSubgroup("Firing")]
 	[Export(PropertyHint.Range, "2,40,0.5")]
@@ -464,6 +470,8 @@ public partial class NetworkPlayer : CharacterBody3D
 	public NodePath FootstepAudioPath;
 
 	[ExportGroup("State")]
+	[Export]
+	public ViewMode ViewMode = ViewMode.Fps;
 	[ExportSubgroup("Movement")]
 	[Export]
 	public bool IsRunning { get => _runAmt > 0.5f; set => _runAmt = value ? 1f : 0f; }
@@ -502,13 +510,11 @@ public partial class NetworkPlayer : CharacterBody3D
 	protected Godot.Collections.Array<Rid> _tpsSelfExclude;
 	protected Node3D _viewmodelCamAnchor;
 	protected CanvasLayer _viewmodelLayer;
-	protected Node3D _glowVisual;
 	protected AnimationPlayer _tpsPlayer;
 	protected AnimationTree _tpsTree;
 	protected AnimationNodeAnimation _tpsActionAnim;
 	protected AnimationNodeAnimation _tpsAimPoseNode;
 	protected TpsAimModifier _tpsAimModifier;
-	protected bool _adsTestMode;
 
 	protected BotController _botController;
 	public BotController BotController => _botController ??= new();
@@ -533,6 +539,7 @@ public partial class NetworkPlayer : CharacterBody3D
 	protected float _runAmt, _sprintAmt;
 	protected Node3D _leftHandFabrik;
 	protected Node3D _rightHandFabrik;
+	protected WeaponBoneModifier _weaponBoneModifier;
 	protected Node3D _bodyNode;
 	protected Vector3 _bodyRest;
 	protected Vector3 _bodyRestRot;
@@ -551,7 +558,8 @@ public partial class NetworkPlayer : CharacterBody3D
 		if (_tpsWeapon != null) { _tpsWeapon.Mode = WeaponMode.TPS; _tpsWeapon.OwnerBody = this; }
 		_leftHandFabrik = GetNodeOrNull<Node3D>(LeftHandFabrikPath);
 		_rightHandFabrik = GetNodeOrNull<Node3D>(RightHandFabrikPath);
-		_bodyNode = GetNodeOrNull<Node3D>(BodyNodePath);
+		_weaponBoneModifier = GetNodeOrNull<WeaponBoneModifier>(WeaponBoneModifierPath);
+		_bodyNode = HeadPitch;
 		if (_bodyNode != null && !_bodyRestCaptured)
 		{ _bodyRest = _bodyNode.Position; _bodyRestRot = _bodyNode.Rotation; _bodyRestCaptured = true; }
 		_cam = GetNodeOrNull<Camera3D>(HeadCameraPath);
@@ -561,7 +569,6 @@ public partial class NetworkPlayer : CharacterBody3D
 		_viewmodelLayer = GetNodeOrNull<CanvasLayer>(ViewmodelLayerPath);
 		_tpsCam = GetNodeOrNull<Camera3D>(TpsCameraPath);
 		_tpsPivot = GetNodeOrNull<Node3D>(TpsPivotPath);
-		_glowVisual = GetNodeOrNull<Node3D>(GlowVisualPath);
 		_tpsPlayer = GetNodeOrNull<AnimationPlayer>(TpsAnimationPath);
 		_footstepAudio = GetNodeOrNull<FootstepAudio>(FootstepAudioPath);
 		if (_footstepAudio != null)
@@ -640,12 +647,12 @@ public partial class NetworkPlayer : CharacterBody3D
 		UpdateTpsAimPose();
 		if (_tpsAimModifier != null)
 			_tpsAimModifier.Pitch = (remote ? _lookPitch : 0f) + Mathf.DegToRad(_recoilCurrent.X) * TpsRecoilPitchScale;
-		if (!remote || _glowVisual == null)
+		if (!remote || TpsVisual == null)
 			return;
 		float targetYaw = _lookYaw + Mathf.DegToRad(TpsBodyYawOffsetDeg);
-		Vector3 r = _glowVisual.Rotation;
+		Vector3 r = TpsVisual.Rotation;
 		r.Y = Mathf.LerpAngle(r.Y, targetYaw, Mathf.Clamp(TpsBodyTurnRate * dt, 0f, 1f));
-		_glowVisual.Rotation = r;
+		TpsVisual.Rotation = r;
 	}
 
 	protected void UpdateTpsAimPose()
@@ -702,7 +709,7 @@ public partial class NetworkPlayer : CharacterBody3D
 			if (GodotObject.IsInstanceValid(_viewmodelCam)) _viewmodelCam.Current = true;
 		}
 		if (GodotObject.IsInstanceValid(_viewmodelLayer)) _viewmodelLayer.Visible = fps;
-		if (GodotObject.IsInstanceValid(_glowVisual)) _glowVisual.Visible = !server && (!local || tps);
+		if (GodotObject.IsInstanceValid(TpsVisual)) TpsVisual.Visible = !server && (!local || tps);
 		// Local player in FPS view: the third-person body is hidden, so don't animate it. Otherwise the full
 		// TPS skeleton + AnimationTree + aim modifier process every frame for an invisible body — pure waste,
 		// and engine-side so it never showed in the C# profiler. Re-enabled when spectating through the TPS cam.
@@ -825,7 +832,7 @@ public partial class NetworkPlayer : CharacterBody3D
 	{
 		if (CurrentGameMode == PresentationMode.Server || _tpsPlayer == null)
 			return;
-		_tpsTree = GetNodeOrNull<AnimationTree>(TpsTreePath);
+		_tpsTree = TpsAnimTree;
 		var bt = _tpsTree?.TreeRoot as AnimationNodeBlendTree;
 		if (_tpsTree == null || bt == null || !bt.HasNode("Action"))
 		{
@@ -856,16 +863,16 @@ public partial class NetworkPlayer : CharacterBody3D
 
 	protected void SetupTpsAimModifier()
 	{
-		if (CurrentGameMode == PresentationMode.Server || _glowVisual == null)
+		if (CurrentGameMode == PresentationMode.Server || TpsVisual == null)
 			return;
-		var skel = _glowVisual.GetNodeOrNull<Skeleton3D>("Armature/Skeleton3D");
+		var skel = TpsVisual.GetNodeOrNull<Skeleton3D>("Armature/Skeleton3D");
 		if (skel == null)
 			return;
 		_tpsAimModifier = new TpsAimModifier
 		{
 			Name = "TpsAimModifier",
 			Additive = true,
-			BodyNode = _glowVisual,
+			BodyNode = TpsVisual,
 			AimBoneName = TpsAimBoneName,
 			PitchScale = TpsAimPitchScale,
 		};
@@ -893,18 +900,6 @@ public partial class NetworkPlayer : CharacterBody3D
 		AssignTreeAnimations(blend, player);
 		tree.AnimPlayer = tree.GetPathTo(player);
 		GD.Print("[NetworkPlayer] Animations assigned — Ctrl+S to save.");
-	}
-
-	protected void EditorRebuildTpsTree()
-	{
-		if (!Engine.IsEditorHint())
-			return;
-		_tpsAnimEnumHint = null;
-		NotifyPropertyListChanged();
-		if (GetNodeOrNull<AnimationTree>(TpsTreePath) == null)
-			GD.PushWarning("[NetworkPlayer] No TPS AnimationTree (TpsTreePath) yet — build it first, then wire the Tps* clips.");
-		else
-			GD.Print("[NetworkPlayer] TPS tree found; clip wiring is not implemented yet.");
 	}
 
 	protected string GetAnimationEnumHint()

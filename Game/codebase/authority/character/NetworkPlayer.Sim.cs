@@ -8,8 +8,6 @@ public enum ViewMode { Fps, Tps, Disabled }
 /// camera, mouse-look and aim-guide logic.</summary>
 public partial class NetworkPlayer : CharacterBody3D
 {
-	[Export]
-	public Node3D HeadPitch;
 	public PlayerAudio Audio { get; private set; }
 
 	public const int TickRate = 128;
@@ -128,12 +126,6 @@ public partial class NetworkPlayer : CharacterBody3D
 	protected void SetupCapsule() =>
 		_capsule = CharacterSetup.SetupCapsule(this, BodyCollision, StandHeight, CapsuleRadius, FloorMaxAngleDeg, FloorSnapDist);
 
-	[ExportGroup("View")]
-	[Export]
-	public ViewMode ViewMode = ViewMode.Fps;
-	[Export]
-	public Node3D TpsVisual;
-
 	[ExportGroup("Firing")]
 	[Export]
 	public bool CanFire = true;
@@ -176,18 +168,9 @@ public partial class NetworkPlayer : CharacterBody3D
 	private readonly GrenadeController _grenade = new();
 	protected int _activeSlot;
 
-	[ExportGroup("TPS Animation Tree")]
-	[Export]
-	public AnimationTree TpsAnimTree;
-
 	/// <summary>Mantle: three forward offsets for the down-raycast scan, pre-allocated to avoid per-tick allocations.</summary>
 	private static readonly float[] _mantleForwardOffsets = { 0.08f, 0.18f, 0.35f };
 
-	[ExportGroup("TPS Aim & ADS")]
-	[Export]
-	public string TpsAimBoneName = "spine_03";
-	[Export(PropertyHint.Range, "0,1,0.05")]
-	public float TpsAimPitchScale = 0.6f;
 	private int _tpsAimBoneIdx = -1;
 	/// <summary>TpsAimModifier child under the skeleton; drives the spine twist/pitch for the TPS body
 	/// aim pose (server + remote). Auto-created in <see cref="_Ready"/> when absent.</summary>

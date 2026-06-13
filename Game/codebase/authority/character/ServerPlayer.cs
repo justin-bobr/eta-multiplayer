@@ -219,7 +219,6 @@ public partial class ServerPlayer : NetworkPlayer
 	private void SetupServerSpectateCamera()
 	{
 		if (TpsVisual != null) TpsVisual.Visible = true;
-		if (_glowVisual != null) _glowVisual.Visible = true;
 		if (HeadPitch == null) return;
 
 		var cam = new Camera3D { Name = "ServerSpectateCam" };

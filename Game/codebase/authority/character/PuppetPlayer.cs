@@ -806,11 +806,13 @@ public partial class PuppetPlayer : NetworkPlayer
 		WeaponStats weaponStats = ConVars.Weapons.M4A1;
 		Audio?.PlayShoot(weaponStats, origin, ReverbEnv.Outdoor);
 
+		// Muzzle smoke is a visibility cue (CS2-style) — fire it regardless of LOD tier: the Off tier
+		// starts at ~80m even in-frustum, and a visible shooter at that range must still puff smoke.
+		// FoW already gates the event itself for shooters you shouldn't see. Casings stay LOD-gated —
+		// physics props are invisible at that distance anyway.
+		_tpsWeapon?.MuzzleSmoke();
 		if (_lodTier != PuppetLodTier.Off)
-		{
 			_tpsWeapon?.EjectCasing();
-			_tpsWeapon?.MuzzleSmoke();
-		}
 	}
 
 	/// <summary>Reliable-event handler for a remote footstep: plays the spatial audio sample.</summary>

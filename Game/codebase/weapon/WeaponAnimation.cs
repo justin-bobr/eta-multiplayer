@@ -137,6 +137,10 @@ public partial class WeaponAnimation : Node3D
 	[Export] public float DropRotationForce = 360f;      // deg/s about a random axis (UE: RotationForce, VelChange)
 	[Export] public float DropMagazineLifetime = 8f;
 
+	[ExportGroup("Magazine")]
+	[Export] public NodePath MainMagPath = new("Skeleton3D/SOCKET_Magazine/Magazine");
+	[Export] public NodePath ReserveMagPath = new("Skeleton3D/SOCKET_Magazine_Reserve/Magazine");
+
 	[ExportGroup("Audio")]
 	[Export] public NodePath AudioPlayerPath = new("AudioStreamPlayer");
 	[Export] public int AudioVoices = 8;
@@ -172,10 +176,6 @@ public partial class WeaponAnimation : Node3D
 	[Export] public AudioStream[] AudioMagRemoveEmpty = [];
 	[Export(PropertyHint.Range, "0,1,0.01")] public float VolumeMagRemoveEmpty = 1.0f;
 
-	[ExportGroup("Magazine")]
-	[Export] public NodePath MainMagPath = new("Skeleton3D/SOCKET_Magazine/Magazine");
-	[Export] public NodePath ReserveMagPath = new("Skeleton3D/SOCKET_Magazine_Reserve/Magazine");
-
 	// Per-weapon recoil + view-kick feel, read by NetworkPlayer through the active weapon. Infima recoil =
 	// a damped spring (VectorSpringInterp): a kick displaces it, the spring pulls it back with a little overshoot.
 	[ExportGroup("Recoil & View Kick")]
@@ -193,10 +193,30 @@ public partial class WeaponAnimation : Node3D
 	[Export(PropertyHint.Range, "0,0.05,0.001")] public float WeaponRecoilKickback = 0.005f;
 
 	// Per-weapon viewmodel ADS: iron-sight alignment offset (consumed via WeaponBoneModifier) + ADS FOV zoom.
+	// Crouch/Canted offsets + the editor ADS-test live here too (all per-weapon calibration); the character
+	// only reads these and composes them with its blend state (_aimBlend/_crouchBlend/_cantedBlend + recoil).
 	[ExportGroup("ADS (Viewmodel)")]
 	[Export(PropertyHint.Range, "30,120,0.5")] public float AimFov = 78f;
+	[Export(PropertyHint.Range, "20,90,1")] public float TpsAimFov = 50f;   // third-person / spectator ADS zoom
+	[Export(PropertyHint.Range, "1,30,0.1")] public float AimBlendSpeed = 12f;
 	[Export(PropertyHint.Range, "-1,1,0.0001,or_less,or_greater")] public Vector3 AdsOffsetPosition = new(-0.02f, 0.06f, 0.0205f);
 	[Export(PropertyHint.Range, "-180,180,0.01,or_less,or_greater")] public Vector3 AdsOffsetRotation = new(0f, -8.4f, 0f);
+	[Export(PropertyHint.Range, "-1,1,0.0001,or_less,or_greater")] public Vector3 CrouchOffsetPosition = new(0.015f, 0.02f, -0.015f);
+	[Export(PropertyHint.Range, "-180,180,0.01,or_less,or_greater")] public Vector3 CrouchOffsetRotation = new(0f, 4.3f, 0f);
+	[Export(PropertyHint.Range, "-1,1,0.0001,or_less,or_greater")] public Vector3 CantedOffsetPosition = new(-0.05f, -0.015f, -0.01f);
+	[Export(PropertyHint.Range, "-180,180,0.01,or_less,or_greater")] public Vector3 CantedOffsetRotation = new(0f, 35.0f, 0f);
+
+	// Editor-only ADS calibration preview. The character's ApplyEditorPreview polls these every editor
+	// frame: each *TestMode forces its blend so the matching offset can be calibrated. AdsTestMode = aimed
+	// pose + ADS FOV; CrouchTestMode = crouch offset (combine with ADS for crouched-ADS); CantedTestMode =
+	// canted ADS pose. A red reticle-alignment crosshair spawns while any is on. No runtime effect.
+	[ExportSubgroup("Test (Editor)")]
+	[Export] public bool AdsTestMode = false;
+	[Export] public bool CrouchTestMode = false;
+	[Export] public bool CantedTestMode = false;
+	[Export(PropertyHint.Range, "0.1,5,0.05")] public float AdsCalibrationDistance = 1.0f;
+	[Export(PropertyHint.Range, "0.001,0.05,0.0005")] public float AdsCalibrationSize = 0.004f;
+	[Export] public Color AdsCalibrationColor = new(1f, 0f, 0f, 1f);
 
 	[ExportGroup("Debug")]
 	[Export] public bool LogEvents = true;
@@ -889,15 +909,17 @@ public partial class WeaponAnimation : Node3D
 
 	private GpuParticles3D _muzzleSmoke;
 
-	// Muzzle smoke puff — exact port of the old smg.tscn "smoke" GpuParticles (fx/smoke/smoke.tres material +
-	// growth/fade curves). Parented to the barrel tip so it renders in the weapon's own world (FPS viewmodel
-	// SubViewport for the local gun, main world for the TPS gun) — every client spawns its own, so it's
-	// world-wide. Triggered per shot via MuzzleSmoke().
+	// Muzzle smoke puff — port of the old smg.tscn "smoke" GpuParticles (fx/smoke/smoke.tres material +
+	// growth/fade curves). Lives in the MAIN world scene, NOT under the muzzle: the FPS weapon's own
+	// SubViewport world is camera-anchored, so anything emitted there visually follows the player.
+	// MuzzleSmoke() teleports the emitter to the (remapped) muzzle per shot; with LocalCoords=false the
+	// emitted particles then hang in world space where they were fired instead of trailing the gun.
 	private void BuildMuzzleSmoke()
 	{
-		Node3D tip = FindMuzzleTip(this);
+		if (NetMain.Instance?.Cli?.Mode == NetMode.Server)
+			return;
 		var mat = ResourceLoader.Load<Material>("res://fx/smoke/smoke.tres");
-		if (tip == null || mat == null)
+		if (mat == null)
 			return;
 
 		var ppm = new ParticleProcessMaterial
@@ -935,14 +957,19 @@ public partial class WeaponAnimation : Node3D
 			DrawPass1 = new QuadMesh { Size = new Vector2(0.4f, 0.4f) },
 			MaterialOverride = mat,
 		};
-		tip.AddChild(_muzzleSmoke);
+		GetTree().CurrentScene.CallDeferred(Node.MethodName.AddChild, _muzzleSmoke);
 	}
 
 	public void MuzzleSmoke()
 	{
 		if (_muzzleSmoke == null || !GodotObject.IsInstanceValid(_muzzleSmoke))
-			BuildMuzzleSmoke();   // lazy retry: the muzzle/handguard may not have been visible yet at _Ready
-		_muzzleSmoke?.Restart();
+			BuildMuzzleSmoke();
+		if (_muzzleSmoke == null || !_muzzleSmoke.IsInsideTree())
+			return;
+		Node3D tip = FindMuzzleTip(this);
+		Transform3D muzzle = RemapToWorld(tip != null ? tip.GlobalTransform : GlobalTransform);
+		_muzzleSmoke.GlobalTransform = new Transform3D(muzzle.Basis.Orthonormalized(), muzzle.Origin);
+		_muzzleSmoke.Restart();
 	}
 
 	private static CurveTexture MakeCurve(params (float X, float Y)[] points)

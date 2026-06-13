@@ -5,14 +5,7 @@ public partial class WeaponBoneModifier : SkeletonModifier3D
 {
 	[Export] public StringName BoneName = "ik_hand_gun";
 
-	public static WeaponBoneModifier Instance { get; private set; }
-
 	private int _boneIdx = -1;
-
-	public override void _Ready()
-	{
-		Instance = this;   // editor too, so NetworkPlayer's ADS test mode can preview the weapon offset
-	}
 
 	public override void _ValidateProperty(Godot.Collections.Dictionary property)
 	{

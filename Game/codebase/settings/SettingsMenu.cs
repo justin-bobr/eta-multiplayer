@@ -375,7 +375,9 @@ public partial class SettingsMenu : CanvasLayer
 		(_renderScaleSlider, _renderScaleValue) = AddSlider(vbox, "Render Scale", 0.5f, 1.0f, 0.05f);
 		_renderScaleSlider.ValueChanged += OnRenderScaleChanged;
 
-		(_viewmodelScaleSlider, _viewmodelScaleValue) = AddSlider(vbox, "Viewmodel Render Scale", 0.5f, 1.0f, 0.05f);
+		// Up to 200%: >100% supersamples the weapon viewport (SSAA) — the gun is a small pixel budget, and
+		// SSAA is the only AA that fully smooths its high-contrast iron-sight edges without temporal ghosting.
+		(_viewmodelScaleSlider, _viewmodelScaleValue) = AddSlider(vbox, "Viewmodel Render Scale", 0.5f, 2.0f, 0.05f);
 		_viewmodelScaleSlider.ValueChanged += OnViewmodelScaleChanged;
 
 		_uiMsaaOpt = AddDropdown(vbox, "UI Quality (MSAA 2D)", new[] { "Off", "2×", "4×", "8×" });

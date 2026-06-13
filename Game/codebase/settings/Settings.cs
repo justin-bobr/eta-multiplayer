@@ -43,8 +43,8 @@ public static class Settings
 
 	public static QualityPreset Preset = QualityPreset.High;
 	public static float RenderScale = 0.85f;
-	/// <summary>Scale of the weapon viewmodel SubViewport. Independent from the world RenderScale so the user can keep iron-sight clarity at 100% while running the world at e.g. 75%. Mode stays Bilinear because the viewmodel viewport is transparent_bg + own_world_3d (FSR on transparent BG is a known Godot hazard).</summary>
-	public static float ViewmodelRenderScale = 1.0f;
+	/// <summary>Scale of the weapon viewmodel SubViewport. Independent from the world RenderScale so the user can keep iron-sight clarity at 100% while running the world at e.g. 75%. Values &gt;1.0 supersample (SSAA) — the cleanest AA for the gun's hard iron-sight edges, no temporal ghosting, compositor-safe. Mode stays Bilinear because the viewmodel viewport is transparent_bg + own_world_3d (FSR on transparent BG is a known Godot hazard).</summary>
+	public static float ViewmodelRenderScale = 1.5f;
 	/// <summary>UI Content-Scale-Factor applied to the root Window. Maps directly to Window.ContentScaleFactor — runtime-changeable, scales every Control/CanvasItem (HUD, crosshair, menus). 1.0 = native UI, &lt;1 = smaller (more screen real estate), &gt;1 = larger (better readability on 4K/large monitors). Lives in the Display tab — controls size/readability, not visual quality.</summary>
 	public static float UiScale = 1.0f;
 	/// <summary>UI rendering quality — 2D MSAA on the root Viewport. Smooths jagged Control edges (rounded corners, font outlines, vector shapes) at the cost of a few percent GPU. Disabled = native, 2x/4x/8x = progressively smoother text and HUD shapes. Lives in the Graphics tab — controls visual quality, not size.</summary>
@@ -591,16 +591,22 @@ public static class Settings
 			{
 				if (n is not SubViewport sv || !sv.OwnWorld3D) continue;
 				// Weapon viewmodel viewport has transparent_bg + own_world_3d. Force the
-				// safest path: native scale + Bilinear + no temporal/screen-space AA.
+				// safest path: native scale + Bilinear, no temporal AA (the swaying gun would ghost),
+				// no MSAA (its storage-less color target would silently kill the viewmodel compositor).
 				// Changing Scaling3DMode at runtime on a transparent SubViewport caused
 				// "Attempting to use an uninitialized RID" errors plus a black world — the
 				// viewmodel is small and cheap to render at native, so the upscaler win
 				// from scaling it down is not worth the buffer-state hazards.
+				// SMAA though IS wanted: the world gets AA from FSR2/TAA, but this viewport got
+				// nothing at all — bare jaggies on rails/sights ("glitchy gun"). SMAA is spatial
+				// (zero ghosting on the constantly-moving viewmodel) and compositor-safe.
 				sv.UseTaa = false;
 				sv.Msaa3D = Viewport.Msaa.Disabled;
 				sv.Scaling3DScale = ViewmodelRenderScale;
 				sv.Scaling3DMode = Viewport.Scaling3DModeEnum.Bilinear;
-				sv.ScreenSpaceAA = Viewport.ScreenSpaceAAEnum.Disabled;
+				sv.ScreenSpaceAA = AntiAliasing == AntiAliasingMode.Off
+					? Viewport.ScreenSpaceAAEnum.Disabled
+					: Viewport.ScreenSpaceAAEnum.Smaa;
 				if (!brightnessIsIdentity && sv.GetParent() is SubViewportContainer svc)
 					svc.Modulate = brightnessTint;
 			}

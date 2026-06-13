@@ -387,7 +387,7 @@ public partial class LocalPlayer
 
 	private void ApplyWeaponOffset()
 	{
-		var wbm = WeaponBoneModifier.Instance;
+		var wbm = _weaponBoneModifier ??= GetNodeOrNull<WeaponBoneModifier>(WeaponBoneModifierPath);
 		if (wbm == null)
 			return;
 		Transform3D ads = Transform3D.Identity.InterpolateWith(MakeOffset(AdsOffsetPosition, AdsOffsetRotation), _aimBlend);
@@ -445,21 +445,30 @@ public partial class LocalPlayer
 
 		_leftHandFabrik ??= GetNodeOrNull<Node3D>(LeftHandFabrikPath);
 		_rightHandFabrik ??= GetNodeOrNull<Node3D>(RightHandFabrikPath);
-		_currentWeapon ??= GetNodeOrNull<WeaponAnimation>(CurrentWeaponPath);   // editor: read ADS/recoil from the weapon
 
 		if (!_editorTreeReady)
 		{
-			if (tree.TreeRoot is AnimationNodeBlendTree setupBt)
-				AssignTreeAnimations(setupBt, player);
-			tree.Active = true;
-			tree.CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Manual;
+			// Resolve _fpsWeapon/_tpsWeapon (+ cameras/IK) like runtime SetupSim does — the editor skips
+			// SetupSim, so without this UpdateActiveWeapon (run every frame via ApplyModeVisibility) sets
+			// _currentWeapon = null (its target _fpsWeapon was never resolved) and the ADS getters fall
+			// back to hardcoded defaults instead of the weapon's tuned AdsTestMode / offsets.
+			ResolveWeaponPlayers();
+			UpdateActiveWeapon();
+			// FULL runtime tree wiring (AnimPlayer + action/grip nodes + additive ActionSub/ActionAdd = 1)
+			// so the editor preview evaluates IDENTICALLY to in-game (was a partial setup before).
+			_player = player;
+			BuildAnimationTree();
 			ApplyViewmodelLayer();
 			_editorTreeReady = true;
 		}
 
-		_aimBlend = (_isAiming || _adsTestMode) ? 1f : 0f;
-		_crouchBlend = _isCrouched ? 1f : 0f;
-		_cantedBlend = (_cantedAim && _isAiming) ? 1f : 0f;
+		// Editor test toggles force each blend independently so ADS / crouch / canted offsets can be
+		// calibrated in isolation or combined (e.g. AdsTestMode + CrouchTestMode = crouched ADS). Canted
+		// is an ADS variant, so CantedTestMode implies aiming.
+		bool aiming = _isAiming || AdsTestMode || CantedTestMode;
+		_aimBlend = aiming ? 1f : 0f;
+		_crouchBlend = (_isCrouched || CrouchTestMode) ? 1f : 0f;
+		_cantedBlend = ((_cantedAim && aiming) || CantedTestMode) ? 1f : 0f;
 
 		tree.Set(_pAimMix, _aimBlend);
 		tree.Set(_pStandSprint, _sprintAmt);
@@ -485,30 +494,35 @@ public partial class LocalPlayer
 		_viewmodelCam ??= GetNodeOrNull<Camera3D>(ViewmodelCameraPath);
 		_viewmodelCamAnchor ??= GetNodeOrNull<Node3D>(ViewmodelCameraAnchorPath);
 		_tpsCam ??= GetNodeOrNull<Camera3D>(TpsCameraPath);
-		_glowVisual ??= GetNodeOrNull<Node3D>(GlowVisualPath);
 		_viewmodelLayer ??= GetNodeOrNull<CanvasLayer>(ViewmodelLayerPath);
 		ApplyModeVisibility();
 		if (_cam != null)
-			_cam.Fov = (_isAiming || _adsTestMode) ? AimFov : HipFov;
+			_cam.Fov = aiming ? AimFov : HipFov;
 
 		var ikInfluence = IkEnabled ? 1f : 0f;
 		_leftHandFabrik?.Set(_pInfluence, ikInfluence);
 		_rightHandFabrik?.Set(_pInfluence, ikInfluence);
 
 		ApplyWeaponOffset();
-		tree.Advance(_adsTestMode ? 0.0 : dt);
+		// Advance with the real delta even in ADS-test mode. A 0.0 advance only HOLDS the previous pose
+		// (it doesn't re-evaluate the graph), so AimMix=1 never bakes and the skeleton never re-poses —
+		// which means the WeaponBoneModifier (ADS offset) never runs and live offset edits don't show.
+		// Advancing every frame keeps the aimed pose + bone offset live for calibration; locomotion is
+		// already forced to idle above, so only subtle idle breathing remains.
+		tree.Advance(dt);
 		RenderFpsCamera();
 		UpdateAdsCrosshair();
 	}
 
 	private void UpdateAdsCrosshair()
 	{
-		if (_adsTestMode && !_adsTestPrev)
+		bool anyTest = AdsTestMode || CrouchTestMode || CantedTestMode;
+		if (anyTest && !_adsTestPrev)
 			SpawnAdsCrosshair();
-		else if (!_adsTestMode && _adsTestPrev)
+		else if (!anyTest && _adsTestPrev)
 			DespawnAdsCrosshair();
-		_adsTestPrev = _adsTestMode;
-		if (_adsTestMode)
+		_adsTestPrev = anyTest;
+		if (anyTest)
 			PoseAdsCrosshair();
 	}
 
