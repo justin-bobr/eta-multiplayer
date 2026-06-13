@@ -1106,7 +1106,9 @@ public class MovementController
 		float speed = Mathf.Lerp(baseSpeed, Sv.CrouchSpeed, CrouchBlend);
 		if (input.Weapon != null)
 		{
-			speed *= input.Weapon.MoveSpeedMul;
+			// Sprint uses its own per-weapon multiplier (SprintSpeedMul), separate from the walk/hip
+			// MoveSpeedMul — so a weapon's sprint penalty can differ from its walk penalty.
+			speed *= ActuallySprinting ? input.Weapon.SprintSpeedMul : input.Weapon.MoveSpeedMul;
 			if (AdsBlend > 0f)
 			{
 				float adsMul = Mathf.Lerp(1f, input.Weapon.AdsSpeedMul, AdsBlend);

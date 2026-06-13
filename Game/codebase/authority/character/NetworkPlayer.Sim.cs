@@ -157,7 +157,7 @@ public partial class NetworkPlayer : CharacterBody3D
 	public bool PuppetIsInspecting;
 	/// <summary>0 = weapon, 1 = grenade. Written by PuppetPlayer from Snapshot.ActiveSlot — without it the
 	/// UpperBodyMix gate would stay at 0 because _activeSlot never advances on a puppet (no FixedTick) and
-	/// ConVars.Weapons.M4A1 is null. The puppet would then show no weapon-hold pose or ADS blend.</summary>
+	/// ConVars.Weapons.AR15 is null. The puppet would then show no weapon-hold pose or ADS blend.</summary>
 	public byte PuppetActiveSlot;
 	/// <summary>Spine twist: view yaw minus body yaw (radians). UpdateTpsBodyAim applies this to the aim
 	/// bone so the upper body follows the look direction while the body only catches up past 90 degrees delta.</summary>
@@ -284,14 +284,14 @@ public partial class NetworkPlayer : CharacterBody3D
 		FloorStopOnSlope = false;
 		Movement.Stamina = ConVars.Sv.MaxStamina;
 		Movement.ResetSpawnConsumables();
-		WeaponStats spawnWeapon = ConVars.Weapons.M4A1;
+		WeaponStats spawnWeapon = ConVars.Weapons.AR15;
 		Movement.InitializeAmmo(spawnWeapon);
 		if (spawnWeapon != null) Movement.FireMode = spawnWeapon.FireMode;
 		GrenadeTrajectory.Gravity = GrenadeTrajectory.BaseGravity / Mathf.Max(0.1f, ConVars.Sv.GrenadeRangeScale);
 		Audio = new PlayerAudio(
 			GetNodeOrNull<FootstepAudio>("FootstepAudio"),
 			GetNodeOrNull<WeaponAudio>("WeaponAudio"));
-		Audio.Configure(IsLocalPlayer, ConVars.Weapons.M4A1);
+		Audio.Configure(IsLocalPlayer, ConVars.Weapons.AR15);
 		WarmUpAudio();
 		_wasOnFloor = IsOnFloor();
 
@@ -503,7 +503,7 @@ public partial class NetworkPlayer : CharacterBody3D
 		if (Movement.DidFireThisFrame)
 		{
 			using (MiniProfiler.SampleClient("NetworkPlayer.HandleHitscan")) HandleHitscan();
-			Dbg.Print($"[fire] tick={CurrentTick} shot #{Movement.ShotIndex} ({ConVars.Weapons.M4A1?.Name}) | next in {Movement.FireCooldown * 1000f:0}ms");
+			Dbg.Print($"[fire] tick={CurrentTick} shot #{Movement.ShotIndex} ({ConVars.Weapons.AR15?.Name}) | next in {Movement.FireCooldown * 1000f:0}ms");
 		}
 
 		using (MiniProfiler.SampleClient("NetworkPlayer.HandleGrenades")) HandleGrenades(dt);
@@ -626,7 +626,8 @@ public partial class NetworkPlayer : CharacterBody3D
 		{
 			Vector3 start = _currentWeapon.GetMuzzleWorldPosition();
 			Vector3 end = hit.Hit ? hit.Position : start + Movement.LastShotDirection * HitscanRange;
-			BulletTracer.Spawn(GetTree(), start, end, new Color(2.5f, 1.6f, 0.5f, 1f), 0.014f, 80f, 2f);
+			if (_currentWeapon.ShouldSpawnTracer())
+				BulletTracer.Spawn(GetTree(), start, end, _currentWeapon.TracerColor, _currentWeapon.TracerWidth, _currentWeapon.TracerSpeed, _currentWeapon.TracerStreakLength);
 			_currentWeapon.MuzzleSmoke();
 		}
 
@@ -670,7 +671,7 @@ public partial class NetworkPlayer : CharacterBody3D
 	/// (Headless Server hat kein Godot Input — Live-Read würde IMMER false liefern → keine Schüsse, kein
 	/// Damage, kein Kill. War der Grund warum auf dedicated server keine Damage applied wurde obwohl
 	/// Client den Tracer/Decal sah). LocalPlayer + IsPuppet (rendered-only) lesen Live-Input wie gehabt.
-	/// Weapon: ServerAgent fallback auf ConVars.Weapons.M4A1 weil server_*.tscn keinen WeaponHolder hat.</summary>
+	/// Weapon: ServerAgent fallback auf ConVars.Weapons.AR15 weil server_*.tscn keinen WeaponHolder hat.</summary>
 	private FireInput BuildFireInput(float dt)
 	{
 		bool weaponSlot = _activeSlot == 0;
@@ -680,7 +681,7 @@ public partial class NetworkPlayer : CharacterBody3D
 		bool inspectPressed = weaponSlot && btn.Inspect;
 		bool adsHeld = weaponSlot && btn.Ads;
 
-		WeaponStats weapon = ConVars.Weapons.M4A1;
+		WeaponStats weapon = ConVars.Weapons.AR15;
 
 		Vector3 shootOrigin = HeadPitch != null ? HeadPitch.GlobalPosition : GlobalPosition;
 
@@ -838,7 +839,7 @@ public partial class NetworkPlayer : CharacterBody3D
 	{
 		TickIndex = CurrentTick,
 		Dt = dt,
-		Weapon = ConVars.Weapons.M4A1,
+		Weapon = ConVars.Weapons.AR15,
 		OnFloor = IsOnFloor(),
 		TouchingWall = IsOnWall(),
 		WallNormal = IsOnWall() ? GetWallNormal() : Vector3.Zero,

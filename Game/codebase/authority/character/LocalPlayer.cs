@@ -41,7 +41,7 @@ public partial class LocalPlayer : NetworkPlayer
 		if (!MouseLookEnabled || Input.MouseMode != Input.MouseModeEnum.Captured) return;
 
 		float sensMul = 1f;
-		var weapon = ConVars.Weapons.M4A1;
+		var weapon = ConVars.Weapons.AR15;
 		if (weapon != null && Movement.AdsBlend > 0f)
 			sensMul = Mathf.Lerp(1f, weapon.AdsSensitivityMul, Movement.AdsBlendVisual);
 		float masterSens = ConVars.Cl.MouseSensitivity * sensMul;
@@ -73,7 +73,7 @@ public partial class LocalPlayer : NetworkPlayer
 		{
 			Movement.UnlimitedAmmo = !Movement.UnlimitedAmmo;
 			if (Movement.UnlimitedAmmo)
-				Movement.CurrentMag = ConVars.Weapons.M4A1.MagazineSize;
+				Movement.CurrentMag = ConVars.Weapons.AR15.MagazineSize;
 		}
 		else if (k.Keycode == Key.F7)
 		{ ViewMode = ViewMode == ViewMode.Tps ? ViewMode.Fps : ViewMode.Tps; ApplyModeVisibility(); }
@@ -246,7 +246,7 @@ public partial class LocalPlayer : NetworkPlayer
 		WeaponStats weapon;
 		using (MiniProfiler.SampleClient("LocalPlayer.BuildMovementInput.WeaponLookup"))
 		{
-			weapon = ConVars.Weapons.M4A1;
+			weapon = ConVars.Weapons.AR15;
 		}
 
 		float currentYaw = Rotation.Y;
@@ -330,7 +330,7 @@ public partial class LocalPlayer : NetworkPlayer
 	protected override void HandleWeaponAudio()
 	{
 		if (_isReplaying) return;
-		WeaponStats weapon = ConVars.Weapons.M4A1;
+		WeaponStats weapon = ConVars.Weapons.AR15;
 		if (weapon == null) return;
 
 		Vector3 muzzlePos = GlobalPosition;

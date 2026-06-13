@@ -790,7 +790,7 @@ public class NetClient
 				local.CanFire = true;
 				local.Movement.Stamina = ConVars.Sv.MaxStamina;
 				local.Movement.ResetSpawnConsumables();
-				local.Movement.InitializeAmmo(ConVars.Weapons.M4A1);
+				local.Movement.InitializeAmmo(ConVars.Weapons.AR15);
 				local.ResetInterpToCurrentPos();
 				local.Prediction.Clear();
 			}

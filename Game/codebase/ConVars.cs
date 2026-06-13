@@ -10,7 +10,7 @@ public class SvConVars
 {
 	public float ShiftSpeed = 1.9f;
 	public float WalkSpeed = 4.0f;
-	public float SprintSpeed = 5.0f;
+	public float SprintSpeed = 6.5f;
 	public float CrouchSpeed = 1.9f;
 
 	public float GroundAcceleration = 15f;
@@ -80,7 +80,7 @@ public class SvConVars
 	public float CrouchTransitionSpeed = 5.0f;
 
 	public float MaxStamina = 100f;
-	public float StaminaDrainRate = 18.5f;
+	public float StaminaDrainRate = 12.5f;
 	public float StaminaRegenRate = 20f;
 	public float StaminaRegenDelay = 0.5f;
 	public float StaminaExhaustTimeout = 1.0f;
@@ -256,6 +256,9 @@ public class ClConVars
 	public float FovBoost = 6.0f;
 	public float CameraSwayMul = 0.15f;
 	public float FovBlendSpeed = 6.0f;
+	/// <summary>Blend speed for the peripheral sprint-blur fade (separate from FovBlendSpeed so the blur can
+	/// ramp in slower than the FOV boost). Lower = slower/gentler fade-in.</summary>
+	public float SprintBlurBlendSpeed = 3.0f;
 
 	public float CamShakeImpulsePitch = 1.2f;
 	public float CamShakeImpulseYaw = 0.8f;
@@ -396,12 +399,14 @@ public static class ConVars
 	/// <summary>Weapon registry. One immutable definition per weapon. Add new weapons here.</summary>
 	public static class Weapons
 	{
-		public static readonly WeaponStats M4A1 = new()
+		public static readonly WeaponStats AR15 = new()
 		{
-			Name = "M4A1",
+			Name = "AR15",
 			FireRate = 8.0f,
 			FireMode = 0,
 			MoveSpeedMul = 0.86f,
+			SprintSpeedMul = 1.0f,   // 6.5 (SprintSpeed) × 1.0 = 6.5 effective sprint speed
+
 			ReloadTime = 2.6f,
 			MagazineSize = 30,
 			MaxReserveAmmo = 90,

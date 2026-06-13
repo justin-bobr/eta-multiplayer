@@ -155,7 +155,7 @@ public partial class HudCs2 : Node
 			Stamina = Mathf.RoundToInt(mc.Stamina / Mathf.Max(1f, ConVars.Sv.MaxStamina) * 100f);
 			AmmoCurrent = mc.CurrentMag;
 			AmmoReserve = mc.ReserveAmmo;
-			WeaponName = ConVars.Weapons.M4A1?.Name ?? "—";
+			WeaponName = ConVars.Weapons.AR15?.Name ?? "—";
 			var snap = NetMain.Instance?.Client?.LastSelfSnap;
 			if (snap.HasValue)
 			{

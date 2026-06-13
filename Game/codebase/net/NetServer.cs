@@ -1693,7 +1693,7 @@ public class NetServer
 	/// <summary>Marks a player as dead and starts the auto-respawn countdown; awards a kill to the
 	/// attacker. Also sets IsDead = true on the ServerAgent (no sim, no collision). The respawn tick
 	/// re-activates everything after <see cref="RespawnDelaySeconds"/>. weaponId + isHeadshot flow
-	/// into the death event for the client-side killfeed ("Player X (M4A1) → Player Y [HS]").</summary>
+	/// into the death event for the client-side killfeed ("Player X (AR15) → Player Y [HS]").</summary>
 	public void TriggerDeath(byte victimNetId, byte attackerNetId, byte weaponId = 0, bool isHeadshot = false)
 	{
 		var s = GetPeerStateForNetId(victimNetId);
@@ -1784,7 +1784,7 @@ public class NetServer
 		if (agent is NetworkPlayer lcRespawn)
 		{
 			lcRespawn.CanFire = true;
-			lcRespawn.Movement.InitializeAmmo(ConVars.Weapons.M4A1);
+			lcRespawn.Movement.InitializeAmmo(ConVars.Weapons.AR15);
 			lcRespawn.ResetInterpToCurrentPos();
 		}
 		s.Rewind.Clear();

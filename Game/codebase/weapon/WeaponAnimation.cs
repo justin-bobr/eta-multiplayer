@@ -218,6 +218,19 @@ public partial class WeaponAnimation : Node3D
 	[Export(PropertyHint.Range, "0.001,0.05,0.0005")] public float AdsCalibrationSize = 0.004f;
 	[Export] public Color AdsCalibrationColor = new(1f, 0f, 0f, 1f);
 
+	[ExportGroup("Tracer")]
+	[Export] public bool TracerEnabled = true;
+	/// <summary>Spawn a visible tracer only on every Nth fired round. 1 = every shot, 2 = every 2nd, 3 = every 3rd … (CS-style intermittent tracers).</summary>
+	[Export(PropertyHint.Range, "1,10,1")] public int TracerEveryNShots = 2;
+	[Export(PropertyHint.Range, "0.002,0.05,0.001")] public float TracerWidth = 0.006f;
+	[Export] public Color TracerColor = new(2.5f, 1.6f, 0.5f, 1f);
+	[Export(PropertyHint.Range, "20,300,5")] public float TracerSpeed = 80f;
+	[Export(PropertyHint.Range, "0.2,5,0.1")] public float TracerStreakLength = 2f;
+	private int _tracerShotCount;
+	/// <summary>Per-shot tracer gate: true on every Nth fired round (<see cref="TracerEveryNShots"/>) when enabled.
+	/// Advances the internal shot counter — call exactly ONCE per fired round at the tracer spawn site.</summary>
+	public bool ShouldSpawnTracer() => TracerEnabled && _tracerShotCount++ % Mathf.Max(1, TracerEveryNShots) == 0;
+
 	[ExportGroup("Debug")]
 	[Export] public bool LogEvents = true;
 

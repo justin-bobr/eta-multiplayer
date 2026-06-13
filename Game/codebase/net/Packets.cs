@@ -701,7 +701,7 @@ public static class Packets
 	}
 
 	/// <summary>Writes a Death packet — victim + attacker + weaponId + headshot flag. The killfeed UI uses all
-	/// of it for the line ("Player X (M4A1) → Player Y [HS]"). weaponId = 0 for unknown / world damage.</summary>
+	/// of it for the line ("Player X (AR15) → Player Y [HS]"). weaponId = 0 for unknown / world damage.</summary>
 	public static NetDataWriter WriteDeath(byte victimNetId, byte attackerNetId, byte weaponId, bool isHeadshot)
 	{
 		var w = Begin(PacketType.Death);

@@ -786,13 +786,17 @@ public partial class PuppetPlayer : NetworkPlayer
 		bool hit, Vector3 hitPos, Vector3 hitNormal, string material)
 	{
 
-		if (tracer)
+		if (tracer && (_tpsWeapon == null || _tpsWeapon.ShouldSpawnTracer()))
 		{
 			// Pure cosmetic: anchor the beam at the puppet's CURRENT muzzle, not the networked shot origin
 			// (which is stale by the time the event arrives — the shooter has moved). Only the target matters.
 			Vector3 tracerStart = _tpsWeapon != null ? _tpsWeapon.GetMuzzleWorldPosition() : GlobalPosition + Vector3.Up * 1.4f;
 			Vector3 endpoint = hit ? hitPos : tracerStart + dir * 80f;
-			BulletTracer.Spawn(GetTree(), tracerStart, endpoint, new Color(2.5f, 1.6f, 0.5f, 1f), 0.014f, 80f, 2f);
+			BulletTracer.Spawn(GetTree(), tracerStart, endpoint,
+				_tpsWeapon?.TracerColor ?? new Color(2.5f, 1.6f, 0.5f, 1f),
+				_tpsWeapon?.TracerWidth ?? 0.006f,
+				_tpsWeapon?.TracerSpeed ?? 80f,
+				_tpsWeapon?.TracerStreakLength ?? 2f);
 		}
 
 		if (hit)
@@ -803,7 +807,7 @@ public partial class PuppetPlayer : NetworkPlayer
 		float shotLength = hit ? (hitPos - origin).Length() : HitscanRange;
 		SmokeVoxelField.DisturbAll(origin, dir, shotLength);
 
-		WeaponStats weaponStats = ConVars.Weapons.M4A1;
+		WeaponStats weaponStats = ConVars.Weapons.AR15;
 		Audio?.PlayShoot(weaponStats, origin, ReverbEnv.Outdoor);
 
 		// Muzzle smoke is a visibility cue (CS2-style) — fire it regardless of LOD tier: the Off tier

@@ -95,6 +95,9 @@ public record WeaponStats
 	public float AdsSpeedMul { get; init; } = 0.65f;
 	/// <summary>Base hip-fire movement speed multiplier — applied on top of <see cref="SvConVars.WalkSpeed"/> / <see cref="SvConVars.SprintSpeed"/>. Matches CS2's per-weapon <c>max_player_speed</c> field. 1.0 = Knife/fastest (no penalty), ~0.86 = Rifle (M4/AK), ~0.80 = AWP/Sniper, ~0.78 = LMG. Stacks multiplicatively with <see cref="AdsSpeedMul"/> when aiming.</summary>
 	public float MoveSpeedMul { get; init; } = 1.0f;
+	/// <summary>Movement speed multiplier while SPRINTING (gun lowered). Separate from <see cref="MoveSpeedMul"/>
+	/// so a weapon can have a different sprint penalty than its walk penalty. 1.0 = full SprintSpeed, no penalty.</summary>
+	public float SprintSpeedMul { get; init; } = 1.0f;
 	/// <summary>Base + movement spread multiplier while ADS (laser-tight first shot).</summary>
 	public float AdsSpreadMul { get; init; } = 0.15f;
 	/// <summary>Additional multiplier on the movement portion (strafe/walk) while ADS — keeps

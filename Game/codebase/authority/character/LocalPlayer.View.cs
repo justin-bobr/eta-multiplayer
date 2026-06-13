@@ -297,7 +297,61 @@ public partial class LocalPlayer
 			Mathf.DegToRad(swayRot.Y),
 			Mathf.DegToRad(kick.Z + swayRot.Z)));
 		_cam.Transform = _camRestLocal * new Transform3D(look, swayPos) * bob;
-		_cam.Fov = Mathf.Lerp(_cam.Fov, Mathf.Lerp(HipFov, AimFov, _aimBlend), Mathf.Clamp(dt * AimBlendSpeed, 0f, 1f));
+		// COD-style sprint FOV boost: widen the FOV while sprinting (eased via smoothstep), and drive the
+		// peripheral sprint-blur overlay from the same eased value. FovBoost/FovBlendSpeed live in ConVars.Cl.
+		bool sprinting = Movement?.ActuallySprinting ?? false;
+		_sprintFovBlend = Mathf.Lerp(_sprintFovBlend, sprinting ? 1f : 0f, Mathf.Min(1f, ConVars.Cl.FovBlendSpeed * dt));
+		float sprintEased = _sprintFovBlend * _sprintFovBlend * (3f - 2f * _sprintFovBlend);
+		float baseFov = HipFov + ConVars.Cl.FovBoost * sprintEased;
+		// Peripheral blur ramps on its own (slower) blend so it eases in gentler than the FOV boost.
+		_sprintBlurBlend = Mathf.Lerp(_sprintBlurBlend, sprinting ? 1f : 0f, Mathf.Min(1f, ConVars.Cl.SprintBlurBlendSpeed * dt));
+		float blurEased = _sprintBlurBlend * _sprintBlurBlend * (3f - 2f * _sprintBlurBlend);
+		UpdateSprintBlur(blurEased);
+		_cam.Fov = Mathf.Lerp(_cam.Fov, Mathf.Lerp(baseFov, AimFov, _aimBlend), Mathf.Clamp(dt * AimBlendSpeed, 0f, 1f));
+	}
+
+	private float _sprintFovBlend;
+	private float _sprintBlurBlend;
+	private ShaderMaterial _sprintBlurMat;
+	private ColorRect _sprintBlurRect;
+	private CanvasLayer _sprintBlurLayer;
+	private static readonly StringName _pSprintShader = "sprint";
+
+	/// <summary>Lazily builds the COD-style peripheral sprint-blur overlay: a full-screen ColorRect running
+	/// sprint_blur.gdshader on a CanvasLayer behind the viewmodel (layer -1, so it smears the world edges
+	/// while the lowered weapon + HUD stay crisp). Parented under the player so it frees on despawn.</summary>
+	private void SetupSprintBlur()
+	{
+		if (_sprintBlurLayer != null || Engine.IsEditorHint())
+			return;
+		var shader = GD.Load<Shader>("res://maps/dust/sprint_blur.gdshader");
+		if (shader == null)
+			return;
+		_sprintBlurMat = new ShaderMaterial { Shader = shader };
+		_sprintBlurRect = new ColorRect
+		{
+			Name = "_SprintBlur",
+			Material = _sprintBlurMat,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Visible = false,
+		};
+		_sprintBlurRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+		_sprintBlurLayer = new CanvasLayer { Name = "_SprintBlurLayer", Layer = -1 };
+		_sprintBlurLayer.AddChild(_sprintBlurRect);
+		AddChild(_sprintBlurLayer);
+	}
+
+	/// <summary>Shows/hides the sprint-blur overlay and feeds it the eased sprint blend. Gated by the Motion
+	/// Blur graphics setting (it IS a motion-blur effect).</summary>
+	private void UpdateSprintBlur(float sprintEased)
+	{
+		SetupSprintBlur();
+		if (_sprintBlurRect == null)
+			return;
+		bool show = sprintEased > 0.002f && Settings.MotionBlur;
+		_sprintBlurRect.Visible = show;
+		if (show)
+			_sprintBlurMat.SetShaderParameter(_pSprintShader, sprintEased);
 	}
 
 	private void RenderFpsCamera()

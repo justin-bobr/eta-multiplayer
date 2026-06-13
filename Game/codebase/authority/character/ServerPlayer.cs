@@ -40,7 +40,7 @@ public partial class ServerPlayer : NetworkPlayer
 			CrouchPressed = p.CrouchPressed,
 			AdsHeld = p.AdsHeld,
 			BreathHoldHeld = p.BreathHoldHeld,
-			Weapon = ConVars.Weapons.M4A1,
+			Weapon = ConVars.Weapons.AR15,
 			JumpPressed = p.JumpPressed,
 			OnFloor = IsOnFloor(),
 			TouchingWall = IsOnWall(),
@@ -153,7 +153,7 @@ public partial class ServerPlayer : NetworkPlayer
 			if (vs != null && vs.Hp > 0)
 			{
 				HitboxGroup group = HitboxRig.ReadGroup(lagHit.Collider);
-				var weapon = ConVars.Weapons.M4A1;
+				var weapon = ConVars.Weapons.AR15;
 				int dmg = weapon.DamageFor(group);
 				bool isHead = group == HitboxGroup.Head;
 

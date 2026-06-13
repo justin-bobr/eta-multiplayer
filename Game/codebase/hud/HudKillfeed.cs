@@ -103,9 +103,9 @@ public partial class HudKillfeed : Control
 		return $"Player {netId}";
 	}
 
-	/// <summary>WeaponId-Registry für v1: nur M4A1. Sobald multiple Weapons → echte Registry.</summary>
+	/// <summary>WeaponId-Registry für v1: nur AR15. Sobald multiple Weapons → echte Registry.</summary>
 	private static string WeaponName(byte weaponId) => weaponId switch
 	{
-		_ => "M4A1",
+		_ => "AR15",
 	};
 }
