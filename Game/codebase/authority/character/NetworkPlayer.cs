@@ -537,6 +537,7 @@ public partial class NetworkPlayer : CharacterBody3D
 	protected GripType _grip = GripType.Standard;
 	protected Vector2 _simVel;
 	protected float _runAmt, _sprintAmt;
+	protected float _smoothedHorizSpeed;
 	protected Node3D _leftHandFabrik;
 	protected Node3D _rightHandFabrik;
 	protected WeaponBoneModifier _weaponBoneModifier;

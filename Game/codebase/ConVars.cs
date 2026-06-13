@@ -9,9 +9,13 @@ using System.Reflection;
 public class SvConVars
 {
 	public float ShiftSpeed = 1.9f;
-	public float WalkSpeed = 4.0f;
-	public float SprintSpeed = 6.5f;
-	public float CrouchSpeed = 1.9f;
+	public float WalkSpeed = 3.6f;
+	public float SprintSpeed = 5.1f;
+	public float CrouchSpeed = 2.1f;
+	/// <summary>Fraction of horizontal speed bled off on each step-up, scaled by step height (full-height step =
+	/// this much, a shallow curb proportionally less). Makes climbing stairs cost momentum instead of running up
+	/// at full walk speed; you re-accelerate between steps. 0 = no penalty (old behaviour).</summary>
+	public float StepUpSpeedPenalty = 0.15f;
 
 	public float GroundAcceleration = 15f;
 	public float GroundFriction = 5.2f;
@@ -20,7 +24,7 @@ public class SvConVars
 	public float AirMaxWishSpeed = 0.6f;
 	public float JumpVelocity = 4.95f;
 	public float JumpSpeedBonus = 0.65f;
-	public float JumpSpeedBonusThreshold = 3.0f;
+	public float JumpSpeedBonusThreshold = 2.0f;
 	public float JumpSprintForwardBoost = 0.5f;
 	public float Gravity = 17.5f;
 	public float ApexHangThreshold = 0.5f;
@@ -33,7 +37,7 @@ public class SvConVars
 	public float WallJumpHorizontal = 2.0f;
 	public float WallJumpMomentumKeep = 0.65f;
 	public float WallJumpMinSpeed = 5.5f;
-	public float WallJumpSpeedRef = 7.5f;
+	public float WallJumpSpeedRef = 6.8f;
 	public float WallJumpLookWeight = 0.65f;
 
 	public bool WallClingEnabled = true;
@@ -44,7 +48,7 @@ public class SvConVars
 	/// <summary>Grace window in seconds after a regular jump during which wall-cling cannot trigger. Prevents accidental "blocked" jumps when sprinting toward a wall and pressing space.</summary>
 	public float WallClingPostJumpGrace = 0.25f;
 
-	public float WallAssistBonus = 1.2f;
+	public float WallAssistBonus = 1.12f;
 
 	public float CrouchJumpBonus = 1.35f;
 	public float JumpForwardBoost = 2.0f;
@@ -253,7 +257,7 @@ public class ClConVars
 	public int InterpMaxTicks = 12;
 
 	public float Fov = 100.0f;
-	public float FovBoost = 6.0f;
+	public float FovBoost = 10.0f;
 	public float CameraSwayMul = 0.15f;
 	public float FovBlendSpeed = 6.0f;
 	/// <summary>Blend speed for the peripheral sprint-blur fade (separate from FovBlendSpeed so the blur can
@@ -261,6 +265,10 @@ public class ClConVars
 	public float SprintBlurBlendSpeed = 3.0f;
 	/// <summary>Shift-walk locomotion blend magnitude (0..1). Lower = less head/weapon bob while shift-walking. Below the raw ShiftSpeed/WalkSpeed ratio because the full walk bob reads too strong at shift pace.</summary>
 	public float LocoShiftBobScale = 0.3f;
+	/// <summary>Normal-walk (non-shift) locomotion blend magnitude (0..1). Scales the baked walk/run bob at full walk speed. 1 = full baked bob.</summary>
+	public float LocoWalkBobScale = 0.85f;
+	/// <summary>Sprint head-bob scale (0..1). Sprint uses its own clip (not the walk blendspace), so this scales the camera bob transform toward rest while sprinting. 1 = full baked sprint bob.</summary>
+	public float LocoSprintBobScale = 0.85f;
 	/// <summary>Locomotion blend magnitude multiplier while ADS (0..1). Pulls the baked walk/run bob down further when aiming for a steadier sight picture.</summary>
 	public float LocoAdsBobScale = 0.6f;
 
@@ -276,17 +284,6 @@ public class ClConVars
 	public float BreathForwardAmount = 0.002f;
 	public float InhaleFraction = 0.42f;
 	public float BreathBlendSpeed = 3.0f;
-
-	public float BobFreqShift = 1.05f;
-	public float BobFreqWalk = 1.5f;
-	public float BobFreqRun = 1.85f;
-	public float BobVerticalAmount = 0.0035f;
-	public float BobHorizontalAmount = 0.0028f;
-	public float BobRollAmount = 0.22f;
-	public float BobPitchAmount = 0.13f;
-	public float RunAmpMultiplier = 0.9f;
-	public float BobBlendSpeed = 6.0f;
-	public float RunSharpness = 0.35f;
 
 	public float StrafeLeanRoll = 2.0f;
 	public float StrafeLeanPos = 0.015f;
@@ -339,7 +336,6 @@ public class ClConVars
 	public float CrouchWeaponPitch = 3.5f;
 	public float CrouchWeaponYaw = 2.0f;
 	public float CrouchWeaponRoll = 1.5f;
-	public float CrouchBobScale = 0.5f;
 	public float CrouchBlendSpeedVisual = 5.0f;
 
 	public float SprintLowerPosDown = 0.032f;
@@ -358,16 +354,29 @@ public class ClConVars
 	public float BodyYawLagSmoothing = 14.0f;
 
 	public float AirTime = 4.0f;
-	public float JumpImpulseUp = 0.045f;
-	public float JumpPitchAmount = 1.6f;
-	public float LandImpulseDown = 0.090f;
-	public float LandImpulseForward = 0.04f;
-	public float LandPitchAmount = 4.5f;
+	public float JumpImpulseDip = 0.01f;
+	public float LandImpulseDip = 0.03f;
+	public float LandImpulseForward = 0.01f;
+	public float LandPitchDown = 0.4f;
 	public float JumpKickStiffness = 70f;
 	public float JumpKickDamping = 14f;
-	public float LandImpactMinSpeed = 2.0f;
-	public float LandImpactSpeedRef = 6.0f;
-	public float LandImpactMaxScale = 2.5f;
+	public float LandImpactSpeedRef = 10.0f;
+	public float LandImpactMaxScale = 1.5f;
+	public float JumpKickAdsMul = 0.25f;
+	public bool JumpKickEnabled = true;
+	/// <summary>Local jump/fall detection: an air cycle counts (loop/landing anim + kick) only on a jump key
+	/// press or a fall past this many metres. Fall height, not speed — a fast stair-step lands at the same impact
+	/// as a real jump, so only the distance fallen at once separates descending stairs from a genuine drop.</summary>
+	public float JumpMinFallHeight = 0.8f;
+	/// <summary>Impact-speed gate for the PUPPET (remote player) land sound — only impact is broadcast, not fall height.</summary>
+	public float JumpMinFallSpeed = 4.5f;
+	/// <summary>Cosmetic camera step-smoothing (local-only). Rate = how fast the camera catches up to a step.</summary>
+	public bool StepSmoothEnabled = true;
+	public float StepSmoothRate = 15f;
+	public float StepSmoothMaxOffset = 0.22f;
+	/// <summary>Low-pass rate for the speed that drives the walk/run/sprint pose blend (lower = smoother, less
+	/// pose flicker from Source-movement speed jitter; higher = more responsive). Cosmetic — real velocity is unaffected.</summary>
+	public float LocoSpeedSmoothRate = 6f;
 
 	public bool ShowStaminaLabel = true;
 
@@ -408,8 +417,8 @@ public static class ConVars
 			Name = "AR15",
 			FireRate = 8.0f,
 			FireMode = 0,
-			MoveSpeedMul = 0.86f,
-			SprintSpeedMul = 1.0f,   // 6.5 (SprintSpeed) × 1.0 = 6.5 effective sprint speed
+			MoveSpeedMul = 1.0f,
+			SprintSpeedMul = 1.0f,   // 7.5 (SprintSpeed) × 1.0 = 7.5 effective sprint speed
 
 			ReloadTime = 2.6f,
 			MagazineSize = 30,
@@ -475,13 +484,13 @@ public static class ConVars
 				new(-0.25f, 0.05f),
 				new(-0.15f, 0.05f),
 			},
-			ShootBodyClips    = System.Array.Empty<string>(),
-			ShootMechClips    = System.Array.Empty<string>(),
-			ShootTailClips    = System.Array.Empty<string>(),
+			ShootBodyClips = System.Array.Empty<string>(),
+			ShootMechClips = System.Array.Empty<string>(),
+			ShootTailClips = System.Array.Empty<string>(),
 			ShootDistantClips = System.Array.Empty<string>(),
-			ReloadClips       = System.Array.Empty<string>(),
-			DryFireClips      = System.Array.Empty<string>(),
-			ShootVolumeDb     = 0f,
+			ReloadClips = System.Array.Empty<string>(),
+			DryFireClips = System.Array.Empty<string>(),
+			ShootVolumeDb = 0f,
 			DistantCrossoverM = 28f,
 		};
 	}
@@ -489,23 +498,29 @@ public static class ConVars
 	/// <summary>Tries to set a ConVar by string name (sv_* or cl_*). Returns true on success. AOT-safe: dispatches on the sv_/cl_ prefix to a type-explicit GetField call so the trimmer can statically prove which type's fields are reached.</summary>
 	public static bool TrySet(string name, string value)
 	{
-		if (string.IsNullOrEmpty(name)) return false;
+		if (string.IsNullOrEmpty(name))
+			return false;
 		string lower = name.ToLowerInvariant();
-		if (lower.StartsWith("sv_")) return TrySetOn(Sv, lower[3..].Replace("_", ""), value);
-		if (lower.StartsWith("cl_")) return TrySetOn(Cl, lower[3..].Replace("_", ""), value);
+		if (lower.StartsWith("sv_"))
+			return TrySetOn(Sv, lower[3..].Replace("_", ""), value);
+		if (lower.StartsWith("cl_"))
+			return TrySetOn(Cl, lower[3..].Replace("_", ""), value);
 		return false;
 	}
 
 	/// <summary>Type-explicit set helper. The DynamicallyAccessedMembers attribute on SvConVars/ClConVars propagates here so AOT keeps the field metadata.</summary>
 	private static bool TrySetOn<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] T>(T instance, string fieldName, string value)
 	{
-		if (instance == null) return false;
+		if (instance == null)
+			return false;
 		var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-		if (field == null) return false;
+		if (field == null)
+			return false;
 		try
 		{
 			object parsed = ParseValue(value, field.FieldType);
-			if (parsed == null) return false;
+			if (parsed == null)
+				return false;
 			field.SetValue(instance, parsed);
 			return true;
 		}
@@ -515,17 +530,21 @@ public static class ConVars
 	/// <summary>Gets the current value of a ConVar as string, or null if not found. AOT-safe via the same type-explicit dispatch as TrySet.</summary>
 	public static string Get(string name)
 	{
-		if (string.IsNullOrEmpty(name)) return null;
+		if (string.IsNullOrEmpty(name))
+			return null;
 		string lower = name.ToLowerInvariant();
-		if (lower.StartsWith("sv_")) return GetOn(Sv, lower[3..].Replace("_", ""));
-		if (lower.StartsWith("cl_")) return GetOn(Cl, lower[3..].Replace("_", ""));
+		if (lower.StartsWith("sv_"))
+			return GetOn(Sv, lower[3..].Replace("_", ""));
+		if (lower.StartsWith("cl_"))
+			return GetOn(Cl, lower[3..].Replace("_", ""));
 		return null;
 	}
 
 	/// <summary>Type-explicit get helper.</summary>
 	private static string GetOn<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] T>(T instance, string fieldName)
 	{
-		if (instance == null) return null;
+		if (instance == null)
+			return null;
 		var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 		return field?.GetValue(instance)?.ToString();
 	}
@@ -545,12 +564,14 @@ public static class ConVars
 	/// <summary>Konvertiert "DebugHitboxes" → "debug_hitboxes" für Console-User-Friendly Display + Match.</summary>
 	private static string ToSnakeCase(string camelCase)
 	{
-		if (string.IsNullOrEmpty(camelCase)) return camelCase;
+		if (string.IsNullOrEmpty(camelCase))
+			return camelCase;
 		var sb = new System.Text.StringBuilder(camelCase.Length + 4);
 		for (int i = 0; i < camelCase.Length; i++)
 		{
 			char c = camelCase[i];
-			if (char.IsUpper(c) && i > 0) sb.Append('_');
+			if (char.IsUpper(c) && i > 0)
+				sb.Append('_');
 			sb.Append(char.ToLowerInvariant(c));
 		}
 		return sb.ToString();
@@ -560,10 +581,13 @@ public static class ConVars
 	/// Genutzt vom Console-Typeahead und der Pre-Send-Validierung. AOT-safe.</summary>
 	public static Type GetFieldType(string name)
 	{
-		if (string.IsNullOrEmpty(name)) return null;
+		if (string.IsNullOrEmpty(name))
+			return null;
 		string lower = name.ToLowerInvariant();
-		if (lower.StartsWith("sv_")) return GetFieldTypeOn<SvConVars>(lower[3..].Replace("_", ""));
-		if (lower.StartsWith("cl_")) return GetFieldTypeOn<ClConVars>(lower[3..].Replace("_", ""));
+		if (lower.StartsWith("sv_"))
+			return GetFieldTypeOn<SvConVars>(lower[3..].Replace("_", ""));
+		if (lower.StartsWith("cl_"))
+			return GetFieldTypeOn<ClConVars>(lower[3..].Replace("_", ""));
 		return null;
 	}
 
@@ -579,7 +603,8 @@ public static class ConVars
 	public static (bool ok, string typeName) ValidateValue(string name, string value)
 	{
 		var type = GetFieldType(name);
-		if (type == null) return (false, "unknown");
+		if (type == null)
+			return (false, "unknown");
 		string typeName = TypeFriendlyName(type);
 		try
 		{
@@ -592,22 +617,29 @@ public static class ConVars
 	/// <summary>Friendly-Name für UI/Errors: float/int/bool/string statt Single/Int32/Boolean/String.</summary>
 	public static string TypeFriendlyName(Type t)
 	{
-		if (t == typeof(float)) return "float";
-		if (t == typeof(int)) return "int";
-		if (t == typeof(bool)) return "bool";
-		if (t == typeof(string)) return "string";
+		if (t == typeof(float))
+			return "float";
+		if (t == typeof(int))
+			return "int";
+		if (t == typeof(bool))
+			return "bool";
+		if (t == typeof(string))
+			return "string";
 		return t.Name.ToLowerInvariant();
 	}
 
-/// <summary>Parses a string into the requested primitive type (float/int/bool/string).</summary>
+	/// <summary>Parses a string into the requested primitive type (float/int/bool/string).</summary>
 	private static object ParseValue(string value, Type targetType)
 	{
 		var culture = CultureInfo.InvariantCulture;
-		if (targetType == typeof(float)) return float.Parse(value, culture);
-		if (targetType == typeof(int)) return int.Parse(value, culture);
+		if (targetType == typeof(float))
+			return float.Parse(value, culture);
+		if (targetType == typeof(int))
+			return int.Parse(value, culture);
 		if (targetType == typeof(bool))
 			return value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase);
-		if (targetType == typeof(string)) return value;
+		if (targetType == typeof(string))
+			return value;
 		return null;
 	}
 }

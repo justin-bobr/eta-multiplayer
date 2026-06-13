@@ -356,18 +356,20 @@ public partial class LocalPlayer : NetworkPlayer
 
 	protected override void OnLandEvent(float impact)
 	{
-		if (impact > 1.5f)
+		bool realLanding = AddLandKick(impact);
+		if (realLanding)
 		{
 			float impact01 = Mathf.Clamp((impact - 1.5f) / 7f, 0f, 1f);
 			HitInfo ground = CastGround();
 			StringName mat = ground.Hit ? ground.Material : (StringName)"default";
 			Audio.PlayLand(GlobalPosition, mat, impact01, IsTunnelGround(ground));
+			Dbg.Print($"[land] impact={impact:F1} m/s | pos=({GlobalPosition.X:F1},{GlobalPosition.Y:F1},{GlobalPosition.Z:F1})");
 		}
-		Dbg.Print($"[land] impact={impact:F1} m/s | pos=({GlobalPosition.X:F1},{GlobalPosition.Y:F1},{GlobalPosition.Z:F1})");
 	}
 
 	protected override void OnJumpEvent()
 	{
+		AddJumpKick();
 		HitInfo ground = CastGround();
 		StringName mat = ground.Hit ? ground.Material : (StringName)"default";
 		Audio.PlayJump(GlobalPosition, mat, Movement.ActuallySprinting ? 1f : 0.75f, IsTunnelGround(ground));

@@ -956,7 +956,10 @@ public partial class NetworkPlayer : CharacterBody3D
 		}
 		GlobalPosition += new Vector3(0f, actualStep, 0f);
 		var v = Velocity;
-		if (v.Y < 0f) { v.Y = 0f; Velocity = v; }
+		if (v.Y < 0f) v.Y = 0f;
+		float stepPen = ConVars.Sv.StepUpSpeedPenalty * Mathf.Clamp(actualStep / Mathf.Max(0.01f, StepMaxHeight), 0f, 1f);
+		if (stepPen > 0f) { v.X *= 1f - stepPen; v.Z *= 1f - stepPen; }
+		Velocity = v;
 		if (Dbg.Enabled && Time.GetTicksMsec() - _lastStepupSuccessLogMs > 200)
 		{
 			_lastStepupSuccessLogMs = Time.GetTicksMsec();

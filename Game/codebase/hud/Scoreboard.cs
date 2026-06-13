@@ -11,7 +11,7 @@ using System.Collections.Generic;
 /// </summary>
 public partial class Scoreboard : CanvasLayer
 {
-	private const string ActionName = "scoreboard";
+	private static readonly StringName ActionName = "scoreboard";
 	private const float RefreshInterval = 0.25f;
 
 	private PanelContainer _panel;
@@ -51,26 +51,38 @@ public partial class Scoreboard : CanvasLayer
 		Layer = 90;
 		BuildUi();
 		_panel.Visible = false;
+		SetProcess(false);   // event-driven: the per-frame refresh only runs WHILE the board is open
+	}
+
+	/// <summary>Opens the board on the scoreboard-action press. Input keeps being delivered even while
+	/// _Process is off (SetProcess only gates idle processing, not input), so this still fires when closed.</summary>
+	public override void _Input(InputEvent @event)
+	{
+		if (!IsProcessing() && @event.IsActionPressed(ActionName))
+		{
+			_panel.Visible = true;
+			RefreshRows();
+			_refreshTimer = RefreshInterval;
+			SetProcess(true);
+		}
 	}
 
 	public override void _Process(double delta)
 	{
 		using var _prof = MiniProfiler.SampleClient("Scoreboard._Process");
-		bool wantShow = Input.IsActionPressed(ActionName);
-		if (wantShow != _panel.Visible)
+		// Close + stop processing as soon as the action is released — also catches a release event missed
+		// while unfocused (alt-tab). Polling here is fine: _Process only runs while the board is open.
+		if (!Input.IsActionPressed(ActionName))
 		{
-			_panel.Visible = wantShow;
-			if (wantShow) RefreshRows();
-			_refreshTimer = 0f;
+			_panel.Visible = false;
+			SetProcess(false);
+			return;
 		}
-		if (_panel.Visible)
+		_refreshTimer -= (float)delta;
+		if (_refreshTimer <= 0f)
 		{
-			_refreshTimer -= (float)delta;
-			if (_refreshTimer <= 0f)
-			{
-				_refreshTimer = RefreshInterval;
-				RefreshRows();
-			}
+			_refreshTimer = RefreshInterval;
+			RefreshRows();
 		}
 	}
 

@@ -42,7 +42,7 @@ enabled=PackedStringArray("res://addons/spots_gizmo/plugin.cfg")
 
 [global]
 
-debug=false
+debug=true
 
 [global_group]
 

@@ -21,6 +21,7 @@ public partial class LocalPlayer
 		using (MiniProfiler.SampleClient("View.UpdateGripBlend")) UpdateGripBlend(dt);
 		using (MiniProfiler.SampleClient("View.DriveLocomotionTree")) DriveLocomotionTree(dt);
 		using (MiniProfiler.SampleClient("View.UpdateViewmodelMontages")) UpdateViewmodelMontages();
+		using (MiniProfiler.SampleClient("View.UpdateJumpLayer")) UpdateJumpLayer(dt);
 		using (MiniProfiler.SampleClient("View.PollMontageState")) PollMontageState();
 		using (MiniProfiler.SampleClient("View.ApplyHandIk")) ApplyHandIk();
 		using (MiniProfiler.SampleClient("View.ApplyWeaponOffset")) ApplyWeaponOffset();
@@ -39,6 +40,46 @@ public partial class LocalPlayer
 			using (MiniProfiler.SampleClient("View.RenderFpsCamera")) RenderFpsCamera();
 		}
 		using (MiniProfiler.SampleClient("View.UpdateAdsPostFx")) UpdateAdsPostFx();
+		using (MiniProfiler.SampleClient("View.UpdateAimGuide")) UpdateAimGuide();
+	}
+
+	private GrenadeAimGuide _aimGuide;
+	private readonly List<Vector3> _aimPath = new();
+	private int _aimDbg;
+
+	/// <summary>Renders the grenade throw trajectory preview while the grenade slot is active and the fire key
+	/// is held. The path comes from <see cref="GrenadeTrajectory.Predict"/> using the same pending-throw
+	/// origin/velocity the sim will use on release, so the preview matches the real flight exactly. The guide
+	/// is parented to the player's parent (TopLevel = world space) and built lazily on first show.</summary>
+	private void UpdateAimGuide()
+	{
+		bool show = ActiveSlot == 1 && !InputGate.Blocked
+			&& Input.IsActionPressed(InputActions.Fire) && _pendingThrowValid;
+
+		if (_aimGuide == null)
+		{
+			if (!show)
+				return;
+			_aimGuide = new GrenadeAimGuide();
+			GetParent()?.CallDeferred(Node.MethodName.AddChild, _aimGuide);
+			return;   // not in the tree until next frame; GetViewport()/camera reads would be null
+		}
+
+		_aimGuide.SetGuideVisible(show);
+		if (!show)
+			return;
+
+		var space = GetWorld3D()?.DirectSpaceState;
+		if (space == null)
+			return;
+
+		GrenadeTrajectory.Predict(space, _pendingThrowOrigin, _pendingThrowVel, GetRid(), _aimPath,
+			out Vector3 landing, out Vector3 landingNormal);
+		_aimGuide.UpdatePath(_aimPath, landing, landingNormal);
+
+		if (Dbg.Enabled && (++_aimDbg & 31) == 0)
+			Dbg.Print($"[aimguide] slot={ActiveSlot} charge={GrenadeCharge:F2} pts={_aimPath.Count} " +
+				$"landing=({landing.X:F1},{landing.Y:F1},{landing.Z:F1})");
 	}
 
 	private void UpdateVisualBlends(float dt)
@@ -78,55 +119,63 @@ public partial class LocalPlayer
 	private static readonly StringName _pGripChangeActive = "parameters/GripChangeSlot/active";
 	private static readonly StringName _pGripChangeRequest = "parameters/GripChangeSlot/request";
 	private static readonly StringName _pLocoStopRequest = "parameters/LocoStop/request";
+	private static readonly StringName _pJumpLoopBlend = "parameters/JumpLoopBlend/blend_amount";
+	private static readonly StringName _pJumpStartRequest = "parameters/JumpStartShot/request";
+	private static readonly StringName _pJumpEndRequest = "parameters/JumpEndShot/request";
+	private static readonly StringName _pJumpAddAmount = "parameters/JumpAdd/add_amount";
 	private static readonly StringName _pInfluence = "influence";
 
 	private void DriveLocomotionTree(float dt)
 	{
 		if (_tree == null)
 			return;
-		// Drive the locomotion blend from the INPUT intent (WishDir + held-states), NOT the actual velocity.
-		// Physics velocity ramps up over the accel curve, so a velocity-driven blend only reached the run/
-		// walk pose once the TARGET speed was physically hit — the anim "came in late". Intent-driven, the
-		// directional + gait pose engages the instant a movement key is pressed, during the accel ramp.
-		Vector3 wish = _lastMovementInput.WishDir;   // body-local, ~unit length while moving (X=strafe, -Z=fwd)
+		Vector3 wish = _lastMovementInput.WishDir;
 		bool hasMoveInput = wish.LengthSquared() > 0.01f;
 		float strafe = Mathf.Clamp(wish.X, -1f, 1f);
 		float fwd = Mathf.Clamp(-wish.Z, -1f, 1f);
-		// Magnitude encodes the intended GAIT (shift-walk → smaller blend = less bob), direction from the
-		// wish. Instant (no accel lag). Shift uses a tuned scale (below the raw speed ratio — full walk bob
-		// reads too strong at shift pace); ADS pulls the whole blend down further for a steadier sight.
-		float gaitMag = !hasMoveInput ? 0f : (_lastMovementInput.ShiftHeld ? ConVars.Cl.LocoShiftBobScale : 1f);
-		gaitMag *= Mathf.Lerp(1f, ConVars.Cl.LocoAdsBobScale, _aimBlend);
-		Vector2 targetVel = new Vector2(strafe, fwd) * (gaitMag * 100f);
+		Vector2 wishDir = new Vector2(strafe, fwd);
+		if (wishDir.LengthSquared() > 1f)
+			wishDir = wishDir.Normalized();
+
+		float rawHorizSpeed = new Vector2(Velocity.X, Velocity.Z).Length();
+		_smoothedHorizSpeed = Mathf.Lerp(_smoothedHorizSpeed, rawHorizSpeed, Mathf.Clamp(ConVars.Cl.LocoSpeedSmoothRate * dt, 0f, 1f));
+		float horizSpeed = _smoothedHorizSpeed;
+		float walkMul = ConVars.Weapons.AR15?.MoveSpeedMul ?? 1f;
+		float sprintMul = ConVars.Weapons.AR15?.SprintSpeedMul ?? 1f;
+		float walkStartSpeed = Mathf.Min(ConVars.Sv.ShiftSpeed, ConVars.Sv.CrouchSpeed) * walkMul;
+		float walkSpeed = ConVars.Sv.WalkSpeed * walkMul;
+		float sprintSpeed = ConVars.Sv.SprintSpeed * sprintMul;
+
+		float walkMag = Mathf.Clamp(horizSpeed / Mathf.Max(0.01f, walkStartSpeed), 0f, 1f);
+		Vector2 targetVel = hasMoveInput ? wishDir * (walkMag * 100f) : Vector2.Zero;
 		_simVel = _simVel.Lerp(targetVel, Mathf.Clamp(LocomotionSmoothing * dt, 0f, 1f));
 		_tree.Set(_pStandWalk, _simVel);
 		_tree.Set(_pAimLoco, _simVel);
 		_tree.Set(_pCrouchLoco, _simVel);
 
 		bool fwdMoving = fwd > 0.3f;
-		// Normal movement = run gait; shift-walk = slow walk. Intent-based (held key state) so the run pose
-		// engages on key-press, not only once the run-threshold speed has been accelerated to.
-		bool sprinting = (Movement?.ActuallySprinting ?? false) && fwdMoving;
-		bool running = hasMoveInput && fwdMoving && !_lastMovementInput.ShiftHeld;
-		_runAmt = Mathf.MoveToward(_runAmt, running || sprinting ? 1f : 0f, SpeedBlendRate * dt);
-		_sprintAmt = Mathf.MoveToward(_sprintAmt, sprinting ? 1f : 0f, SpeedBlendRate * dt);
+		bool backpedalling = fwd < -0.3f;
+		bool strafingOnly = !fwdMoving && Mathf.Abs(strafe) > 0.3f;
+		bool allowRun = !_vmWasAirborne && !_lastMovementInput.ShiftHeld && !backpedalling && !strafingOnly;
+
+		float runBlend = allowRun ? Mathf.Clamp((horizSpeed - walkStartSpeed) / Mathf.Max(0.01f, walkSpeed - walkStartSpeed), 0f, 1f) : 0f;
+		bool sprinting = allowRun && (Movement?.ActuallySprinting ?? false);
+		float sprintBlend = sprinting ? Mathf.Clamp((horizSpeed - walkSpeed) / Mathf.Max(0.01f, sprintSpeed - walkSpeed), 0f, 1f) : 0f;
+		_runAmt = Mathf.MoveToward(_runAmt, runBlend, SpeedBlendRate * dt);
+		_sprintAmt = Mathf.MoveToward(_sprintAmt, sprintBlend, SpeedBlendRate * dt);
 		_tree.Set(_pStandRun, _runAmt);
 		_tree.Set(_pStandSprint, _sprintAmt);
+
+		float gaitBob = _lastMovementInput.ShiftHeld ? ConVars.Cl.LocoShiftBobScale : Mathf.Lerp(ConVars.Cl.LocoWalkBobScale, ConVars.Cl.LocoSprintBobScale, _sprintAmt);
+		_bobScale = gaitBob * Mathf.Lerp(1f, ConVars.Cl.LocoAdsBobScale, _aimBlend);
 		_tree.Set(_pAimMix, _aimBlend);
 		_tree.Set(_pCrouchMix, _crouchBlend);
 		_tree.Set(_pGripAdd, _gripBlend);
 		_gripAimBlend = Mathf.MoveToward(_gripAimBlend, _aimBlend > 0.5f ? 1f : 0f, dt / Mathf.Max(GripAimBlendTime, 0.001f));
 		_tree.Set(_pGripAimBlend, _gripAimBlend);
 
-		// Stop-anim: only after FULL walk / sprint speed was actually reached this bout (85% margin), and
-		// fired as the speed decays past a near-stop band ("kurz vor 0") with no movement input — so the
-		// end-anim blends INTO the final approach and finishes as the player stops, not after. Sprint
-		// bout → RunEnd, otherwise a full-walk bout → WalkEnd. The no-input gate avoids spurious fires on
-		// mid-movement dips (counter-strafe, sharp turns).
-		float horizSpeed = new Vector2(Velocity.X, Velocity.Z).Length();
-		float moveMul = ConVars.Weapons.AR15?.MoveSpeedMul ?? 1f;
 		if (horizSpeed >= ConVars.Sv.SprintSpeed * (ConVars.Weapons.AR15?.SprintSpeedMul ?? 1f) * 0.85f) _sprintStopArmed = true;
-		if (horizSpeed >= ConVars.Sv.WalkSpeed * moveMul * 0.85f) _walkStopArmed = true;
+		if (fwdMoving && horizSpeed > 0.5f) _walkStopArmed = true;
 		bool nearStopNow = horizSpeed < 1.5f;
 		if (nearStopNow && !_wasNearStop && !hasMoveInput && IsOnFloor())
 		{
@@ -173,6 +222,85 @@ public partial class LocalPlayer
 		_vmWasInspecting = inspecting;
 	}
 
+	// Hybrid jump: animation deltas (Sub2/Add2) for arm-pose shape + procedural spring for landing impact.
+	// See [[project_fps_jump_anim]].
+	private float _jumpLoopBlend;
+	private float _airTime;
+	private bool _vmWasAirborne;
+	private bool _wasAirborneRaw;
+	private bool _jumpInitiated;
+	private float _fallStartY;
+	private float _airMaxFallDist;
+	private const float JumpBlendInSpeed = 12f;
+	private const float JumpBlendOutSpeed = 9f;
+
+	private Vector3 _jumpKickPos;
+	private Vector3 _jumpKickVel;
+	private float _jumpKickPitch;
+	private float _jumpKickPitchVel;
+
+	private void UpdateJumpLayer(float dt)
+	{
+		if (_tree == null)
+			return;
+		bool airborneRaw = !IsOnFloor();
+		_airTime = airborneRaw ? _airTime + dt : 0f;
+		if (!airborneRaw)
+		{
+			if (_wasAirborneRaw) _jumpInitiated = false;
+			_fallStartY = GlobalPosition.Y;
+			_airMaxFallDist = 0f;
+		}
+		else
+		{
+			_airMaxFallDist = Mathf.Max(_airMaxFallDist, _fallStartY - GlobalPosition.Y);
+		}
+		_wasAirborneRaw = airborneRaw;
+		bool airborne = airborneRaw && (_jumpInitiated || _airMaxFallDist > ConVars.Cl.JumpMinFallHeight);
+
+		if (airborne && !_vmWasAirborne)
+			Dbg.Print($"[Jump] loop begin (airTime={_airTime:0.00}, fallDist={_airMaxFallDist:0.00}, jump={_jumpInitiated})");
+		_vmWasAirborne = airborne;
+
+		float target = airborne ? 1f : 0f;
+		_jumpLoopBlend = Mathf.MoveToward(_jumpLoopBlend, target, (airborne ? JumpBlendInSpeed : JumpBlendOutSpeed) * dt);
+		float addAmount = Mathf.Lerp(1f, 0.5f, _aimBlend);
+		_tree.Set(_pJumpLoopBlend, _jumpLoopBlend);
+		_tree.Set(_pJumpAddAmount, addAmount);
+		if (Dbg.Enabled && _jumpLoopBlend > 0.01f && _jumpLoopBlend < 0.99f)
+			Dbg.Print($"[Jump] loop blend={_jumpLoopBlend:0.00} addAmount={addAmount:0.00}");
+	}
+
+	private void AddJumpKick()
+	{
+		_jumpInitiated = true;
+		_tree.Set(_pJumpStartRequest, (int)AnimationNodeOneShot.OneShotRequest.Fire);
+		if (ConVars.Cl.JumpKickEnabled)
+			_jumpKickPos.Y -= ConVars.Cl.JumpImpulseDip;
+		Dbg.Print("[Jump] start fired");
+	}
+
+	/// <summary>Fires the landing clip + impact kick when the air cycle was a real jump/fall (jump key, or a
+	/// fall past JumpMinFallHeight). Returns whether it counted so the caller gates the landing sound the same.</summary>
+	private bool AddLandKick(float impactSpeed)
+	{
+		if (!_jumpInitiated && _airMaxFallDist < ConVars.Cl.JumpMinFallHeight)
+		{
+			Dbg.Print($"[Jump] land ignored (fallDist {_airMaxFallDist:0.00} < {ConVars.Cl.JumpMinFallHeight:0.00}m)");
+			return false;
+		}
+		_tree.Set(_pJumpEndRequest, (int)AnimationNodeOneShot.OneShotRequest.Fire);
+		if (ConVars.Cl.JumpKickEnabled)
+		{
+			float scale = Mathf.Min(impactSpeed / ConVars.Cl.LandImpactSpeedRef, ConVars.Cl.LandImpactMaxScale);
+			_jumpKickPos.Y -= ConVars.Cl.LandImpulseDip * scale;
+			_jumpKickPos.Z -= ConVars.Cl.LandImpulseForward * scale;
+			_jumpKickPitch += ConVars.Cl.LandPitchDown * scale;
+		}
+		Dbg.Print($"[Jump] end fired (impact={impactSpeed:0.0} m/s)");
+		return true;
+	}
+
 	private void PollMontageState()
 	{
 		if (_tree == null)
@@ -201,8 +329,36 @@ public partial class LocalPlayer
 		float rc = RecoilDamping * 2f * Mathf.Sqrt(rk * rm);
 		_recoilVel += (-_recoilCurrent * rk - _recoilVel * rc) / rm * dt;
 		_recoilCurrent += _recoilVel * dt;
+
+		float jk = ConVars.Cl.JumpKickStiffness, jc = ConVars.Cl.JumpKickDamping;
+		_jumpKickVel += (-_jumpKickPos * jk - _jumpKickVel * jc) * dt;
+		_jumpKickPos += _jumpKickVel * dt;
+		_jumpKickPitchVel += (-_jumpKickPitch * jk - _jumpKickPitchVel * jc) * dt;
+		_jumpKickPitch += _jumpKickPitchVel * dt;
+
+		float bodyY = GlobalPosition.Y;
+		bool realAir = _airTime > 0.15f || Mathf.Abs(Velocity.Y) > 3.0f;
+		if (!_stepYInit || realAir)
+		{
+			_smoothBodyY = bodyY;
+			_stepYInit = true;
+			_stepSmoothOffset = 0f;
+		}
+		else
+		{
+			_smoothBodyY = Mathf.Lerp(_smoothBodyY, bodyY, Mathf.Clamp(ConVars.Cl.StepSmoothRate * dt, 0f, 1f));
+			_stepSmoothOffset = ConVars.Cl.StepSmoothEnabled
+				? Mathf.Clamp(bodyY - _smoothBodyY, -ConVars.Cl.StepSmoothMaxOffset, ConVars.Cl.StepSmoothMaxOffset)
+				: 0f;
+		}
+
 		_lookDelta = Vector2.Zero;
 	}
+
+	private float _stepSmoothOffset;
+	private float _smoothBodyY;
+	private bool _stepYInit;
+	private float _bobScale = 1f;
 
 	private void StepViewmodelProcedural(float dt)
 	{
@@ -278,6 +434,10 @@ public partial class LocalPlayer
 		float adsLook = Mathf.Lerp(1f, ViewSwayAdsLookMul, _aimBlend);
 		_viewSwayPos = movePos * adsMove;
 		_viewSwayRotDeg = moveRotDeg * adsMove + lookRotDeg * adsLook;
+
+		float landKickMul = Mathf.Lerp(1f, ConVars.Cl.JumpKickAdsMul, _aimBlend);
+		_viewSwayPos += _jumpKickPos * landKickMul;
+		_viewSwayRotDeg.X += _jumpKickPitch * landKickMul;
 	}
 
 	private void UpdateBodyYaw()
@@ -309,6 +469,8 @@ public partial class LocalPlayer
 		Transform3D bob = _viewmodelCamAnchor != null
 			? _eyeRest.AffineInverse() * _viewmodelCamAnchor.GlobalTransform
 			: Transform3D.Identity;
+		if (_bobScale < 0.999f)
+			bob = Transform3D.Identity.InterpolateWith(bob, _bobScale);
 		Vector3 swayRot = _viewSwayRotDeg * ViewSwayWorldMul;
 		Vector3 swayPos = _viewSwayPos * ViewSwayWorldMul;
 		Basis look = Basis.FromEuler(new Vector3(
@@ -316,6 +478,12 @@ public partial class LocalPlayer
 			Mathf.DegToRad(swayRot.Y),
 			Mathf.DegToRad(kick.Z + swayRot.Z)));
 		_cam.Transform = _camRestLocal * new Transform3D(look, swayPos) * bob;
+		if (Mathf.Abs(_stepSmoothOffset) > 0.0001f)
+		{
+			Vector3 gp = _cam.GlobalPosition;
+			gp.Y -= _stepSmoothOffset;
+			_cam.GlobalPosition = gp;
+		}
 		// COD-style sprint FOV boost: widen the FOV while sprinting (eased via smoothstep), and drive the
 		// peripheral sprint-blur overlay from the same eased value. FovBoost/FovBlendSpeed live in ConVars.Cl.
 		bool sprinting = Movement?.ActuallySprinting ?? false;
@@ -380,7 +548,10 @@ public partial class LocalPlayer
 		Transform3D sway = new(
 			Basis.FromEuler(new Vector3(Mathf.DegToRad(_viewSwayRotDeg.X), Mathf.DegToRad(_viewSwayRotDeg.Y), Mathf.DegToRad(_viewSwayRotDeg.Z))),
 			_viewSwayPos);
-		_viewmodelCam.GlobalTransform = _viewmodelCamAnchor.GlobalTransform * sway;
+		Transform3D vmAnchor = _viewmodelCamAnchor.GlobalTransform;
+		if (_bobScale < 0.999f && _camRigCaptured)
+			vmAnchor = _eyeRest * Transform3D.Identity.InterpolateWith(_eyeRest.AffineInverse() * vmAnchor, _bobScale);
+		_viewmodelCam.GlobalTransform = vmAnchor * sway;
 		if (_cam != null)
 			_viewmodelCam.Fov = _cam.Fov;
 	}

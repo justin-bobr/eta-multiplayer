@@ -847,7 +847,9 @@ public partial class PuppetPlayer : NetworkPlayer
 	/// <summary>Reliable-event handler for a remote landing: triggers the heavy or light land one-shot.</summary>
 	public void PlayLand(float impactSpeed)
 	{
-		if (Audio != null && impactSpeed > 1.5f)
+		// Same jump/fall detection threshold as the local player (ConVars.Cl.JumpMinFallSpeed) so a remote
+		// player's landing reads as a jump-land identically here and on their own client — no curb/stair sound.
+		if (Audio != null && impactSpeed >= ConVars.Cl.JumpMinFallSpeed)
 		{
 			float impact01 = Mathf.Clamp((impactSpeed - 1.5f) / 7f, 0f, 1f);
 			var (mat, inTunnel) = ProbeGround();
