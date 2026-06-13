@@ -84,24 +84,30 @@ public partial class LocalPlayer
 	{
 		if (_tree == null)
 			return;
-		Vector3 localVel = GlobalTransform.Basis.Inverse() * Velocity;
-		float refSpeed = Mathf.Max(0.1f, ConVars.Sv.WalkSpeed);
-		float strafe = Mathf.Clamp(localVel.X / refSpeed, -1f, 1f);
-		float fwd = Mathf.Clamp(-localVel.Z / refSpeed, -1f, 1f);
-		Vector2 targetVel = new(strafe * 100f, fwd * 100f);
+		// Drive the locomotion blend from the INPUT intent (WishDir + held-states), NOT the actual velocity.
+		// Physics velocity ramps up over the accel curve, so a velocity-driven blend only reached the run/
+		// walk pose once the TARGET speed was physically hit — the anim "came in late". Intent-driven, the
+		// directional + gait pose engages the instant a movement key is pressed, during the accel ramp.
+		Vector3 wish = _lastMovementInput.WishDir;   // body-local, ~unit length while moving (X=strafe, -Z=fwd)
+		bool hasMoveInput = wish.LengthSquared() > 0.01f;
+		float strafe = Mathf.Clamp(wish.X, -1f, 1f);
+		float fwd = Mathf.Clamp(-wish.Z, -1f, 1f);
+		// Magnitude encodes the intended GAIT (shift-walk → smaller blend = less bob), direction from the
+		// wish. Instant (no accel lag). Shift uses a tuned scale (below the raw speed ratio — full walk bob
+		// reads too strong at shift pace); ADS pulls the whole blend down further for a steadier sight.
+		float gaitMag = !hasMoveInput ? 0f : (_lastMovementInput.ShiftHeld ? ConVars.Cl.LocoShiftBobScale : 1f);
+		gaitMag *= Mathf.Lerp(1f, ConVars.Cl.LocoAdsBobScale, _aimBlend);
+		Vector2 targetVel = new Vector2(strafe, fwd) * (gaitMag * 100f);
 		_simVel = _simVel.Lerp(targetVel, Mathf.Clamp(LocomotionSmoothing * dt, 0f, 1f));
 		_tree.Set(_pStandWalk, _simVel);
 		_tree.Set(_pAimLoco, _simVel);
 		_tree.Set(_pCrouchLoco, _simVel);
 
-		float horizSpeed = new Vector2(Velocity.X, Velocity.Z).Length();
 		bool fwdMoving = fwd > 0.3f;
-		// Normal movement (WalkSpeed) IS the run gait — shift-walk (ShiftSpeed) is the slow one. The old
-		// "> WalkSpeed + 0.1" threshold could never be reached at normal speed (== WalkSpeed exactly), so
-		// the Run_F pose only ever engaged while sprinting. Threshold halfway between shift and normal.
-		float runThreshold = (ConVars.Sv.ShiftSpeed + ConVars.Sv.WalkSpeed) * 0.5f;
-		bool running = horizSpeed > runThreshold && fwdMoving;
+		// Normal movement = run gait; shift-walk = slow walk. Intent-based (held key state) so the run pose
+		// engages on key-press, not only once the run-threshold speed has been accelerated to.
 		bool sprinting = (Movement?.ActuallySprinting ?? false) && fwdMoving;
+		bool running = hasMoveInput && fwdMoving && !_lastMovementInput.ShiftHeld;
 		_runAmt = Mathf.MoveToward(_runAmt, running || sprinting ? 1f : 0f, SpeedBlendRate * dt);
 		_sprintAmt = Mathf.MoveToward(_sprintAmt, sprinting ? 1f : 0f, SpeedBlendRate * dt);
 		_tree.Set(_pStandRun, _runAmt);
@@ -112,10 +118,23 @@ public partial class LocalPlayer
 		_gripAimBlend = Mathf.MoveToward(_gripAimBlend, _aimBlend > 0.5f ? 1f : 0f, dt / Mathf.Max(GripAimBlendTime, 0.001f));
 		_tree.Set(_pGripAimBlend, _gripAimBlend);
 
-		bool isMovingNow = horizSpeed > 0.5f;
-		if (_wasMoving && !isMovingNow && _simVel.LengthSquared() > 400f && IsOnFloor())
-			TriggerLocoStop(running || sprinting ? RunEnd : WalkEnd);
-		_wasMoving = isMovingNow;
+		// Stop-anim: only after FULL walk / sprint speed was actually reached this bout (85% margin), and
+		// fired as the speed decays past a near-stop band ("kurz vor 0") with no movement input — so the
+		// end-anim blends INTO the final approach and finishes as the player stops, not after. Sprint
+		// bout → RunEnd, otherwise a full-walk bout → WalkEnd. The no-input gate avoids spurious fires on
+		// mid-movement dips (counter-strafe, sharp turns).
+		float horizSpeed = new Vector2(Velocity.X, Velocity.Z).Length();
+		float moveMul = ConVars.Weapons.AR15?.MoveSpeedMul ?? 1f;
+		if (horizSpeed >= ConVars.Sv.SprintSpeed * (ConVars.Weapons.AR15?.SprintSpeedMul ?? 1f) * 0.85f) _sprintStopArmed = true;
+		if (horizSpeed >= ConVars.Sv.WalkSpeed * moveMul * 0.85f) _walkStopArmed = true;
+		bool nearStopNow = horizSpeed < 1.5f;
+		if (nearStopNow && !_wasNearStop && !hasMoveInput && IsOnFloor())
+		{
+			if (_sprintStopArmed) TriggerLocoStop(RunEnd);
+			else if (_walkStopArmed) TriggerLocoStop(WalkEnd);
+		}
+		if (nearStopNow) { _sprintStopArmed = false; _walkStopArmed = false; }
+		_wasNearStop = nearStopNow;
 	}
 
 	private int _vmLastShotIndex;
@@ -371,6 +390,7 @@ public partial class LocalPlayer
 	private ShaderMaterial _viewmodelBlurMat;
 	private bool _viewmodelBlurLookupDone;
 	private static readonly StringName _pAdsBlendShader = "ads_blend";
+	private static readonly StringName _pSharpenShader = "sharpen_strength";
 
 	/// <summary>Fades a COD-style ADS depth-of-field in: the world camera focuses far (background softens while
 	/// the mid-range target stays sharp) via CameraAttributes DOF, while the weapon is blurred by the 2D
@@ -421,6 +441,7 @@ public partial class LocalPlayer
 					{ _viewmodelBlurMat = sm; break; }
 		}
 		_viewmodelBlurMat?.SetShaderParameter(_pAdsBlendShader, blend);
+		_viewmodelBlurMat?.SetShaderParameter(_pSharpenShader, Settings.ViewmodelSharpenStrength);
 	}
 
 	/// <summary>COD-style world DOF for ADS: the mid-range target stays sharp while the far background softens.
@@ -646,7 +667,9 @@ public partial class LocalPlayer
 	private bool _gripChangeActive;
 	private float _gripBlend;
 	private bool _editorTreeReady;
-	private bool _wasMoving;
+	private bool _wasNearStop = true;
+	private bool _sprintStopArmed;
+	private bool _walkStopArmed;
 	private Vector3 _smoothedDirRatio;
 	private Vector3 _dirLeanSpringVel;
 	private Vector3 _prevProcVelocity;

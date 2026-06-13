@@ -259,6 +259,10 @@ public class ClConVars
 	/// <summary>Blend speed for the peripheral sprint-blur fade (separate from FovBlendSpeed so the blur can
 	/// ramp in slower than the FOV boost). Lower = slower/gentler fade-in.</summary>
 	public float SprintBlurBlendSpeed = 3.0f;
+	/// <summary>Shift-walk locomotion blend magnitude (0..1). Lower = less head/weapon bob while shift-walking. Below the raw ShiftSpeed/WalkSpeed ratio because the full walk bob reads too strong at shift pace.</summary>
+	public float LocoShiftBobScale = 0.3f;
+	/// <summary>Locomotion blend magnitude multiplier while ADS (0..1). Pulls the baked walk/run bob down further when aiming for a steadier sight picture.</summary>
+	public float LocoAdsBobScale = 0.6f;
 
 	public float CamShakeImpulsePitch = 1.2f;
 	public float CamShakeImpulseYaw = 0.8f;

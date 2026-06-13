@@ -372,7 +372,7 @@ public partial class SettingsMenu : CanvasLayer
 		_presetOpt = AddDropdown(vbox, "Quality-Preset", new[] { "Low", "Medium", "High", "Ultra", "Custom" });
 		_presetOpt.ItemSelected += OnPresetChanged;
 
-		(_renderScaleSlider, _renderScaleValue) = AddSlider(vbox, "Render Scale", 0.5f, 1.0f, 0.05f);
+		(_renderScaleSlider, _renderScaleValue) = AddSlider(vbox, "Render Scale", 0.5f, 2.0f, 0.05f);
 		_renderScaleSlider.ValueChanged += OnRenderScaleChanged;
 
 		// Up to 200%: >100% supersamples the weapon viewport (SSAA) — the gun is a small pixel budget, and

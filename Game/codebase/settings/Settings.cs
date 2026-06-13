@@ -78,6 +78,30 @@ public static class Settings
 	public static bool ChromaticAberration = true;
 	/// <summary>Toggle the post-process unsharp-mask pass in <c>post_process.glsl</c> (luma-only). Auto-disabled when an FSR upscaler is active because FSR1's RCAS and FSR2's built-in sharpener both run after the compositor — stacking would oversharpen. Off here forces the pass off in every mode.</summary>
 	public static bool Sharpening = true;
+	/// <summary>Canvas-stage unsharp-mask strength on the Bilinear pipeline when neither TAA nor a
+	/// sub-native upscale softens the frame (native + SMAA/FXAA/Off, or supersampled).</summary>
+	private const float BaseSharpen = 0.25f;
+	/// <summary>Canvas-stage unsharp-mask strength when the Bilinear pipeline output is soft: TAA
+	/// smears the whole frame and a sub-native bilinear upscale blurs it further. The FSR presets
+	/// get near-max RCAS (FsrSharpness 0.1) AFTER their temporal stage — this is the equivalent for
+	/// the Bilinear pipeline, applied in PostCanvasFx which also runs after TAA and scaling
+	/// (sharpening in the compositor is useless here: it runs BEFORE both and gets smeared again,
+	/// which is why the Ultra preset used to look washed out despite rendering native).</summary>
+	private const float TaaSharpen = 0.6f;
+	/// <summary>Unsharp-mask strength of the viewmodel container shader (viewmodel_ads_blur.gdshader).
+	/// Only needed on FSR pipelines: there the world gets RCAS but the weapon viewport never goes
+	/// through the upscaler, so without its own pass the weapon stays soft. Fed per-frame by
+	/// LocalPlayer.View via <see cref="ViewmodelSharpenStrength"/>.</summary>
+	private const float ViewmodelSharpen = 0.5f;
+
+	/// <summary>Effective viewmodel sharpen strength, mirroring what the WORLD currently gets so the
+	/// weapon never looks sharper or softer than its surroundings: on an FSR pipeline the world is
+	/// RCAS-sharpened but the weapon is not, so the container shader fills the gap; on the Bilinear
+	/// pipeline the canvas-stage PostCanvasFx sharpen already wraps world AND viewmodel, so the
+	/// container pass must stay off or the weapon gets sharpened twice.</summary>
+	public static float ViewmodelSharpenStrength =>
+		ResolveScalingMode() != Viewport.Scaling3DModeEnum.Bilinear && Sharpening
+			? ViewmodelSharpen : 0f;
 	public static bool AdsDepthOfField = true;
 	public static bool AdsFovZoom = true;
 	/// <summary>Toggles Camera3D auto-exposure (CameraAttributesPractical.AutoExposureEnabled). When on, the camera adapts ISO sensitivity to scene brightness (cinematic look); when off, brightness is fixed (kompetitiv preference — bright/dark areas read identically). Scene-default is true.</summary>
@@ -154,7 +178,7 @@ public static class Settings
 				// dann aber PostProcessEffect + Motion Blur (Godot's pipeline kann nicht beides).
 				// VolFog bleibt Low (statt Off) — Smoke-Grenade-Rendering nutzt dasselbe Voxel-Volume,
 				// Off würde Smokes komplett unsichtbar machen.
-				RenderScale = 0.50f; Upscaler = UpscalingMode.Fsr2; AntiAliasing = AntiAliasingMode.Smaa;
+				RenderScale = 0.50f; ViewmodelRenderScale = 1.0f; Upscaler = UpscalingMode.Fsr2; AntiAliasing = AntiAliasingMode.Smaa;
 				Shadows = ShadowQuality.Low; AmbientOcclusion = false;
 				Reflections = false; ReflectionProbes = ReflectionProbeQuality.Low; VolumetricFog = VolumetricFogQuality.Low;
 				Sky = true; CloudShadows = false; CloudShadowDistance = 60f; GodRays = false; LensFlare = false; DustMotes = false;
@@ -165,7 +189,7 @@ public static class Settings
 				// FSR1 Balanced — 75% scale. Mainstream-GPU. VolFog Low, kein SSR, kein GodRay.
 				// God-Rays/Lens-Flare sind in Medium aus, daher Render-Scale etwas niedriger als
 				// High erlaubt (kein Sub-pixel-Stabilitätsproblem). TAA-Pflicht trotzdem.
-				RenderScale = 0.75f; Upscaler = UpscalingMode.Fsr2; AntiAliasing = AntiAliasingMode.Taa;
+				RenderScale = 0.75f; ViewmodelRenderScale = 1.5f; Upscaler = UpscalingMode.Fsr2; AntiAliasing = AntiAliasingMode.Taa;
 				Shadows = ShadowQuality.Medium; AmbientOcclusion = true;
 				Reflections = false; ReflectionProbes = ReflectionProbeQuality.Medium; VolumetricFog = VolumetricFogQuality.Low;
 				Sky = true; CloudShadows = true; CloudShadowDistance = 60f; GodRays = false; LensFlare = true; DustMotes = false;
@@ -178,7 +202,7 @@ public static class Settings
 				// God-Rays Screen-Space-Shadern bei zu niedriger Scale Sub-pixel-jittern. 0.85 ist
 				// ein guter Kompromiss: ~12-15% GPU-Win, kaum noch sichtbare Stabilität-Probleme.
 				// TAA-Pflicht für jegliche Render-Scale < 1.0.
-				RenderScale = 0.85f; Upscaler = UpscalingMode.Fsr2; AntiAliasing = AntiAliasingMode.Taa;
+				RenderScale = 0.85f; ViewmodelRenderScale = 1.5f; Upscaler = UpscalingMode.Fsr2; AntiAliasing = AntiAliasingMode.Taa;
 				Shadows = ShadowQuality.High; AmbientOcclusion = true;
 				Reflections = true; ReflectionProbes = ReflectionProbeQuality.High; VolumetricFog = VolumetricFogQuality.Medium;
 				Sky = true; CloudShadows = true; CloudShadowDistance = 120f; GodRays = true; LensFlare = true; DustMotes = true;
@@ -187,7 +211,7 @@ public static class Settings
 				break;
 			case QualityPreset.Ultra:
 				// Native + TAA — kein Upscaler. Max Distance, größte Volume-Fog-Box. GPU-heavy.
-				RenderScale = 1.0f; Upscaler = UpscalingMode.Bilinear; AntiAliasing = AntiAliasingMode.Taa;
+				RenderScale = 1.0f; ViewmodelRenderScale = 2.0f; Upscaler = UpscalingMode.Bilinear; AntiAliasing = AntiAliasingMode.Taa;
 				Shadows = ShadowQuality.High; AmbientOcclusion = true;
 				Reflections = true; ReflectionProbes = ReflectionProbeQuality.Ultra; VolumetricFog = VolumetricFogQuality.High;
 				Sky = true; CloudShadows = true; CloudShadowDistance = 200f; GodRays = true; LensFlare = true; DustMotes = true;
@@ -886,13 +910,16 @@ public static class Settings
 		// the Compositor must not write the color buffer, so Canvas-PostFx takes over.
 		UpscalingMode effective = ResolveEffectiveUpscaler();
 		bool useFullCanvas = effective == UpscalingMode.Fsr2;
-		// FSR1's RCAS and FSR2's built-in sharpening both run AFTER our post-process.
-		// Stacking our compositor sharpening on top of that causes oversharpen halos
-		// (visible as a "weird crunch" on high-frequency content like god rays). When
-		// an FSR upscaler is active, skip our own sharpen pass — let the upscaler do it.
-		// User Sharpening toggle gates the whole thing — Off forces the pass off in
-		// every mode regardless of upscaler.
-		bool upscalerProvidesSharpen = effective != UpscalingMode.Bilinear;
+		// World sharpening NEVER runs in the compositor: that pass sits before the TAA
+		// resolve and before the bilinear up/downsample, so TAA smears it again and a
+		// sub-native bilinear upscale softens it away — which is why Ultra looked washed
+		// out despite native rendering. On FSR pipelines the upscaler's own RCAS sharpens
+		// post-temporal; on the Bilinear pipeline the canvas-stage PostCanvasFx pass does
+		// (runs after TAA + scaling, same slot as RCAS). The Sharpening toggle gates it.
+		bool bilinearPipeline = ResolveScalingMode() == Viewport.Scaling3DModeEnum.Bilinear;
+		bool canvasSharpen = Sharpening && bilinearPipeline;
+		float canvasSharpenStrength = AntiAliasing == AntiAliasingMode.Taa || RenderScale < 0.999f
+			? TaaSharpen : BaseSharpen;
 		bool ppeFound = false;
 		bool ppeEnabled = false;
 		if (we?.Compositor is Compositor comp)
@@ -907,25 +934,29 @@ public static class Settings
 					ppe.MotionBlur = MotionBlur;
 					ppe.FilmGrain = FilmGrain;
 					ppe.Vignette = Vignette;
-					ppe.Sharpening = Sharpening && !upscalerProvidesSharpen;
+					ppe.Sharpening = false;
 					ppe.ChromaticAberration = ChromaticAberration;
 				}
 			}
 		if (PostCanvasFx.Instance != null)
 		{
-			PostCanvasFx.Instance.Visible = useFullCanvas;
+			PostCanvasFx.Instance.Visible = useFullCanvas || canvasSharpen;
 			PostCanvasFx.Instance.ChromaticAberrationEnabled = useFullCanvas;
-			PostCanvasFx.Instance.SharpeningEnabled = false;
+			PostCanvasFx.Instance.SharpeningEnabled = canvasSharpen;
+			PostCanvasFx.Instance.Sharpen = canvasSharpenStrength;
 			PostCanvasFx.Instance.VignetteEnabled = useFullCanvas && Vignette;
 			PostCanvasFx.Instance.FilmGrainEnabled = useFullCanvas && FilmGrain;
 		}
 		// Mirror the world post-FX onto the per-viewmodel Compositor so the weapon gets the
 		// same look. Gated identically to the world effect (compositor path only) so it never
 		// stacks on top of the FSR2 PostCanvasFx pass, which already wraps the weapon.
+		// Sharpening stays off here in every mode: the weapon's single sharpen pass lives in
+		// the viewmodel container shader (see ViewmodelSharpen), which also covers the FSR2
+		// path where this whole Compositor is disabled.
 		ViewmodelMotionBlur.Configure(
 			enabled: PostProcessing && !useFullCanvas,
 			chromaticAberration: ChromaticAberration,
-			sharpening: Sharpening && !upscalerProvidesSharpen,
+			sharpening: false,
 			vignette: Vignette,
 			filmGrain: FilmGrain,
 			motionBlur: MotionBlur);
