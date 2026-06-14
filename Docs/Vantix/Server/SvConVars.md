@@ -1,6 +1,6 @@
 # SvConVars
 
-`Vantix.SvConVars`
+`Vantix.Server.SvConVars`
 
 Server-authoritative ConVars (sv_*). Gameplay-relevant, must match on server and client.
 

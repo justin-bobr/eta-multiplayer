@@ -1,6 +1,6 @@
 using Godot;
 
-namespace Vantix;
+namespace Vantix.UI;
 
 /// <summary>Fullscreen overlay shown after a disconnect — displays the reason plus reconnect and quit buttons.
 /// Code-driven UI; instantiated by <see cref="NetMain.HandleDisconnect"/>.</summary>
