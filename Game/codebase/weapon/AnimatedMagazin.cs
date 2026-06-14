@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace Vantix.Weapon;
 
+/// <summary>Magazine prop — rides the weapon bone in-socket, or drops as a physics body when ejected; plays the depletion animation.</summary>
 [Tool, GlobalClass]
 public partial class AnimatedMagazin : RigidBody3D
 {

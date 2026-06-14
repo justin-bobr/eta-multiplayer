@@ -3,9 +3,6 @@ using System.Collections.Generic;
 
 namespace Vantix.Fx;
 
-/// <summary>Acoustic environment of the shooter — selects the reverb tail of the gunshot.</summary>
-public enum ReverbEnv { Outdoor, Indoor, Tunnel }
-
 /// <summary>
 /// Client-side, cosmetic weapon audio bank. Plays shoot/reload/dry-fire sounds triggered by the
 /// controller via <see cref="NetworkPlayer"/>. Clip paths live per weapon in <see cref="WeaponStats"/>

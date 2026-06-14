@@ -7,7 +7,7 @@ global using Vantix.Weapon;
 global using Vantix.Smoke;
 global using Vantix.Levels;
 global using Vantix.Fx;
-global using Vantix.Hud;
+global using Vantix.UI;
 global using Vantix.Debug;
 global using Vantix.Platform;
 global using Vantix.Config;

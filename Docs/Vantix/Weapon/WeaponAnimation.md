@@ -1,0 +1,254 @@
+# WeaponAnimation
+
+`Vantix.Weapon.WeaponAnimation`
+
+Per-weapon animation set and pose driver (fire/reload/grip and fire-selector blends).
+
+## Fields
+
+| Name | Summary |
+|------|---------|
+| `MethodName.ActivateWeapon` | Cached name for the 'ActivateWeapon' method. |
+| `MethodName.Aimed` | Cached name for the 'Aimed' method. |
+| `MethodName.ApplyFireSelectorPose` | Cached name for the 'ApplyFireSelectorPose' method. |
+| `MethodName.ApplyWeaponActive` | Cached name for the 'ApplyWeaponActive' method. |
+| `MethodName.AssignTreeAnimations` | Cached name for the 'AssignTreeAnimations' method. |
+| `MethodName.BuildAnimationTree` | Cached name for the 'BuildAnimationTree' method. |
+| `MethodName.BuildAudioPool` | Cached name for the 'BuildAudioPool' method. |
+| `MethodName.BuildBulletPool` | Cached name for the 'BuildBulletPool' method. |
+| `MethodName.BuildMuzzleFlash` | Cached name for the 'BuildMuzzleFlash' method. |
+| `MethodName.BuildMuzzleSmoke` | Cached name for the 'BuildMuzzleSmoke' method. |
+| `MethodName.BuildRuntimeMagBody` | Cached name for the 'BuildRuntimeMagBody' method. |
+| `MethodName.ClearJamMagSwipe` | Cached name for the 'ClearJamMagSwipe' method. |
+| `MethodName.ClearJamRack` | Cached name for the 'ClearJamRack' method. |
+| `MethodName.CycleFireMode` | Cached name for the 'CycleFireMode' method. |
+| `MethodName.DeactivateWeapon` | Cached name for the 'DeactivateWeapon' method. |
+| `MethodName.DropMagazine` | Cached name for the 'DropMagazine' method. |
+| `MethodName.EditorPlay` | Cached name for the 'EditorPlay' method. |
+| `MethodName.EditorRebuildTree` | Cached name for the 'EditorRebuildTree' method. |
+| `MethodName.EjectCasing` | Cached name for the 'EjectCasing' method. |
+| `MethodName.EmitSmokePuff` | Cached name for the 'EmitSmokePuff' method. |
+| `MethodName.EnsureTree` | Cached name for the 'EnsureTree' method. |
+| `MethodName.Equip` | Cached name for the 'Equip' method. |
+| `MethodName.FindMesh` | Cached name for the 'FindMesh' method. |
+| `MethodName.FindMuzzleTip` | Cached name for the 'FindMuzzleTip' method. |
+| `MethodName.FindNamed` | Cached name for the 'FindNamed' method. |
+| `MethodName.FindOwnerBody` | Cached name for the 'FindOwnerBody' method. |
+| `MethodName.FindVisibleNamed` | Cached name for the 'FindVisibleNamed' method. |
+| `MethodName.Fire` | Cached name for the 'Fire' method. |
+| `MethodName.GenerateWeaponRestPose` | Cached name for the 'GenerateWeaponRestPose' method. |
+| `MethodName.GetMuzzleWorldPosition` | Cached name for the 'GetMuzzleWorldPosition' method. |
+| `MethodName.GetPreloadList` | Cached name for the 'GetPreloadList' method. |
+| `MethodName.HasAnim` | Cached name for the 'HasAnim' method. |
+| `MethodName.HideMainMag` | Cached name for the 'HideMainMag' method. |
+| `MethodName.HideReserveMag` | Cached name for the 'HideReserveMag' method. |
+| `MethodName.Inspect` | Cached name for the 'Inspect' method. |
+| `MethodName.Log` | Cached name for the 'Log' method. |
+| `MethodName.MagCheck` | Cached name for the 'MagCheck' method. |
+| `MethodName.MuzzleFlash` | Cached name for the 'MuzzleFlash' method. |
+| `MethodName.MuzzleSmoke` | Cached name for the 'MuzzleSmoke' method. |
+| `MethodName.NextVoice` | Cached name for the 'NextVoice' method. |
+| `MethodName.OnEventAnimFinished` | Cached name for the 'OnEventAnimFinished' method. |
+| `MethodName.PlayAction` | Cached name for the 'PlayAction' method. |
+| `MethodName.PlayAudioBoltClose` | Cached name for the 'PlayAudioBoltClose' method. |
+| `MethodName.PlayAudioBoltOpen` | Cached name for the 'PlayAudioBoltOpen' method. |
+| `MethodName.PlayAudioClick` | Cached name for the 'PlayAudioClick' method. |
+| `MethodName.PlayAudioEmptyCasing` | Cached name for the 'PlayAudioEmptyCasing' method. |
+| `MethodName.PlayAudioFire` | Cached name for the 'PlayAudioFire' method. |
+| `MethodName.PlayAudioFireTail` | Cached name for the 'PlayAudioFireTail' method. |
+| `MethodName.PlayAudioFoleyCloth` | Cached name for the 'PlayAudioFoleyCloth' method. |
+| `MethodName.PlayAudioGunSmack` | Cached name for the 'PlayAudioGunSmack' method. |
+| `MethodName.PlayAudioMagInsert` | Cached name for the 'PlayAudioMagInsert' method. |
+| `MethodName.PlayAudioMagRemoveEmpty` | Cached name for the 'PlayAudioMagRemoveEmpty' method. |
+| `MethodName.PlayAudioMagRemoveFull` | Cached name for the 'PlayAudioMagRemoveFull' method. |
+| `MethodName.PlayAudioMalfunction` | Cached name for the 'PlayAudioMalfunction' method. |
+| `MethodName.PlayRandom` | Cached name for the 'PlayRandom' method. |
+| `MethodName.Reload` | Cached name for the 'Reload' method. |
+| `MethodName.ReloadEmpty` | Cached name for the 'ReloadEmpty' method. |
+| `MethodName.ReloadQuick` | Cached name for the 'ReloadQuick' method. |
+| `MethodName.RemapToWorld` | Cached name for the 'RemapToWorld' method. |
+| `MethodName.ResetMagazines` | Cached name for the 'ResetMagazines' method. |
+| `MethodName.ResolveFireSelector` | Cached name for the 'ResolveFireSelector' method. |
+| `MethodName.SetFireMode` | Cached name for the 'SetFireMode' method. |
+| `MethodName.SetMagazineFill` | Cached name for the 'SetMagazineFill' method. |
+| `MethodName.ShouldSpawnTracer` | Cached name for the 'ShouldSpawnTracer' method. |
+| `MethodName.ShowMainMag` | Cached name for the 'ShowMainMag' method. |
+| `MethodName.ShowReserveMag` | Cached name for the 'ShowReserveMag' method. |
+| `MethodName._Ready` | Cached name for the '_Ready' method. |
+| `MethodName._ValidateProperty` | Cached name for the '_ValidateProperty' method. |
+| `PropertyName.ActualFireMode` | Cached name for the 'ActualFireMode' field. |
+| `PropertyName.AdsCalibrationColor` | Cached name for the 'AdsCalibrationColor' field. |
+| `PropertyName.AdsCalibrationDistance` | Cached name for the 'AdsCalibrationDistance' field. |
+| `PropertyName.AdsCalibrationSize` | Cached name for the 'AdsCalibrationSize' field. |
+| `PropertyName.AdsOffsetPosition` | Cached name for the 'AdsOffsetPosition' field. |
+| `PropertyName.AdsOffsetRotation` | Cached name for the 'AdsOffsetRotation' field. |
+| `PropertyName.AdsTestMode` | Cached name for the 'AdsTestMode' field. |
+| `PropertyName.AimBlendSpeed` | Cached name for the 'AimBlendSpeed' field. |
+| `PropertyName.AimFov` | Cached name for the 'AimFov' field. |
+| `PropertyName.AimRecoilMultiplier` | Cached name for the 'AimRecoilMultiplier' field. |
+| `PropertyName.Aiming` | Cached name for the 'Aiming' property. |
+| `PropertyName.AnimationPlayerPath` | Cached name for the 'AnimationPlayerPath' field. |
+| `PropertyName.AudioBoltClose` | Cached name for the 'AudioBoltClose' field. |
+| `PropertyName.AudioBoltOpen` | Cached name for the 'AudioBoltOpen' field. |
+| `PropertyName.AudioBus` | Cached name for the 'AudioBus' field. |
+| `PropertyName.AudioClick` | Cached name for the 'AudioClick' field. |
+| `PropertyName.AudioEmptyCasing` | Cached name for the 'AudioEmptyCasing' field. |
+| `PropertyName.AudioFire` | Cached name for the 'AudioFire' field. |
+| `PropertyName.AudioFireTail` | Cached name for the 'AudioFireTail' field. |
+| `PropertyName.AudioFoleyCloth` | Cached name for the 'AudioFoleyCloth' field. |
+| `PropertyName.AudioGunSmack` | Cached name for the 'AudioGunSmack' field. |
+| `PropertyName.AudioMagInsert` | Cached name for the 'AudioMagInsert' field. |
+| `PropertyName.AudioMagRemoveEmpty` | Cached name for the 'AudioMagRemoveEmpty' field. |
+| `PropertyName.AudioMagRemoveFull` | Cached name for the 'AudioMagRemoveFull' field. |
+| `PropertyName.AudioMalfunction` | Cached name for the 'AudioMalfunction' field. |
+| `PropertyName.AudioPlayerPath` | Cached name for the 'AudioPlayerPath' field. |
+| `PropertyName.AudioVoices` | Cached name for the 'AudioVoices' field. |
+| `PropertyName.CantedOffsetPosition` | Cached name for the 'CantedOffsetPosition' field. |
+| `PropertyName.CantedOffsetRotation` | Cached name for the 'CantedOffsetRotation' field. |
+| `PropertyName.CantedTestMode` | Cached name for the 'CantedTestMode' field. |
+| `PropertyName.CrouchOffsetPosition` | Cached name for the 'CrouchOffsetPosition' field. |
+| `PropertyName.CrouchOffsetRotation` | Cached name for the 'CrouchOffsetRotation' field. |
+| `PropertyName.CrouchTestMode` | Cached name for the 'CrouchTestMode' field. |
+| `PropertyName.DropImpulseForce` | Cached name for the 'DropImpulseForce' field. |
+| `PropertyName.DropMagazineLifetime` | Cached name for the 'DropMagazineLifetime' field. |
+| `PropertyName.DropMagazineScene` | Cached name for the 'DropMagazineScene' field. |
+| `PropertyName.DropRotationForce` | Cached name for the 'DropRotationForce' field. |
+| `PropertyName.EjectCasingPoolSize` | Cached name for the 'EjectCasingPoolSize' field. |
+| `PropertyName.EjectCasingScene` | Cached name for the 'EjectCasingScene' field. |
+| `PropertyName.EjectDirectionLocal` | Cached name for the 'EjectDirectionLocal' field. |
+| `PropertyName.EjectLifetime` | Cached name for the 'EjectLifetime' field. |
+| `PropertyName.EjectMaxForce` | Cached name for the 'EjectMaxForce' field. |
+| `PropertyName.EjectMaxRotation` | Cached name for the 'EjectMaxRotation' field. |
+| `PropertyName.EjectMinForce` | Cached name for the 'EjectMinForce' field. |
+| `PropertyName.EjectMinRotation` | Cached name for the 'EjectMinRotation' field. |
+| `PropertyName.EjectRotationSpeed` | Cached name for the 'EjectRotationSpeed' field. |
+| `PropertyName.EvClearJamMagSwipe` | Cached name for the 'EvClearJamMagSwipe' field. |
+| `PropertyName.EvClearJamRack` | Cached name for the 'EvClearJamRack' field. |
+| `PropertyName.EvEquip` | Cached name for the 'EvEquip' field. |
+| `PropertyName.EvFire` | Cached name for the 'EvFire' field. |
+| `PropertyName.EvInspect` | Cached name for the 'EvInspect' field. |
+| `PropertyName.EvMagCheck` | Cached name for the 'EvMagCheck' field. |
+| `PropertyName.EvReload` | Cached name for the 'EvReload' field. |
+| `PropertyName.EvReloadEmpty` | Cached name for the 'EvReloadEmpty' field. |
+| `PropertyName.EvReloadQuick` | Cached name for the 'EvReloadQuick' field. |
+| `PropertyName.EventPlayerPath` | Cached name for the 'EventPlayerPath' field. |
+| `PropertyName.FireModeStates` | Cached name for the 'FireModeStates' field. |
+| `PropertyName.FireModes` | Cached name for the 'FireModes' field. |
+| `PropertyName.FpClearJamMagSwipe` | Cached name for the 'FpClearJamMagSwipe' field. |
+| `PropertyName.FpClearJamRack` | Cached name for the 'FpClearJamRack' field. |
+| `PropertyName.FpEquip` | Cached name for the 'FpEquip' field. |
+| `PropertyName.FpFire` | Cached name for the 'FpFire' field. |
+| `PropertyName.FpInspect` | Cached name for the 'FpInspect' field. |
+| `PropertyName.FpMagCheck` | Cached name for the 'FpMagCheck' field. |
+| `PropertyName.FpMagCheckAimed` | Cached name for the 'FpMagCheckAimed' field. |
+| `PropertyName.FpMalfunctions` | Cached name for the 'FpMalfunctions' field. |
+| `PropertyName.FpReload` | Cached name for the 'FpReload' field. |
+| `PropertyName.FpReloadAimed` | Cached name for the 'FpReloadAimed' field. |
+| `PropertyName.FpReloadEmpty` | Cached name for the 'FpReloadEmpty' field. |
+| `PropertyName.FpReloadEmptyAimed` | Cached name for the 'FpReloadEmptyAimed' field. |
+| `PropertyName.FpReloadQuick` | Cached name for the 'FpReloadQuick' field. |
+| `PropertyName.FpReloadQuickAimed` | Cached name for the 'FpReloadQuickAimed' field. |
+| `PropertyName.IsTPS` | Cached name for the 'IsTPS' property. |
+| `PropertyName.LogEvents` | Cached name for the 'LogEvents' field. |
+| `PropertyName.MainMagPath` | Cached name for the 'MainMagPath' field. |
+| `PropertyName.Mode` | Cached name for the 'Mode' field. |
+| `PropertyName.OwnerBody` | Cached name for the 'OwnerBody' field. |
+| `PropertyName.RebuildAnimationTree` | Cached name for the 'RebuildAnimationTree' property. |
+| `PropertyName.RecoilDamping` | Cached name for the 'RecoilDamping' field. |
+| `PropertyName.RecoilImpulseAimed` | Cached name for the 'RecoilImpulseAimed' field. |
+| `PropertyName.RecoilImpulseHipfire` | Cached name for the 'RecoilImpulseHipfire' field. |
+| `PropertyName.RecoilMass` | Cached name for the 'RecoilMass' field. |
+| `PropertyName.RecoilMaxDegrees` | Cached name for the 'RecoilMaxDegrees' field. |
+| `PropertyName.RecoilStiffness` | Cached name for the 'RecoilStiffness' field. |
+| `PropertyName.ReferencePose` | Cached name for the 'ReferencePose' field. |
+| `PropertyName.RemapFromCamera` | Cached name for the 'RemapFromCamera' field. |
+| `PropertyName.RemapToCamera` | Cached name for the 'RemapToCamera' field. |
+| `PropertyName.ReserveMagPath` | Cached name for the 'ReserveMagPath' field. |
+| `PropertyName.TestClearJamMagSwipe` | Cached name for the 'TestClearJamMagSwipe' property. |
+| `PropertyName.TestClearJamRack` | Cached name for the 'TestClearJamRack' property. |
+| `PropertyName.TestCycleFireMode` | Cached name for the 'TestCycleFireMode' property. |
+| `PropertyName.TestEquip` | Cached name for the 'TestEquip' property. |
+| `PropertyName.TestFire` | Cached name for the 'TestFire' property. |
+| `PropertyName.TestInspect` | Cached name for the 'TestInspect' property. |
+| `PropertyName.TestMagCheck` | Cached name for the 'TestMagCheck' property. |
+| `PropertyName.TestReload` | Cached name for the 'TestReload' property. |
+| `PropertyName.TestReloadEmpty` | Cached name for the 'TestReloadEmpty' property. |
+| `PropertyName.TestReloadQuick` | Cached name for the 'TestReloadQuick' property. |
+| `PropertyName.TpClearJamMagSwipe` | Cached name for the 'TpClearJamMagSwipe' field. |
+| `PropertyName.TpClearJamRack` | Cached name for the 'TpClearJamRack' field. |
+| `PropertyName.TpEquip` | Cached name for the 'TpEquip' field. |
+| `PropertyName.TpFire` | Cached name for the 'TpFire' field. |
+| `PropertyName.TpInspect` | Cached name for the 'TpInspect' field. |
+| `PropertyName.TpMagCheck` | Cached name for the 'TpMagCheck' field. |
+| `PropertyName.TpMagCheckAimed` | Cached name for the 'TpMagCheckAimed' field. |
+| `PropertyName.TpMalfunctions` | Cached name for the 'TpMalfunctions' field. |
+| `PropertyName.TpReload` | Cached name for the 'TpReload' field. |
+| `PropertyName.TpReloadAimed` | Cached name for the 'TpReloadAimed' field. |
+| `PropertyName.TpReloadEmpty` | Cached name for the 'TpReloadEmpty' field. |
+| `PropertyName.TpReloadEmptyAimed` | Cached name for the 'TpReloadEmptyAimed' field. |
+| `PropertyName.TpReloadQuick` | Cached name for the 'TpReloadQuick' field. |
+| `PropertyName.TpReloadQuickAimed` | Cached name for the 'TpReloadQuickAimed' field. |
+| `PropertyName.TpsAimFov` | Cached name for the 'TpsAimFov' field. |
+| `PropertyName.TracerColor` | Cached name for the 'TracerColor' field. |
+| `PropertyName.TracerEnabled` | Cached name for the 'TracerEnabled' field. |
+| `PropertyName.TracerEveryNShots` | Cached name for the 'TracerEveryNShots' field. |
+| `PropertyName.TracerSpeed` | Cached name for the 'TracerSpeed' field. |
+| `PropertyName.TracerStreakLength` | Cached name for the 'TracerStreakLength' field. |
+| `PropertyName.TracerWidth` | Cached name for the 'TracerWidth' field. |
+| `PropertyName.VolumeBoltClose` | Cached name for the 'VolumeBoltClose' field. |
+| `PropertyName.VolumeBoltOpen` | Cached name for the 'VolumeBoltOpen' field. |
+| `PropertyName.VolumeClick` | Cached name for the 'VolumeClick' field. |
+| `PropertyName.VolumeEmptyCasing` | Cached name for the 'VolumeEmptyCasing' field. |
+| `PropertyName.VolumeFire` | Cached name for the 'VolumeFire' field. |
+| `PropertyName.VolumeFireTail` | Cached name for the 'VolumeFireTail' field. |
+| `PropertyName.VolumeFoleyCloth` | Cached name for the 'VolumeFoleyCloth' field. |
+| `PropertyName.VolumeGunSmack` | Cached name for the 'VolumeGunSmack' field. |
+| `PropertyName.VolumeMagInsert` | Cached name for the 'VolumeMagInsert' field. |
+| `PropertyName.VolumeMagRemoveEmpty` | Cached name for the 'VolumeMagRemoveEmpty' field. |
+| `PropertyName.VolumeMagRemoveFull` | Cached name for the 'VolumeMagRemoveFull' field. |
+| `PropertyName.VolumeMalfunction` | Cached name for the 'VolumeMalfunction' field. |
+| `PropertyName.WeaponName` | Cached name for the 'WeaponName' field. |
+| `PropertyName.WeaponRecoilKickback` | Cached name for the 'WeaponRecoilKickback' field. |
+| `PropertyName.WeaponRecoilRotScale` | Cached name for the 'WeaponRecoilRotScale' field. |
+| `PropertyName._actionAnim` | Cached name for the '_actionAnim' field. |
+| `PropertyName._audioPlayer` | Cached name for the '_audioPlayer' field. |
+| `PropertyName._audioPool` | Cached name for the '_audioPool' field. |
+| `PropertyName._audioVoiceIdx` | Cached name for the '_audioVoiceIdx' field. |
+| `PropertyName._bulletPool` | Cached name for the '_bulletPool' field. |
+| `PropertyName._bulletPoolIdx` | Cached name for the '_bulletPoolIdx' field. |
+| `PropertyName._ejectionBone` | Cached name for the '_ejectionBone' field. |
+| `PropertyName._eventPlayer` | Cached name for the '_eventPlayer' field. |
+| `PropertyName._fireSelectorAnim` | Cached name for the '_fireSelectorAnim' field. |
+| `PropertyName._fireSelectorBone` | Cached name for the '_fireSelectorBone' field. |
+| `PropertyName._fireSelectorModifier` | Cached name for the '_fireSelectorModifier' field. |
+| `PropertyName._fireSelectorTime` | Cached name for the '_fireSelectorTime' field. |
+| `PropertyName._fireSelectorTracks` | Cached name for the '_fireSelectorTracks' field. |
+| `PropertyName._mainMag` | Cached name for the '_mainMag' field. |
+| `PropertyName._mainMagAnim` | Cached name for the '_mainMagAnim' field. |
+| `PropertyName._muzzleFlash` | Cached name for the '_muzzleFlash' field. |
+| `PropertyName._muzzleLight` | Cached name for the '_muzzleLight' field. |
+| `PropertyName._muzzleSmoke` | Cached name for the '_muzzleSmoke' field. |
+| `PropertyName._pendingSmokeMuzzle` | Cached name for the '_pendingSmokeMuzzle' field. |
+| `PropertyName._player` | Cached name for the '_player' field. |
+| `PropertyName._reserveMag` | Cached name for the '_reserveMag' field. |
+| `PropertyName._reserveMagAnim` | Cached name for the '_reserveMagAnim' field. |
+| `PropertyName._skeleton` | Cached name for the '_skeleton' field. |
+| `PropertyName._smokeBurstGen` | Cached name for the '_smokeBurstGen' field. |
+| `PropertyName._tracerShotCount` | Cached name for the '_tracerShotCount' field. |
+| `PropertyName._tree` | Cached name for the '_tree' field. |
+| `PropertyName._weaponActive` | Cached name for the '_weaponActive' field. |
+| `TracerEveryNShots` | Spawn a visible tracer every Nth fired round (1 = every shot). |
+
+## Methods
+
+| Name | Summary |
+|------|---------|
+| `ActivateWeapon()` | Enables animation by switching the tree callback to Idle. Inactive instances stay Manual (frozen, zero cost). |
+| `ApplyFireSelectorPose()` | Overrides the Fire_Selector bone to match `ActualFireMode`. Called by `FireSelectorModifier` post-mix so it survives the tree's bone writes. |
+| `DeactivateWeapon()` | Freezes animation (tree back to Manual). See `ActivateWeapon`. |
+| `MuzzleFlash()` | Per-shot muzzle flash: teleports the main-world flame card + light to the reprojected barrel tip and pulses the light. Cosmetic. |
+| `MuzzleSmoke()` | Records the muzzle transform and re-arms the trailing smoke puff, delayed by `SmokeTrailDelay` so full-auto yields one cloud after the last round. Cosmetic. |
+| `ResolveFireSelector()` | Pre-resolves the FireModeStates animation, its Fire_Selector tracks, and the current mode time so the per-frame pass stays allocation-free. |
+| `RestoreGodotObjectData(Bridge.GodotSerializationInfo)` | — |
+| `SaveGodotObjectData(Bridge.GodotSerializationInfo)` | — |
+| `ShouldSpawnTracer()` | True on every Nth fired round (`TracerEveryNShots`); advances the shot counter, so call exactly once per fired round. |

@@ -8,7 +8,6 @@ namespace Vantix.Debug;
 /// </summary>
 public partial class NetGraphOverlay : Node
 {
-	[Export] public bool ShowOnStart = true;
 	[Export] public int FontSize = 11;
 	/// <summary>Pixel offset to the top edge — should sit beneath the DebugOverlay bar.</summary>
 	[Export] public int OffsetTopPx = 32;

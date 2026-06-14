@@ -2,6 +2,7 @@ using Godot;
 
 namespace Vantix.Fx;
 
+/// <summary>Cosmetic physics bullet; launched with a velocity and hidden again after its lifetime.</summary>
 [GlobalClass]
 public partial class Bullet : RigidBody3D
 {

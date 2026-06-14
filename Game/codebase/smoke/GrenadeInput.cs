@@ -1,5 +1,6 @@
 namespace Vantix.Smoke;
 
+/// <summary>Per-tick grenade input (slot active, throw held, dt) for the charge logic.</summary>
 public struct GrenadeInput
 {
 	/// <summary>True while the grenade slot is selected.</summary>

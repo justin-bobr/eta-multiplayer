@@ -3,8 +3,7 @@ using System.Collections.Generic;
 
 namespace Vantix.Weapon;
 
-public enum WeaponMode { FPS, TPS }
-
+/// <summary>Per-weapon animation set and pose driver (fire/reload/grip and fire-selector blends).</summary>
 [Tool, GlobalClass]
 public partial class WeaponAnimation : Node3D
 {
@@ -998,7 +997,7 @@ public partial class WeaponAnimation : Node3D
 		if (NetMain.Instance?.Cli?.Mode == NetMode.Server)
 			return;
 		var tex = ResourceLoader.Load<Texture2D>(MuzzleFlameTexture);
-		var shader = GD.Load<Shader>("res://fx/muzzle/muzzle_flash_add.gdshader");
+		var shader = GD.Load<Shader>("res://shaders/muzzle_flash_add.gdshader");
 		if (tex == null || shader == null)
 			return;
 

@@ -2,7 +2,7 @@ using Godot;
 
 namespace Vantix.Weapon;
 
-// Applies the fire-selector bone pose after the AnimationMixer writes the skeleton (like WeaponBoneModifier/TwoBoneArmIK).
+/// <summary>Applies the fire-selector bone pose after the AnimationMixer writes the skeleton (like WeaponBoneModifier/TwoBoneArmIK).</summary>
 [GlobalClass]
 public partial class FireSelectorModifier : SkeletonModifier3D
 {

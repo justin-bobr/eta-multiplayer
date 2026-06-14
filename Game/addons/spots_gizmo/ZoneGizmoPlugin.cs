@@ -5,9 +5,9 @@ using Godot;
 
 /// <summary>Draws a wireframe outline of <see cref="Zone.Size"/> for every <see cref="Zone"/>
 /// node in the edited scene. Registered by <see cref="SpotsGizmoPlugin"/> at editor startup.
-/// Gizmo visibility follows the 3D View → Gizmos toggle automatically — this is the whole point
-/// of using <see cref="EditorNode3DGizmoPlugin"/> instead of a child MeshInstance3D. Redraw is
-/// triggered by Zone.Size setter via <see cref="Node3D.UpdateGizmos"/>.</summary>
+/// Gizmo visibility follows the 3D View → Gizmos toggle automatically (reason for using
+/// <see cref="EditorNode3DGizmoPlugin"/> over a child MeshInstance3D). Redraw is triggered by
+/// Zone.Size setter via <see cref="Node3D.UpdateGizmos"/>.</summary>
 [Tool]
 public partial class ZoneGizmoPlugin : EditorNode3DGizmoPlugin
 {
@@ -16,11 +16,9 @@ public partial class ZoneGizmoPlugin : EditorNode3DGizmoPlugin
 
 	public ZoneGizmoPlugin()
 	{
-		// Cyan, visually distinguishes Zone outlines from BombSpot's red ones in the viewport.
+		// Cyan — distinguishes Zone outlines from BombSpot's red.
 		CreateMaterial(OutlineMat, new Color(0.30f, 0.85f, 1.00f));
-		// Soft semi-transparent fill so the box has volume in the viewport but doesn't obscure
-		// what's inside it. Set unshaded + alpha + no-depth so it reads consistently from any
-		// angle and through other geometry.
+		// Semi-transparent fill. Unshaded + alpha + no-cull so it reads from any angle.
 		var fill = new StandardMaterial3D
 		{
 			AlbedoColor = new Color(0.30f, 0.85f, 1.00f, 0.12f),
@@ -32,9 +30,8 @@ public partial class ZoneGizmoPlugin : EditorNode3DGizmoPlugin
 	}
 
 	public override string _GetGizmoName() => "Zone";
-	// Match plain Zone only — BombSpot and Spawn extend Zone and have their own plugins with
-	// distinct colours. Without the exclusion they'd get drawn twice (cyan from this plugin
-	// AND red / green from their specialised one).
+	// Plain Zone only. BombSpot and Spawn extend Zone and have their own plugins; without the
+	// exclusion they'd be drawn twice.
 	public override bool _HasGizmo(Node3D node) => node is Zone && node is not BombSpot && node is not Spawn;
 
 	public override void _Redraw(EditorNode3DGizmo gizmo)

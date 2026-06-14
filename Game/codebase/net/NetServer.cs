@@ -26,12 +26,7 @@ public class NetServer
 	private PackedScene _characterScene;
 	private Node3D _playersContainer;
 
-	/// <summary>Spawn points loaded from the map markers.</summary>
-	public SpawnManager Spawns => _spawns;
-
-	public bool Running => _net != null && _net.IsRunning;
 	public int PeerCount => _peers.Count;
-	public uint ServerTick => _serverTick;
 
 	/// <summary>Creates a new server bound to the given CLI configuration.</summary>
 	public NetServer(NetCli cli)
@@ -114,10 +109,10 @@ public class NetServer
 	private ushort _roundNumber = 1;
 	private ushort _roundsTotal = 9;
 	private uint _lastRoundStateBroadcastTick;
-	/// <summary>1Hz heartbeat at 128tps — keeps late-joining clients in sync within ~1s and corrects client-side drift.</summary>
+	/// <summary>1Hz heartbeat at 128tps - keeps late-joining clients in sync within ~1s and corrects client-side drift.</summary>
 	private const int RoundStateBroadcastEveryTicks = 128;
 
-	/// <summary>Ticks the round timer, advancing to the next round on expiry (no score reset yet — no
+	/// <summary>Ticks the round timer, advancing to the next round on expiry (no score reset yet - no
 	/// win-condition system). Rebroadcasts round state at 1Hz to re-sync late joiners and drifting clients.</summary>
 	private void TickRoundState()
 	{
@@ -206,7 +201,7 @@ public class NetServer
 
 	/// <summary>Delay after the last damage hit before HP regen starts.</summary>
 	public const long RegenDelayMs = 8000;
-	/// <summary>Regen interval — grants +1 HP every this-many ms (~12 hp/s).</summary>
+	/// <summary>Regen interval - grants +1 HP every this-many ms (~12 hp/s).</summary>
 	private const long RegenTickMs = 80;
 	/// <summary>Max regenerable HP (kevlar does not regen).</summary>
 	private const byte RegenCapHp = 100;
@@ -318,7 +313,7 @@ public class NetServer
 		return s;
 	}
 
-	/// <summary>All active agent states (peers + bots) — anywhere "all hittable players" is meant. Concrete
+	/// <summary>All active agent states (peers + bots) - anywhere "all hittable players" is meant. Concrete
 	/// <c>List</c> so foreach uses the struct enumerator. Refilled per Poll via <see cref="RefreshAllPeersCache"/>.</summary>
 	private readonly List<PeerState> _allPeersCache = new(32);
 
@@ -463,10 +458,10 @@ public class NetServer
 		}
 	}
 
-	/// <summary>Reused per-receiver snapshot buffer for PVS filtering — single allocation, cleared/refilled per peer per tick.</summary>
+	/// <summary>Reused per-receiver snapshot buffer for PVS filtering - single allocation, cleared/refilled per peer per tick.</summary>
 	private readonly System.Collections.Generic.List<SnapshotPlayer> _perReceiverSnapBuf = new();
 
-	/// <summary>Reused <see cref="NetDataWriter"/> for BroadcastSnapshots — avoids ~1k allocs/s on a full server.</summary>
+	/// <summary>Reused <see cref="NetDataWriter"/> for BroadcastSnapshots - avoids ~1k allocs/s on a full server.</summary>
 	private readonly NetDataWriter _writeBuf = new();
 
 	/// <summary>Scans the SpawnManager once world.tscn is active and applies headless settings on dedicated servers.</summary>
@@ -727,7 +722,7 @@ public class NetServer
 		Broadcast(writer, DeliveryMethod.ReliableOrdered, ChannelReliable, excludePeer: sender);
 	}
 
-	/// <summary>Client finished its world preload — sets WorldReady on its PeerState so subsequent snapshots
+	/// <summary>Client finished its world preload - sets WorldReady on its PeerState so subsequent snapshots
 	/// emit <see cref="SnapshotFlags.WorldReady"/> and peers show its TPS body.</summary>
 	private void HandleWorldInitComplete(NetPeer sender)
 	{
@@ -1194,7 +1189,6 @@ public class NetServer
 				AllPeers = _allPeersCache,
 				OwnNetId = bot.NetId,
 				OwnTeam = bot.Team,
-				SelfBodyRid = agent.GetRid(),
 				Difficulty = difficulty,
 				TickRate = tickRate,
 				NeedsReload = (agent is NetworkPlayer pc) && pc.NeedsReload,
@@ -1343,7 +1337,6 @@ public class NetServer
 		}
 		state.LatestInput = newest;
 		state.HasLatestInput = true;
-		state.InputPacketsReceived++;
 	}
 
 	/// <summary>Spawns a ServerAgent into the Players container; idempotent and retried per poll until the world is ready.</summary>
@@ -1540,7 +1533,7 @@ public class NetServer
 		Broadcast(Packets.WriteRespawn(netId, pos, yaw, hp), DeliveryMethod.ReliableOrdered, ChannelReliable, excludePeer: null);
 	}
 
-	/// <summary>Auto-respawn delay in seconds — countdown begins when HP reaches 0.</summary>
+	/// <summary>Auto-respawn delay in seconds - countdown begins when HP reaches 0.</summary>
 	private const int RespawnDelaySeconds = 5;
 
 	/// <summary>Marks a player dead (IsDead on the ServerAgent), starts the auto-respawn countdown, awards the
@@ -1663,24 +1656,23 @@ public class PeerState
 	public InputPacket LatestInput;
 	public bool HasLatestInput;
 	public uint LastInputTick;
-	public ulong InputPacketsReceived;
 	public int AntiCheatViolations;
 
 	/// <summary>InputPackets accepted this server tick (for the per-peer flood cap); reset when the tick changes.</summary>
 	public int PacketsThisServerTick;
 	public uint LastPacketCountServerTick;
-	/// <summary>Last validated ViewYaw + the tick it came from — basis for the angular-velocity check.</summary>
+	/// <summary>Last validated ViewYaw + the tick it came from - basis for the angular-velocity check.</summary>
 	public float LastViewYawSample;
 	public uint LastViewYawSampleTick;
 	public bool HasViewYawSample;
-	/// <summary>Last validated server position + its tick — basis for the position-delta check.</summary>
+	/// <summary>Last validated server position + its tick - basis for the position-delta check.</summary>
 	public Vector3 LastValidatedPos;
 	public uint LastValidatedTick;
 	public bool HasValidatedPos;
 	/// <summary>Ring of recent violation timestamps for the sliding-window kick check.</summary>
 	public readonly long[] RecentViolationMs = new long[8];
 	public int RecentViolationHead;
-	/// <summary>True once auto-kick has fired — prevents repeated kicks while disconnect propagates.</summary>
+	/// <summary>True once auto-kick has fired - prevents repeated kicks while disconnect propagates.</summary>
 	public bool AntiCheatKicked;
 
 	public NetworkPlayer ServerAgent;

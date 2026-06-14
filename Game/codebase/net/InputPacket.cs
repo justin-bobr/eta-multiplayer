@@ -1,5 +1,6 @@
 namespace Vantix.Net;
 
+/// <summary>Decoded per-tick input (view, wishdir, buttons and subtick events) the simulation steps on.</summary>
 public struct InputPacket
 {
 	public uint TickIndex;
