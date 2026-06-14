@@ -1,0 +1,164 @@
+Begin Object Class=/Script/Engine.AnimMontage Name="AM_TFA_TP_AR_Heal_Syringe" ExportPath="/Script/Engine.AnimMontage'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe'"
+   Begin Object Class=/Script/UnrealEd.SceneThumbnailInfo Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C Name="ANS_TFA_LeftHandGrip_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:ANS_TFA_LeftHandGrip_C_0'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C Name="ANS_BlockADS_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:ANS_BlockADS_C_0'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_9" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_9'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_8" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_8'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_7" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_7'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_5" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_5'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_4" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_4'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_3" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_3'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_16" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_16'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_15" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_15'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_14" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_14'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_13" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_13'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_12" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_12'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_11" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_11'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_10" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_10'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_1" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_1'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimDataModel Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimDataModel'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AN_UnlockActions_C_0'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_ThrowPhysicsObject.AN_TFA_ThrowPhysicsObject_C Name="AN_ThrowPhysicsObject_C_3" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_ThrowPhysicsObject.AN_TFA_ThrowPhysicsObject_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AN_ThrowPhysicsObject_C_3'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_ThrowPhysicsObject.AN_TFA_ThrowPhysicsObject_C Name="AN_ThrowPhysicsObject_C_1" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_ThrowPhysicsObject.AN_TFA_ThrowPhysicsObject_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AN_ThrowPhysicsObject_C_1'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_SpawnObjectAttached.AN_TFA_SpawnObjectAttached_C Name="AN_SpawnObjectAttached_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_SpawnObjectAttached.AN_TFA_SpawnObjectAttached_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AN_SpawnObjectAttached_C_0'"
+   End Object
+   Begin Object Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Name="ANS_TFA_LeftHandGrip_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:ANS_TFA_LeftHandGrip_C_0'"
+   End Object
+   Begin Object Name="ANS_BlockADS_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:ANS_BlockADS_C_0'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_9" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_9'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Heal/A_TFA_Syringe_Handling_Cue.A_TFA_Syringe_Handling_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_8" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_8'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Heal/A_TFA_Syringe_Handling_Cue.A_TFA_Syringe_Handling_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_7" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_7'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Heal/A_TFA_Syringe_Handling_Cue.A_TFA_Syringe_Handling_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_5" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_5'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Heal/A_TFA_Syringe_Spit_Cue.A_TFA_Syringe_Spit_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_4" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_4'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Heal/A_TFA_Syringe_Inject_Cue.A_TFA_Syringe_Inject_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_3" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_3'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Heal/A_TFA_Syringe_Handling_Cue.A_TFA_Syringe_Handling_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_16" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_16'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Foley/A_TFA_Foley_Cloth_Cue.A_TFA_Foley_Cloth_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_15" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_15'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Heal/A_TFA_Syringe_Handling_Cue.A_TFA_Syringe_Handling_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_14" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_14'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Foley/A_TFA_Foley_Cloth_Cue.A_TFA_Foley_Cloth_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_13" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_13'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Melee/A_TFA_Melee_Whoosh_Cue.A_TFA_Melee_Whoosh_Cue'"
+      VolumeMultiplier=0.100000
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_12" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_12'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Audio/Impacts/A_TFA_AR_GunSmack_Cue.A_TFA_AR_GunSmack_Cue'"
+      VolumeMultiplier=0.400000
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_11" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_11'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Foley/A_TFA_Foley_Cloth_Cue.A_TFA_Foley_Cloth_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_10" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_10'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Foley/A_TFA_Foley_Cloth_Cue.A_TFA_Foley_Cloth_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_1" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimNotify_PlaySound_1'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Heal/A_TFA_Syringe_BiteCap_Cue.A_TFA_Syringe_BiteCap_Cue'"
+   End Object
+   Begin Object Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AnimDataModel'"
+      NumberOfFrames=312000
+      NumberOfKeys=312001
+      bPopulated=True
+   End Object
+   Begin Object Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AN_UnlockActions_C_0'"
+   End Object
+   Begin Object Name="AN_ThrowPhysicsObject_C_3" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_ThrowPhysicsObject.AN_TFA_ThrowPhysicsObject_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AN_ThrowPhysicsObject_C_3'"
+      ObjectToSpawn="/Script/Engine.BlueprintGeneratedClass'/Game/InfimaGames/TacticalFPSAnimations/Common/Props/Blueprints/BP_TFA_PhysicsSyringe.BP_TFA_PhysicsSyringe_C'"
+      SpawnSocketName="SOCKET_Hand_L_Throw"
+      ThrowForce=600.000000
+      ThrowRotationForce=800.000000
+   End Object
+   Begin Object Name="AN_ThrowPhysicsObject_C_1" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_ThrowPhysicsObject.AN_TFA_ThrowPhysicsObject_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AN_ThrowPhysicsObject_C_1'"
+      ObjectToSpawn="/Script/Engine.BlueprintGeneratedClass'/Game/InfimaGames/TacticalFPSAnimations/Common/Props/Blueprints/BP_TFA_PhysicsSyringeCap.BP_TFA_PhysicsSyringeCap_C'"
+      SpawnSocketName="headSocket"
+      ThrowForce=450.000000
+      ThrowRotationForce=1600.000000
+      DestroySocketItem=False
+   End Object
+   Begin Object Name="AN_SpawnObjectAttached_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_SpawnObjectAttached.AN_TFA_SpawnObjectAttached_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Heal_Syringe.AM_TFA_TP_AR_Heal_Syringe:AN_SpawnObjectAttached_C_0'"
+      ObjectToSpawn="/Script/Engine.BlueprintGeneratedClass'/Game/InfimaGames/TacticalFPSAnimations/Common/Props/Blueprints/BP_TFA_Syringe.BP_TFA_Syringe_C'"
+      Animation="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Common/Props/Animations/A_TFA_TP_PROP_Syringe_Heal.A_TFA_TP_PROP_Syringe_Heal'"
+      LocationOffset=(X=5.000000,Y=0.000000,Z=0.000000)
+      RotationOffset=(Pitch=25.000000,Yaw=90.000000,Roll=0.000000)
+      VisibilityDelay=0.450000
+   End Object
+   BlendIn=(BlendTime=0.000000,BlendOption=Linear)
+   BlendOut=(BlendTime=0.000000,BlendOption=Linear)
+   CompositeSections(0)=(SectionName="Default",LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   SlotAnimTracks(0)=(AnimTrack=(AnimSegments=((CachedPlayLength=5.200000,AnimReference="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'",AnimEndTime=5.200000))))
+   PreviewBasePose="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Poses/A_TFA_TP_AR_Idle_Pose.A_TFA_TP_AR_Idle_Pose'"
+   CommonTargetFrameRate=(Numerator=30)
+   Notifies(0)=(TriggerTimeOffset=0.000100,EndTriggerTimeOffset=0.000100,NotifyName="AN_SpawnObjectAttached_C",Notify="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_SpawnObjectAttached.AN_TFA_SpawnObjectAttached_C'AN_SpawnObjectAttached_C_0'",Guid=289786254EB9384E0F6EE9AD8D9116BC,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(1)=(TriggerTimeOffset=0.000100,NotifyName="ANS_BlockADS_C",NotifyStateClass="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'ANS_BlockADS_C_0'",Duration=4.406388,EndLink=(LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=4.406388,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'"),Guid=71875BD544AFAAEEA556C79F0D9827E4,TrackIndex=2,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(2)=(TriggerTimeOffset=0.000100,NotifyName="ANS_TFA_LeftHandGrip_C",NotifyStateClass="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'ANS_TFA_LeftHandGrip_C_0'",Duration=3.998072,EndLink=(LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=3.998072,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'"),Guid=E29799874563DF6D63C82FABA5890EE2,TrackIndex=3,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(3)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_10'",EndLink=(LinkValue=0.132849),Guid=999E71AD42044517030901A355F9B505,TrackIndex=6,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=0.042598,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(4)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_15'",EndLink=(LinkValue=1.270574),Guid=93EEE6C6467C2D2B9BF42D8CF67606C0,TrackIndex=9,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=0.112926,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(5)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_3'",EndLink=(LinkValue=1.270574),Guid=0403832E49C308B33928FC948334F7CD,TrackIndex=5,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=0.591968,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(6)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_1'",EndLink=(LinkValue=0.171343),Guid=9F3BB6B04174BD9439EB0B956A0000F6,TrackIndex=4,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=0.848597,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(7)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_16'",EndLink=(LinkValue=0.132849),Guid=0175DB3A426DC0C1D2C3B797055101F7,TrackIndex=8,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=0.968359,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(8)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_7'",EndLink=(LinkValue=1.270574),Guid=66A3886742949603581F56BF90F52397,TrackIndex=6,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=1.306254,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(9)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_5'",EndLink=(LinkValue=3.516083),Guid=C3792DAF461A864C0B65B7B6F4EA008A,TrackIndex=9,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=1.494448,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(10)=(NotifyName="AN_ThrowPhysicsObject_C",Notify="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_ThrowPhysicsObject.AN_TFA_ThrowPhysicsObject_C'AN_ThrowPhysicsObject_C_1'",EndLink=(LinkValue=1.814301),Guid=14BBFB8F4379DFA66627AC99E129767E,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=1.814301,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(11)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_11'",EndLink=(LinkValue=0.132849),Guid=D768903C4728E466159EFC81B39F6F58,TrackIndex=8,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=2.024817,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(12)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_8'",EndLink=(LinkValue=1.270574),Guid=1E8D49C14C5D5F1FDA3167B501A1C9C2,TrackIndex=7,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=2.311387,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(13)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_4'",EndLink=(LinkValue=2.361250),Guid=5104070A4F0DBCA972DBB5B31F013391,TrackIndex=5,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=2.636451,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(14)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_13'",EndLink=(LinkValue=3.443372),Guid=66E3C45745A6DA2A663B698A065B21FD,TrackIndex=5,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=3.461944,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(15)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_9'",EndLink=(LinkValue=1.270574),Guid=894DABA248880E42B1FF8599FEBFDB34,TrackIndex=4,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=3.543209,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(16)=(NotifyName="AN_ThrowPhysicsObject_C",Notify="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_ThrowPhysicsObject.AN_TFA_ThrowPhysicsObject_C'AN_ThrowPhysicsObject_C_3'",EndLink=(LinkValue=3.600000),Guid=D02C260E42697BE06A086ABAB5AE81A6,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=3.600000,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(17)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_14'",EndLink=(LinkValue=0.132849),Guid=32789D3B4A0A54B61E5070B1316F3005,TrackIndex=8,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=4.030807,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(18)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_12'",EndLink=(LinkValue=3.853979),Guid=AFBFC31F482F9C7F0203098721B9D5B5,TrackIndex=7,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=4.189057,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   Notifies(19)=(NotifyName="AN_UnlockActions_C",Notify="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'AN_UnlockActions_C_0'",EndLink=(LinkValue=4.533333),Guid=D06E7C124B1CDF9AAA1B2896C745975A,TrackIndex=1,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Heal_Syringe'",SegmentIndex=0,SegmentLength=5.200000,LinkValue=4.387398,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Heal_Syringe.A_TFA_TP_AR_Heal_Syringe'")
+   SequenceLength=5.200000
+   AnimNotifyTracks(0)=(TrackName="2",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(1)=(TrackName="3",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(2)=(TrackName="4",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(3)=(TrackName="1",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(4)=(TrackName="5",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(5)=(TrackName="6",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(6)=(TrackName="7",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(7)=(TrackName="8",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(8)=(TrackName="9",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(9)=(TrackName="10",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   DataModelInterface=AnimDataModel'AM_TFA_TP_AR_Heal_Syringe:AnimDataModel'
+   Skeleton="/Script/Engine.Skeleton'/Game/InfimaGames/TacticalFPSAnimations/Common/Characters/Mannequins/Meshes/SKEL_TFA_Mannequin.SKEL_TFA_Mannequin'"
+   ThumbnailInfo="/Script/UnrealEd.SceneThumbnailInfo'SceneThumbnailInfo_0'"
+   PreviewSkeletalMesh="/Game/InfimaGames/TacticalFPSAnimations/Common/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
+End Object

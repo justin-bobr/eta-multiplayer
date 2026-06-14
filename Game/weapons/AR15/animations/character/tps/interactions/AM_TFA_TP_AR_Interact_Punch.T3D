@@ -1,0 +1,78 @@
+Begin Object Class=/Script/Engine.AnimMontage Name="AM_TFA_TP_AR_Interact_Punch" ExportPath="/Script/Engine.AnimMontage'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch'"
+   Begin Object Class=/Script/UnrealEd.SceneThumbnailInfo Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C Name="ANS_TFA_LeftHandGrip_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:ANS_TFA_LeftHandGrip_C_0'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C Name="ANS_BlockADS_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:ANS_BlockADS_C_0'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_7" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_7'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_6" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_6'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_5" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_5'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_3" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_3'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimNotify_PlaySound Name="AnimNotify_PlaySound_1" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_1'"
+   End Object
+   Begin Object Class=/Script/Engine.AnimDataModel Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimDataModel'"
+   End Object
+   Begin Object Class=/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AN_UnlockActions_C_0'"
+   End Object
+   Begin Object Name="SceneThumbnailInfo_0" ExportPath="/Script/UnrealEd.SceneThumbnailInfo'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:SceneThumbnailInfo_0'"
+   End Object
+   Begin Object Name="ANS_TFA_LeftHandGrip_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:ANS_TFA_LeftHandGrip_C_0'"
+   End Object
+   Begin Object Name="ANS_BlockADS_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:ANS_BlockADS_C_0'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_7" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_7'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Melee/A_TFA_Melee_Impact_Cue.A_TFA_Melee_Impact_Cue'"
+      VolumeMultiplier=0.850000
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_6" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_6'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Audio/Impacts/A_TFA_AR_GunSmack_Cue.A_TFA_AR_GunSmack_Cue'"
+      VolumeMultiplier=0.250000
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_5" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_5'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Melee/A_TFA_Melee_Whoosh_Cue.A_TFA_Melee_Whoosh_Cue'"
+      VolumeMultiplier=0.400000
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_3" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_3'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Foley/A_TFA_Foley_Cloth_Cue.A_TFA_Foley_Cloth_Cue'"
+   End Object
+   Begin Object Name="AnimNotify_PlaySound_1" ExportPath="/Script/Engine.AnimNotify_PlaySound'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimNotify_PlaySound_1'"
+      Sound="/Script/Engine.SoundCue'/Game/InfimaGames/TacticalFPSAnimations/Common/Audio/Foley/A_TFA_Foley_Cloth_Cue.A_TFA_Foley_Cloth_Cue'"
+   End Object
+   Begin Object Name="AnimDataModel" ExportPath="/Script/Engine.AnimDataModel'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AnimDataModel'"
+      NumberOfFrames=120000
+      NumberOfKeys=120001
+      bPopulated=True
+   End Object
+   Begin Object Name="AN_UnlockActions_C_0" ExportPath="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/AM_TFA_TP_AR_Interact_Punch.AM_TFA_TP_AR_Interact_Punch:AN_UnlockActions_C_0'"
+   End Object
+   BlendIn=(BlendTime=0.000000,BlendOption=Linear)
+   BlendOut=(BlendTime=0.000000,BlendOption=Linear)
+   CompositeSections(0)=(SectionName="Default",LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'")
+   SlotAnimTracks(0)=(AnimTrack=(AnimSegments=((CachedPlayLength=2.000000,AnimReference="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'",AnimEndTime=2.000000))))
+   PreviewBasePose="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Poses/A_TFA_TP_AR_Idle_Pose.A_TFA_TP_AR_Idle_Pose'"
+   CommonTargetFrameRate=(Numerator=30)
+   Notifies(0)=(TriggerTimeOffset=0.000100,NotifyName="ANS_BlockADS_C",NotifyStateClass="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_BlockADS.ANS_TFA_BlockADS_C'ANS_BlockADS_C_0'",Duration=0.938831,EndLink=(LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkValue=0.938831,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'"),Guid=9D3F627943BFC89A7003E9816DCA6B8C,TrackIndex=1,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'")
+   Notifies(1)=(TriggerTimeOffset=0.000100,NotifyName="ANS_TFA_LeftHandGrip_C",NotifyStateClass="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/ANS_TFA_LeftHandGrip.ANS_TFA_LeftHandGrip_C'ANS_TFA_LeftHandGrip_C_0'",Duration=0.730915,EndLink=(LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkValue=0.730915,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'"),Guid=918940594E1A7054F1FD13AF5EC3D600,TrackIndex=2,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'")
+   Notifies(2)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_1'",EndLink=(LinkValue=0.140035),Guid=179F889C40E8571F1831A1AC6897FF48,TrackIndex=3,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkValue=0.011068,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'")
+   Notifies(3)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_5'",EndLink=(LinkValue=0.187742),Guid=92CCD04C4C726077A997D79706C97CBB,TrackIndex=4,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkValue=0.119203,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'")
+   Notifies(4)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_7'",EndLink=(LinkValue=0.181381),Guid=FC7DFDC142F5A3ABECFD3E8C09B3031A,TrackIndex=5,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkValue=0.200178,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'")
+   Notifies(5)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_3'",EndLink=(LinkValue=0.140035),Guid=2661FB714A71FF5064705C8DB1486DB9,TrackIndex=3,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkValue=0.546974,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'")
+   Notifies(6)=(NotifyName="PlaySound",Notify="/Script/Engine.AnimNotify_PlaySound'AnimNotify_PlaySound_6'",EndLink=(LinkValue=0.863589),Guid=4094CD1B43538248C1552BBEDFAB1A11,TrackIndex=4,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkValue=0.845937,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'")
+   Notifies(7)=(EndTriggerTimeOffset=-0.000100,NotifyName="AN_UnlockActions_C",Notify="/Game/InfimaGames/TacticalFPSAnimations/Common/Core/Animation/AN_TFA_UnlockActions.AN_TFA_UnlockActions_C'AN_UnlockActions_C_0'",EndLink=(LinkValue=2.000000),Guid=D06E7C124B1CDF9AAA1B2896C745975A,LinkedMontage="/Script/Engine.AnimMontage'AM_TFA_TP_AR_Interact_Punch'",SegmentIndex=0,SegmentLength=2.000000,LinkValue=0.938955,LinkedSequence="/Script/Engine.AnimSequence'/Game/InfimaGames/TacticalFPSAnimations/Weapons/AssaultRifle/Animations/Character/TP/Interactions/A_TFA_TP_AR_Interact_Punch.A_TFA_TP_AR_Interact_Punch'")
+   SequenceLength=2.000000
+   AnimNotifyTracks(0)=(TrackName="1",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(1)=(TrackName="2",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(2)=(TrackName="3",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(3)=(TrackName="4",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   AnimNotifyTracks(4)=(TrackName="5",TrackColor=(R=0.500000,G=0.500000,B=0.500000,A=1.000000))
+   AnimNotifyTracks(5)=(TrackName="6",TrackColor=(R=0.900000,G=0.900000,B=0.900000,A=0.900000))
+   DataModelInterface=AnimDataModel'AM_TFA_TP_AR_Interact_Punch:AnimDataModel'
+   Skeleton="/Script/Engine.Skeleton'/Game/InfimaGames/TacticalFPSAnimations/Common/Characters/Mannequins/Meshes/SKEL_TFA_Mannequin.SKEL_TFA_Mannequin'"
+   ThumbnailInfo="/Script/UnrealEd.SceneThumbnailInfo'SceneThumbnailInfo_0'"
+   PreviewSkeletalMesh="/Game/InfimaGames/TacticalFPSAnimations/Common/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"
+End Object

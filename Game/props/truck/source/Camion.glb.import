@@ -1,0 +1,149 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://8yi80nn1y7bc"
+path="res://.godot/imported/Camion.glb-42259aa12c0b1f6f07a9fced910a0042.scn"
+
+[deps]
+
+source_file="res://props/truck/source/Camion.glb"
+dest_files=["res://.godot/imported/Camion.glb-42259aa12c0b1f6f07a9fced910a0042.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"CoffeeMat": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/truck/materials/CoffeeMat.tres",
+"use_external/path": "uid://dmagbxwska2ri"
+},
+"GlassMatV2": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/truck/materials/GlassMatV2.tres",
+"use_external/path": "uid://dtc4nqqtta4qt"
+},
+"MatMetal": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/truck/materials/MatMetal.tres",
+"use_external/path": "uid://b1dkmje5ysn3d"
+},
+"RetroviseurMat": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/truck/materials/RetroviseurMat.tres",
+"use_external/path": "uid://dgsda8st56hkd"
+},
+"TireMat": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/truck/materials/TireMat.tres",
+"use_external/path": "uid://b21ii3iqer15l"
+},
+"WoodenMat": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/truck/materials/WoodenMat.tres",
+"use_external/path": "uid://bltjc1hff4qyk"
+}
+},
+"meshes": {
+"Camion_Box080": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/truck/meshes/Camion_Box080.res",
+"save_to_file/path": "uid://bc4t88fgpi1v6"
+},
+"Camion_Cofee": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/truck/meshes/Camion_Cofee.res",
+"save_to_file/path": "uid://bgsrcdy5t5ioa"
+},
+"Camion_Cofee2": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/truck/meshes/Camion_Cofee2.res",
+"save_to_file/path": "uid://cvg1ewrvaamp5"
+},
+"Camion_Plane003": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/truck/meshes/Camion_Plane003.res",
+"save_to_file/path": "uid://dx8v1nlaag082"
+},
+"Camion_Retroviseur": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/truck/meshes/Camion_Retroviseur.res",
+"save_to_file/path": "uid://dtsc0k7coevmx"
+},
+"Camion_Tire": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/truck/meshes/Camion_Tire.res",
+"save_to_file/path": "uid://dbo72mi21yskg"
+},
+"Camion_Tire001": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/truck/meshes/Camion_Tire001.res",
+"save_to_file/path": "uid://dff76gpqwraat"
+},
+"Camion_Tire002": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/truck/meshes/Camion_Tire002.res",
+"save_to_file/path": "uid://7ggjkq7pet2d"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1

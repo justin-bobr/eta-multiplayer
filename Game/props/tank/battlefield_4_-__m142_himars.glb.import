@@ -1,0 +1,419 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://bd8qmaivk7j7p"
+path="res://.godot/imported/battlefield_4_-__m142_himars.glb-a8f2c59f9cba47318ead41a75f9a8ea7.scn"
+
+[deps]
+
+source_file="res://props/tank/battlefield_4_-__m142_himars.glb"
+dest_files=["res://.godot/imported/battlefield_4_-__m142_himars.glb-a8f2c59f9cba47318ead41a75f9a8ea7.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=true
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"HIMARS_base": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_base.tres",
+"use_external/path": "uid://b1is803xqes85"
+},
+"HIMARS_base.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_base.001.tres",
+"use_external/path": "uid://cve4n3lmyehno"
+},
+"HIMARS_base.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_base.002.tres",
+"use_external/path": "uid://cnoc30d8s7ggt"
+},
+"HIMARS_base.003": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_base.003.tres",
+"use_external/path": "uid://csk77uu74kvnf"
+},
+"HIMARS_glass": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_glass.tres",
+"use_external/path": "uid://cwvm7xw8hlt8p"
+},
+"HIMARS_glass.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_glass.001.tres",
+"use_external/path": "uid://dq4lw3deol06f"
+},
+"HIMARS_glass.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_glass.002.tres",
+"use_external/path": "uid://canjfln0q0qf3"
+},
+"HIMARS_glass.003": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_glass.003.tres",
+"use_external/path": "uid://ds6a5pncu4qby"
+},
+"HIMARS_interior": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_interior.tres",
+"use_external/path": "uid://dard2deymmyki"
+},
+"HIMARS_interior.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_interior.001.tres",
+"use_external/path": "uid://bw0i8dcrniykb"
+},
+"HIMARS_interior.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_interior.002.tres",
+"use_external/path": "uid://baamo0nl5tban"
+},
+"HIMARS_interior.003": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/HIMARS_interior.003.tres",
+"use_external/path": "uid://42l60byutsuj"
+},
+"Lights": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Lights.tres",
+"use_external/path": "uid://bik554rwe55j7"
+},
+"Lights.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Lights.001.tres",
+"use_external/path": "uid://bhlm2gmvtdogv"
+},
+"Lights.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Lights.002.tres",
+"use_external/path": "uid://p17e6csusqae"
+},
+"Lights.003": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Lights.003.tres",
+"use_external/path": "uid://ch4joj153b4kf"
+},
+"Star1466": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Star1466.tres",
+"use_external/path": "uid://cjkquwrf016u1"
+},
+"Star1466-TarpCover": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Star1466-TarpCover.tres",
+"use_external/path": "uid://mm5ub4ju41pv"
+},
+"Star1466-TarpCover.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Star1466-TarpCover.002.tres",
+"use_external/path": "uid://c34xp0d1gs812"
+},
+"Star1466.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Star1466.001.tres",
+"use_external/path": "uid://bj1o45d757pks"
+},
+"Star1466.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Star1466.002.tres",
+"use_external/path": "uid://ba3radkhgm1f5"
+},
+"Star1466.003": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/Star1466.003.tres",
+"use_external/path": "uid://cbdya4df82xed"
+},
+"smaw_rocket.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/smaw_rocket.001.tres",
+"use_external/path": "uid://cbx151c32gjaf"
+},
+"smaw_rocket.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://props/tank/materials/smaw_rocket.002.tres",
+"use_external/path": "uid://f7n0ny4uvdl5"
+}
+},
+"meshes": {
+"Sketchfab_Scene_himars_base_smd_001_HIMARS_base_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_001_HIMARS_base_001_0.res",
+"save_to_file/path": "uid://c12lsbymry7fq"
+},
+"Sketchfab_Scene_himars_base_smd_001_HIMARS_glass_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_001_HIMARS_glass_001_0.res",
+"save_to_file/path": "uid://bxu6lr7hwp412"
+},
+"Sketchfab_Scene_himars_base_smd_001_HIMARS_interior_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_001_HIMARS_interior_001_0.res",
+"save_to_file/path": "uid://cfttgmi43l12h"
+},
+"Sketchfab_Scene_himars_base_smd_001_Lights_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_001_Lights_001_0.res",
+"save_to_file/path": "uid://xxgig0kpm5q"
+},
+"Sketchfab_Scene_himars_base_smd_002_HIMARS_base_003_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_002_HIMARS_base_003_0.res",
+"save_to_file/path": "uid://bvn3k16bxcpnm"
+},
+"Sketchfab_Scene_himars_base_smd_002_HIMARS_glass_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_002_HIMARS_glass_002_0.res",
+"save_to_file/path": "uid://b1m35te0fli8v"
+},
+"Sketchfab_Scene_himars_base_smd_002_HIMARS_interior_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_002_HIMARS_interior_002_0.res",
+"save_to_file/path": "uid://du7pkg7s3vie7"
+},
+"Sketchfab_Scene_himars_base_smd_002_Lights_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_002_Lights_002_0.res",
+"save_to_file/path": "uid://dw7tfti2k6qn0"
+},
+"Sketchfab_Scene_himars_base_smd_003_HIMARS_base_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_003_HIMARS_base_002_0.res",
+"save_to_file/path": "uid://xn7spndoa4bb"
+},
+"Sketchfab_Scene_himars_base_smd_003_HIMARS_glass_003_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_003_HIMARS_glass_003_0.res",
+"save_to_file/path": "uid://btrl213vn85ie"
+},
+"Sketchfab_Scene_himars_base_smd_003_HIMARS_interior_003_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_003_HIMARS_interior_003_0.res",
+"save_to_file/path": "uid://dtka0g7f7uvdm"
+},
+"Sketchfab_Scene_himars_base_smd_003_Lights_003_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_003_Lights_003_0.res",
+"save_to_file/path": "uid://qtn70ir3wt6d"
+},
+"Sketchfab_Scene_himars_base_smd_HIMARS_base_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_HIMARS_base_0.res",
+"save_to_file/path": "uid://c7apjnb1fnwra"
+},
+"Sketchfab_Scene_himars_base_smd_HIMARS_glass_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_HIMARS_glass_0.res",
+"save_to_file/path": "uid://b6tsbwwi4w40n"
+},
+"Sketchfab_Scene_himars_base_smd_HIMARS_interior_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_HIMARS_interior_0.res",
+"save_to_file/path": "uid://dlqy10hcmmcam"
+},
+"Sketchfab_Scene_himars_base_smd_Lights_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_base_smd_Lights_0.res",
+"save_to_file/path": "uid://c20xpae6hhmk5"
+},
+"Sketchfab_Scene_himars_missiles_smd_001_smaw_rocket_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_missiles_smd_001_smaw_rocket_001_0.res",
+"save_to_file/path": "uid://cl4ctpj8kmwfn"
+},
+"Sketchfab_Scene_himars_missiles_smd_002_smaw_rocket_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_missiles_smd_002_smaw_rocket_002_0.res",
+"save_to_file/path": "uid://da7qy14m206fk"
+},
+"Sketchfab_Scene_himars_rear_cargo_smd_003_Star1466-TarpCover_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_cargo_smd_003_Star1466-TarpCover_002_0.res",
+"save_to_file/path": "uid://d2daacq7ofgk"
+},
+"Sketchfab_Scene_himars_rear_cargo_smd_Star1466-TarpCover_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_cargo_smd_Star1466-TarpCover_0.res",
+"save_to_file/path": "uid://bm4cynggvo42k"
+},
+"Sketchfab_Scene_himars_rear_flatbed_smd_001_Star1466_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_flatbed_smd_001_Star1466_001_0.res",
+"save_to_file/path": "uid://fybkuyua6pti"
+},
+"Sketchfab_Scene_himars_rear_flatbed_smd_002_Star1466_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_flatbed_smd_002_Star1466_002_0.res",
+"save_to_file/path": "uid://c0pxf41g32wte"
+},
+"Sketchfab_Scene_himars_rear_flatbed_smd_003_Star1466_003_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_flatbed_smd_003_Star1466_003_0.res",
+"save_to_file/path": "uid://bbpipepjrt2cp"
+},
+"Sketchfab_Scene_himars_rear_flatbed_smd_Star1466_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_flatbed_smd_Star1466_0.res",
+"save_to_file/path": "uid://dunwq8ejeldsw"
+},
+"Sketchfab_Scene_himars_rear_launcher_smd_001_HIMARS_base_001_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_launcher_smd_001_HIMARS_base_001_0.res",
+"save_to_file/path": "uid://fs5jhwqijqf0"
+},
+"Sketchfab_Scene_himars_rear_launcher_smd_002_HIMARS_base_003_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_launcher_smd_002_HIMARS_base_003_0.res",
+"save_to_file/path": "uid://8oy8qvhr6sw5"
+},
+"Sketchfab_Scene_himars_rear_tarp_smd_001_Star1466-TarpCover_002_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_tarp_smd_001_Star1466-TarpCover_002_0.res",
+"save_to_file/path": "uid://da0mwbkrieovc"
+},
+"Sketchfab_Scene_himars_rear_tarp_smd_Star1466-TarpCover_0": {
+"generate/lightmap_uv": 0,
+"generate/lods": 0,
+"generate/shadow_meshes": 0,
+"lods/normal_merge_angle": 20.0,
+"save_to_file/enabled": true,
+"save_to_file/fallback_path": "res://props/tank/meshes/Sketchfab_Scene_himars_rear_tarp_smd_Star1466-TarpCover_0.res",
+"save_to_file/path": "uid://6qcfligqd580"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=1

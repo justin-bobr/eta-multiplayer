@@ -1,0 +1,30 @@
+From: VANTIX project local patch
+Subject: [PATCH] Avoid per-frame Array allocation in _process_compositor_effects
+
+Problem: _process_compositor_effects() allocated an Array per effect per
+frame just to call the callback, churning GC.
+
+Fix: call the Callable directly instead of via the Array. Same behaviour,
+no allocation.
+
+Patch
+-----
+
+--- a/servers/rendering/renderer_rd/renderer_scene_render_rd.cpp
++++ b/servers/rendering/renderer_rd/renderer_scene_render_rd.cpp
+@@ -308,11 +308,10 @@ void RendererSceneRenderRD::_process_compositor_effects(RS::CompositorEffectCall
+
+ 	Vector<RID> re_rids = comp_storage->compositor_get_compositor_effects(p_render_data->compositor, p_callback_type, true);
+
+-	for (RID rid : re_rids) {
+-		Callable callback = comp_storage->compositor_effect_get_callback(rid);
+-		Array arr = { p_callback_type, p_render_data };
+-		callback.callv(arr);
+-	}
++	for (RID rid : re_rids) {
++		Callable callback = comp_storage->compositor_effect_get_callback(rid);
++		callback.call(p_callback_type, p_render_data);
++	}
+ }
+
+ void RendererSceneRenderRD::_render_buffers_ensure_screen_texture(const RenderDataRD *p_render_data) {

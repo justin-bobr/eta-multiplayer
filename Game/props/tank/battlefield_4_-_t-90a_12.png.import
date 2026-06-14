@@ -1,0 +1,44 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://bercnjhmpbj82"
+path.s3tc="res://.godot/imported/battlefield_4_-_t-90a_12.png-7b0ef3fb58df33adb2ae7551528f48d8.s3tc.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "bdc7a5c63e0598cc50467105da0bc64c"
+}
+
+[deps]
+
+source_file="res://props/tank/battlefield_4_-_t-90a_12.png"
+dest_files=["res://.godot/imported/battlefield_4_-_t-90a_12.png-7b0ef3fb58df33adb2ae7551528f48d8.s3tc.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

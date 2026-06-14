@@ -1,0 +1,41 @@
+###############################################################################
+# Workspace-wide gitignore - siblings of Game/ that should NOT be versioned.
+# Game/ has its own .gitignore for project-internal artefacts (.godot/, .mono/).
+###############################################################################
+
+# Stock Godot binaries + custom-built export templates. Big (~170MB editor,
+# ~80MB per template) and platform-specific - user re-downloads / re-builds.
+Engine/
+
+# Build outputs (client.exe + server.exe + bundled native AOT runtime + PCK).
+# Built fresh by build-client.cmd / build-server.cmd whenever needed.
+Export/
+
+# Random downloads parked next to Game/ (assets, reference material, etc.).
+Downloads/
+
+# Godot engine source-tree for build-engine.cmd's scons compilation.
+# Cloned from godotengine/godot - not part of THIS project's history.
+# Only the godot subdir is excluded - the rest of Source/ stays tracked, in
+# particular Source/patches/ (our local engine patches that get git-applied
+# to Source/godot/ before scons builds the editor + template).
+Source/godot
+Source/godot/*
+
+godot-pr-temp
+
+# Fingerprint of patches currently applied to Source/godot, written by
+# build-engine.cmd. Machine-local state - never share via git.
+Source/.applied-patches.txt
+
+# Generic OS / IDE noise just in case the workspace root is opened as a folder.
+Thumbs.db
+desktop.ini
+.DS_Store
+.claude
+*.blend
+.vscode
+
+*.bak*
+
+*.bak

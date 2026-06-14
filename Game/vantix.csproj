@@ -1,0 +1,55 @@
+<Project Sdk="Godot.NET.Sdk/4.6.3">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <!--
+      NativeAOT mit konservativem Trimming: produziert native code aber behaelt die
+      gesamte Class-Hierarchy in vantix.dll (= Godot's "IsSubclassOf(Node)" Reflection-
+      Check ueberlebt). Trade-off vs full-trim AOT:
+        full-trim:     binary  ~30-50MB, +20-25% CPU, BREAKS Godot's script loader
+        partial-trim:  binary  ~50-70MB, +10-15% CPU, works
+        no AOT:        binary  ~15MB     +15-20% CPU (Release vs Debug)
+      Settings:
+        - PublishAot:           AOT compilation an
+        - TrimMode=partial:     nur Libraries die explizit IsTrimmable=true sagen werden
+                                getrimmt. vantix.dll bleibt voll intact.
+        - TrimmerDefaultAction=copy:  im Zweifel preserven statt entfernen.
+        - RootAllApplicationAssemblies=true:  vantix.dll explizit als Trim-Root markieren
+                                              → KEIN code wird daraus entfernt.
+        - IlcOptimizationPreference=Speed: groessere binary, mehr inlining.
+        - IlcInstructionSet=native: nutzt host-CPU's SIMD-Extensions (AVX2 etc).
+    -->
+    <PublishAot Condition="'$(Configuration)' == 'ExportRelease'">true</PublishAot>
+    <TrimMode Condition="'$(Configuration)' == 'ExportRelease'">partial</TrimMode>
+    <TrimmerDefaultAction Condition="'$(Configuration)' == 'ExportRelease'">copy</TrimmerDefaultAction>
+    <RootAllApplicationAssemblies Condition="'$(Configuration)' == 'ExportRelease'">true</RootAllApplicationAssemblies>
+    <InvariantGlobalization Condition="'$(Configuration)' == 'ExportRelease'">true</InvariantGlobalization>
+    <IlcOptimizationPreference Condition="'$(Configuration)' == 'ExportRelease'">Speed</IlcOptimizationPreference>
+    <IlcInstructionSet Condition="'$(Configuration)' == 'ExportRelease'">native</IlcInstructionSet>
+    <!--
+      Server GC + Concurrent GC. Reine MSBuild-Properties (<ServerGarbageCollection>) wurden bei
+      Godot.NET.Sdk NICHT in runtimeconfig.json propagiert (verified: Runtime startet weiter im
+      Workstation-Mode). Daher EXPLIZIT via RuntimeHostConfigurationOption unten — geht garantiert
+      in die runtimeconfig.json's "configProperties" und wird vom CoreCLR-Host gelesen.
+    -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <RetainVMGarbageCollection>true</RetainVMGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LiteNetLib" Version="2.1.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+      Explicit Runtime-Config-Options — diese landen DEFINITIV in runtimeconfig.json's
+      configProperties. Werden vom CoreCLR beim Process-Start gelesen.
+      - System.GC.Server=true: multi-threaded GC (1 thread per core), Gen0 typisch 1-5ms statt 60ms
+      - System.GC.Concurrent=true: Background-Marking parallel zur Game-Loop, weniger Pause
+      - System.GC.RetainVM=true: Heap-Trim weniger oft (= Allocator behält OS-Pages länger)
+    -->
+    <RuntimeHostConfigurationOption Include="System.GC.Server" Value="true" />
+    <RuntimeHostConfigurationOption Include="System.GC.Concurrent" Value="true" />
+    <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="true" />
+  </ItemGroup>
+</Project>
