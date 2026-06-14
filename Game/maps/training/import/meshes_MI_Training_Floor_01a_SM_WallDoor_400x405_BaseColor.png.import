@@ -1,0 +1,44 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://d401vwi0o045"
+path.s3tc="res://.godot/imported/meshes_MI_Training_Floor_01a_SM_WallDoor_400x405_BaseColor.png-92e95e0681ca8ee6f6703030d3d23064.s3tc.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "a1cb7a117d4ff84cee021a5bea0c937a"
+}
+
+[deps]
+
+source_file="res://maps/training/import/meshes_MI_Training_Floor_01a_SM_WallDoor_400x405_BaseColor.png"
+dest_files=["res://.godot/imported/meshes_MI_Training_Floor_01a_SM_WallDoor_400x405_BaseColor.png-92e95e0681ca8ee6f6703030d3d23064.s3tc.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0
