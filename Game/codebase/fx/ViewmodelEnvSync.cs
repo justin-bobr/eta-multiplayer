@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Copies the level WorldEnvironment's look (tonemap, colour adjustment + LUT, glow, ambient tint/energy)
 /// onto the weapon viewmodel's own_world_3d Environment so the gun matches the loaded map.

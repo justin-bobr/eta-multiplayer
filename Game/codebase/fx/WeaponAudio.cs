@@ -1,8 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 
-/// <summary>Acoustic environment of the shooter — selects the reverb tail of the gunshot.</summary>
-public enum ReverbEnv { Outdoor, Indoor, Tunnel }
+namespace Vantix.Fx;
 
 /// <summary>
 /// Client-side, cosmetic weapon audio bank. Plays shoot/reload/dry-fire sounds triggered by the

@@ -1,23 +1,17 @@
 using Godot;
 
-/// <summary>
-/// Server-side line-of-sight precomputation. Voxelises the map into a coarse 3D grid and bakes
-/// pairwise voxel visibility via center-to-center raycasts; <see cref="CanSee"/> is then an O(1)
-/// bit lookup. Built incrementally via <see cref="BeginBuild"/>/<see cref="StepBuild"/>; returns
-/// "visible" (no culling) until <see cref="Built"/> flips true. Storage shares the flat byte[]
-/// format of the baked <see cref="VoxelPvsData"/> resource. Single-ray test is intentionally
-/// optimistic — may over-reveal, never wrongly hides.
-/// </summary>
+namespace Vantix.Server;
+
+/// <summary>Server-side line-of-sight precompute. Voxelises the map and bakes pairwise visibility so
+/// <see cref="CanSee"/> is a bit lookup. Built incrementally; returns "visible" until <see cref="Built"/>.
+/// Optimistic: may over-reveal, never wrongly hides.</summary>
 public class VoxelPvs
 {
-	/// <summary>Default voxel cap for the RUNTIME incremental fallback build path. Bounds memory
-	/// (N²/8 bytes) and build cost (~N²/2 raycasts). 2500 voxels ≈ 780KB + ~3.1M raycasts =
-	/// ~25s wall-clock at 1000 rays/poll. Editor bakes via <see cref="VoxelPvsInstance"/> pass a much
-	/// larger cap to <see cref="BeginBuild"/> since they're one-shot offline and can afford the wait.</summary>
+	/// <summary>Voxel cap for the runtime incremental fallback build. Editor bakes pass a larger cap
+	/// via <see cref="BeginBuild"/> since they run offline.</summary>
 	public const int DefaultMaxVoxels = 2500;
-	/// <summary>Voxel cap for the editor-only bake. 16,000 voxels ≈ 32MB visibility buffer +
-	/// ~128M raycasts ≈ several minutes at the per-frame budget. Higher than that pushes the
-	/// per-bit-index arithmetic close to int.MaxValue (46,340² ≈ 2.15G); we cap well below that.</summary>
+	/// <summary>Voxel cap for the editor-only bake. Kept well below the point where the per-bit-index
+	/// arithmetic overflows int.MaxValue.</summary>
 	public const int EditorBakeMaxVoxels = 16_000;
 
 	public Vector3 Origin { get; private set; }
@@ -38,16 +32,14 @@ public class VoxelPvs
 	private long _buildNextA;
 	private long _buildNextB;
 	private long _buildRayCount;
-	private long _buildSkippedPairs;
 	private int _buildSolidVoxels;
 	private bool _buildCancelRequested;
 
-	public long BuildSkippedPairs => _buildSkippedPairs;
 	public int BuildSolidVoxels => _buildSolidVoxels;
 
 	/// <summary>Starts a fresh build. Sets up the voxel grid (auto-coarsening <paramref name="voxelSize"/>
 	/// when the requested size would exceed <paramref name="maxVoxels"/>) and allocates the visibility
-	/// byte buffer, but performs ZERO raycasts — call <see cref="StepBuild"/> repeatedly to do the work.
+	/// byte buffer, but performs no raycasts — call <see cref="StepBuild"/> repeatedly to do the work.
 	/// <see cref="CanSee"/> returns true (no culling) until <see cref="Built"/> flips true.</summary>
 	public void BeginBuild(PhysicsDirectSpaceState3D space, Aabb worldAabb, float voxelSize, uint collisionMask = 1u, int maxVoxels = DefaultMaxVoxels)
 	{
@@ -81,7 +73,6 @@ public class VoxelPvs
 		_buildNextA = 0;
 		_buildNextB = 0;
 		_buildRayCount = 0;
-		_buildSkippedPairs = 0;
 		_buildCancelRequested = false;
 		PrecomputeSolidVoxels();
 		Built = false;
@@ -143,7 +134,6 @@ public class VoxelPvs
 			{
 				if (aSolid || (_solidVoxels != null && _solidVoxels[b]))
 				{
-					_buildSkippedPairs++;
 					continue;
 				}
 				bool visible;
@@ -240,8 +230,8 @@ public class VoxelPvs
 	/// buffer, so the returned array is safely owned by the caller after this method.</summary>
 	public byte[] ExportBitsAsBytes() => _visibility ?? System.Array.Empty<byte>();
 
-	/// <summary>Adopts the visibility data from a baked <see cref="VoxelPvsData"/> resource — INSTANT,
-	/// no copy and no allocation. The internal buffer is set to the resource's byte array by reference
+	/// <summary>Adopts the visibility data from a baked <see cref="VoxelPvsData"/> resource — no copy,
+	/// no allocation. The internal buffer is set to the resource's byte array by reference
 	/// (matched format = no transformation needed). Used by the server-startup path to skip the
 	/// runtime build entirely when the level was pre-baked.</summary>
 	public void LoadFromData(VoxelPvsData data)

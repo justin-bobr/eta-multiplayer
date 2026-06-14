@@ -1,3 +1,5 @@
+namespace Vantix.Net;
+
 /// <summary>Ring buffer of snapshot baselines for delta compression.
 /// Server: one ring per peer of the last <see cref="Capacity"/> snapshots sent to that peer (post-PVS); each
 /// send delta's against the entry matching <see cref="PeerState.LastAckedSnapshotTick"/>.
@@ -10,6 +12,7 @@ public class SnapshotBaselineRing
 	private readonly Entry[] _ring = new Entry[Capacity];
 	private uint _pushCount;
 
+	/// <summary>One stored snapshot baseline (tick plus per-player state) used for delta decoding.</summary>
 	public class Entry
 	{
 		public uint Tick;

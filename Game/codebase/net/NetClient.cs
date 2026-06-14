@@ -2,6 +2,8 @@ using Godot;
 using LiteNetLib;
 using System.Collections.Generic;
 
+namespace Vantix.Client;
+
 /// <summary>Client side of the netcode stack. Handles the handshake, sends ConnectRequest, receives
 /// SpawnAck, and dispatches player joined/left events.</summary>
 public class NetClient
@@ -51,8 +53,6 @@ public class NetClient
 	/// <summary>Active snapshot of the world state: all other players.</summary>
 	public readonly Dictionary<byte, InitialPlayerState> RemotePlayers = new();
 
-	/// <summary>Last server-reported authority yaw for the OWN player.</summary>
-	public float LastSelfServerYaw;
 	/// <summary>Self-snapshot stats (Kills, Deaths, Hp, Ping) — the scoreboard reads from this.</summary>
 	public SnapshotPlayer? LastSelfSnap;
 	/// <summary>Server tick of the most recently received snapshot (used for server-time sync).</summary>
@@ -599,7 +599,6 @@ public class NetClient
 			var p = _snapshotPlayerBuffer[i];
 			if (p.NetId == OwnNetId)
 			{
-				LastSelfServerYaw = p.Yaw;
 				LastSelfSnap = p;
 				selfSnap = p;
 			}

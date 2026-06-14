@@ -1,3 +1,5 @@
+namespace Vantix.Net;
+
 /// <summary>Bit flags packed into <see cref="SnapshotPlayer.Flags"/>.</summary>
 [System.Flags]
 public enum SnapshotFlags : byte

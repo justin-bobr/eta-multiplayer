@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Levels;
+
 /// <summary>
 /// Named, non-blocking 3D region: drives the HUD "you are in" label (innermost match via
 /// <see cref="Level.ZoneAt"/>) and serves as a bot navigation target. Self-contained — the box shape

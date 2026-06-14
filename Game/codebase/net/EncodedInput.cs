@@ -1,3 +1,6 @@
+namespace Vantix.Net;
+
+/// <summary>Wire-quantised form of one tick's input (packed view angles, wishdir and subtick events).</summary>
 public struct EncodedInput
 {
 	public uint TickIndex;

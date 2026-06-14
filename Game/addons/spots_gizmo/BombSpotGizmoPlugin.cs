@@ -1,3 +1,5 @@
+namespace Vantix.Editor;
+
 #if TOOLS
 using Godot;
 
@@ -13,11 +15,9 @@ public partial class BombSpotGizmoPlugin : EditorNode3DGizmoPlugin
 
 	public BombSpotGizmoPlugin()
 	{
-		// Red, distinguishes plant regions from neutral Zones (cyan) in the viewport.
+		// Red — distinguishes plant regions from Zones (cyan).
 		CreateMaterial(OutlineMat, new Color(1.00f, 0.30f, 0.25f));
-		// Soft semi-transparent red fill — gives the plant region visible volume in the viewport
-		// without obscuring level geometry inside it. Unshaded + alpha + no-cull for consistent
-		// look from any angle.
+		// Semi-transparent fill. Unshaded + alpha + no-cull so it reads from any angle.
 		var fill = new StandardMaterial3D
 		{
 			AlbedoColor = new Color(1.00f, 0.30f, 0.25f, 0.14f),

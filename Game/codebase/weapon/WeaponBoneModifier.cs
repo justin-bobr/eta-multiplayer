@@ -1,5 +1,8 @@
 using Godot;
 
+namespace Vantix.Weapon;
+
+/// <summary>Applies the weapon-bone (ik_hand_gun) offset after the AnimationMixer writes the skeleton.</summary>
 [Tool, GlobalClass]
 public partial class WeaponBoneModifier : SkeletonModifier3D
 {

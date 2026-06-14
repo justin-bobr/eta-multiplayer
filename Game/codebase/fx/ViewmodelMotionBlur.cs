@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Attaches a dedicated Compositor + <see cref="PostProcessEffect"/> to the weapon viewmodel's own
 /// WorldEnvironment, since the weapon's own_world_3d SubViewport is invisible to the world Compositor

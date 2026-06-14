@@ -1,8 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 
-/// <summary>Movement action that triggers a footstep sound, selecting which sample pool plays.</summary>
-public enum FootstepAction { Walk, Sprint, Jump, Land }
+namespace Vantix.Fx;
 
 /// <summary>
 /// Client-side, cosmetic footstep audio bank. Plays material/action-specific sounds (Walk/Sprint/

@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Server;
+
 /// <summary>Child node of a map scene that bakes a server-side Fog-of-War visibility grid. "Bake PVS" in
 /// the inspector runs the offline raycast pass and writes a <see cref="VoxelPvsData"/> .tres next to the
 /// map's .tscn; at runtime <see cref="NetServer"/> loads it for FoW from tick 1 with no build cost.
@@ -62,8 +64,7 @@ public partial class VoxelPvsInstance : Node3D
 	/// <summary>Live bake status: "Idle.", "Baking: X%", or "Bake complete: ...".</summary>
 	[Export(PropertyHint.MultilineText)] public string BakeStatus = "Idle.";
 
-	/// <summary>Raycast budget per editor frame while baking. Higher = faster bake, choppier editor
-	/// (8000 ≈ ~16ms hitch; crank to 100000 for walk-away one-shot bakes).</summary>
+	/// <summary>Raycast budget per editor frame while baking. Higher = faster bake but choppier editor.</summary>
 	[Export(PropertyHint.Range, "500,200000,500")] public int BakeRaysPerFrame = 8_000;
 
 	private VoxelPvs _activeBakeBuilder;

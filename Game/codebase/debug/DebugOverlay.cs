@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Debug;
+
 /// <summary>
 /// Horizontal debug bar at the top of the screen. Visibility controlled via Settings.ShowDebugBar
 /// (default F3). Required: assign <see cref="Player"/> in the Inspector.
@@ -7,7 +9,6 @@ using Godot;
 public partial class DebugOverlay : Node
 {
 	[Export] public NetworkPlayer Player;
-	[Export] public bool ShowOnStart = true;
 	[Export] public int FontSize = 12;
 	[Export] public float UpdateInterval = 0.1f;
 

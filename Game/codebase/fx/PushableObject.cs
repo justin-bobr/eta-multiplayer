@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Pushable <see cref="RigidBody3D"/> (e.g. a car). The player holds the push action and presses
 /// against it; after <see cref="MinChargeSeconds"/> of sustained contact aligned with

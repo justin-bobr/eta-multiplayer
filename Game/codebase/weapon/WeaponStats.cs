@@ -1,6 +1,8 @@
 using System;
 using Godot;
 
+namespace Vantix.Weapon;
+
 /// <summary>Immutable gameplay + visual stats for one weapon; one instance per weapon in <see cref="ConVars.Weapons"/>.</summary>
 public record WeaponStats
 {
@@ -47,7 +49,7 @@ public record WeaponStats
 	public float HipfireBloomShots { get; init; } = 8f;
 	/// <summary>1.0 = linear (first shots already get bloom). >1 for an exponential ramp.</summary>
 	public float HipfireBloomCurve { get; init; } = 1.0f;
-	/// <summary>0 = camera stays calm, 1 = camera punches up — hipfire baseline.</summary>
+	/// <summary>0 = camera stays calm, 1 = camera punches up - hipfire baseline.</summary>
 	public float CameraAimPunchMul { get; init; } = 0.0f;
 	/// <summary>Reduces aim-punch climb while aiming down sights (typical 50-65 % of hipfire amplitude).</summary>
 	public float AdsCameraKickMul { get; init; } = 0.6f;
@@ -94,7 +96,7 @@ public record WeaponStats
 	public float AdsSpreadMul { get; init; } = 0.15f;
 	/// <summary>Extra multiplier on the movement spread portion while ADS.</summary>
 	public float AdsMovementSpreadMul { get; init; } = 0.25f;
-	/// <summary>Bloom multiplier while ADS — almost off so the deterministic pattern dominates.</summary>
+	/// <summary>Bloom multiplier while ADS - almost off so the deterministic pattern dominates.</summary>
 	public float AdsBloomMul { get; init; } = 0.10f;
 	/// <summary>Spread multiplier while airborne (jumping is very inaccurate).</summary>
 	public float AirborneSpreadMul { get; init; } = 2.5f;
@@ -106,7 +108,7 @@ public record WeaponStats
 	public float AdsKickMul { get; init; } = 0.5f;
 	/// <summary>Visual kick multiplier at full ADS for position (back/up = stock).</summary>
 	public float AdsKickPosMul { get; init; } = 0.40f;
-	/// <summary>Ambient animations (bob/sway/lean/breath) multiplier at full ADS — subtle ones still pass through.</summary>
+	/// <summary>Ambient animations (bob/sway/lean/breath) multiplier at full ADS - subtle ones still pass through.</summary>
 	public float AdsAmbientMul { get; init; } = 0.3f;
 	/// <summary>Local-space ADS position offset, lerped additively.</summary>
 	public Godot.Vector3 AdsPosOffset { get; init; } = new(-0.05f, 0.04f, -0.06f);
@@ -118,7 +120,7 @@ public record WeaponStats
 
 	/// <summary>Main muzzle "boom" layer.</summary>
 	public string[] ShootBodyClips { get; init; } = Array.Empty<string>();
-	/// <summary>Mechanical layer (bolt/action) — dry.</summary>
+	/// <summary>Mechanical layer (bolt/action) - dry.</summary>
 	public string[] ShootMechClips { get; init; } = Array.Empty<string>();
 	/// <summary>Optional reverb tail sample.</summary>
 	public string[] ShootTailClips { get; init; } = Array.Empty<string>();

@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Runtime.InteropServices;
 
+namespace Vantix.Platform;
+
 /// <summary>Direct Win32 monitor mode-change for sub-native exclusive-fullscreen. Calls
 /// <c>user32!ChangeDisplaySettingsEx</c> with <c>CDS_FULLSCREEN</c>: reprograms the monitor scanout to the
 /// requested mode (the panel's hardware scaler upscales), and Windows auto-restores the desktop mode on

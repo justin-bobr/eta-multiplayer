@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Editor tool + runtime asset. As a child of the puppet's Skeleton3D, the inspector <see cref="Bake"/>
 /// trigger merges every visible skinned body MeshInstance3D's silhouette into this node's own
@@ -92,15 +94,15 @@ public partial class GlowSilhouetteMeshBaker : MeshInstance3D
 	private Skin _sourceSkin;
 
 	private static Shader _outlineShaderCached;
-	private static Shader OutlineShader => _outlineShaderCached ??= GD.Load<Shader>("res://codebase/fx/glow/team_outline_hull.gdshader");
+	private static Shader OutlineShader => _outlineShaderCached ??= GD.Load<Shader>("res://shaders/team_outline_hull.gdshader");
 	private static Shader _outlineDistanceShaderCached;
-	private static Shader OutlineDistanceShader => _outlineDistanceShaderCached ??= GD.Load<Shader>("res://codebase/fx/glow/team_outline_distance.gdshader");
+	private static Shader OutlineDistanceShader => _outlineDistanceShaderCached ??= GD.Load<Shader>("res://shaders/team_outline_distance.gdshader");
 	private static Shader _outlineGlowShaderCached;
-	private static Shader OutlineGlowShader => _outlineGlowShaderCached ??= GD.Load<Shader>("res://codebase/fx/glow/team_outline_glow.gdshader");
+	private static Shader OutlineGlowShader => _outlineGlowShaderCached ??= GD.Load<Shader>("res://shaders/team_outline_glow.gdshader");
 	private static Shader _xrayShaderCached;
-	private static Shader XrayShader => _xrayShaderCached ??= GD.Load<Shader>("res://codebase/fx/glow/team_outline_xray.gdshader");
+	private static Shader XrayShader => _xrayShaderCached ??= GD.Load<Shader>("res://shaders/team_outline_xray.gdshader");
 	private static Shader _innerFadeShaderCached;
-	private static Shader InnerFadeShader => _innerFadeShaderCached ??= GD.Load<Shader>("res://codebase/fx/glow/team_inner_fade.gdshader");
+	private static Shader InnerFadeShader => _innerFadeShaderCached ??= GD.Load<Shader>("res://shaders/team_inner_fade.gdshader");
 
 	public override void _Ready()
 	{

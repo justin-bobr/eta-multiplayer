@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Net;
+
 /// <summary>Serialisable Fog-of-War PVS data — output of <see cref="VoxelPvsInstance"/>'s editor bake.
 /// Ships as a .tres next to the map .tscn; <see cref="NetServer"/> loads it via <see cref="VoxelPvs.LoadFromData"/>
 /// for FoW from tick 1 with no runtime build.

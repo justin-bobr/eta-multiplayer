@@ -1,11 +1,12 @@
 using Godot;
 
-/// <summary>Per-agent history ring of the server-authoritative position per tick, filled every tick by
-/// <see cref="NetServer"/>. Server-side <see cref="Hitscan"/> rewinds other agents to
-/// <c>shooterTick - RTT/2 - interpDelay</c> for fair lag compensation.
-/// Capacity 128 ticks (1 s @ 128 Hz); overwrites oldest in O(1); lookups binary-search (ticks monotonic).</summary>
+namespace Vantix.Server;
+
+/// <summary>Per-agent ring of server-authoritative positions per tick. <see cref="Hitscan"/> rewinds agents
+/// here for lag compensation. Holds 128 ticks (1s @ 128Hz).</summary>
 public class RewindBuffer
 {
+	/// <summary>One tick of recorded position for lag-compensation rewind.</summary>
 	public struct Entry { public uint Tick; public Vector3 Pos; }
 
 	private const int Capacity = 128;
@@ -13,8 +14,6 @@ public class RewindBuffer
 	private int _head;
 	private int _count;
 
-	public int Count => _count;
-	public uint NewestTick => _count > 0 ? _buf[(_head - 1 + Capacity) % Capacity].Tick : 0u;
 
 	private int LogicalToArray(int logical) => (_head - _count + logical + Capacity) % Capacity;
 

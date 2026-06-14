@@ -1,5 +1,8 @@
 using Godot;
 
+namespace Vantix.Net;
+
+/// <summary>One player's state within a server snapshot (position, view, blends, hp).</summary>
 public struct SnapshotPlayer
 {
 	public byte NetId;

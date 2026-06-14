@@ -1,12 +1,13 @@
+namespace Vantix.Editor;
+
 #if TOOLS
 using Godot;
 
 /// <summary>
-/// Editor plugin entry point: registers a wireframe-box gizmo for <see cref="Zone"/> and a second
-/// for <see cref="BombSpot"/>. Uses Godot's own <see cref="EditorNode3DGizmoPlugin"/> system so
-/// the standard 3D View → Gizmos toggle hides / shows these outlines automatically (same as the
-/// built-in CollisionShape3D outline). The Zone / BombSpot nodes themselves don't render any
-/// editor-visible geometry — that's the plugin's job.
+/// Editor plugin entry point: registers wireframe-box gizmos for <see cref="Zone"/>,
+/// <see cref="BombSpot"/>, and <see cref="Spawn"/>. Uses <see cref="EditorNode3DGizmoPlugin"/> so
+/// the 3D View → Gizmos toggle hides/shows these outlines automatically. The nodes themselves
+/// render no editor-visible geometry.
 /// </summary>
 [Tool]
 public partial class SpotsGizmoPlugin : EditorPlugin

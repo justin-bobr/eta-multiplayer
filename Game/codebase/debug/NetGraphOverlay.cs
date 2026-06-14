@@ -1,12 +1,13 @@
 using Godot;
 
+namespace Vantix.Debug;
+
 /// <summary>
 /// Compact net_graph box top-right under the DebugOverlay bar: a 3x3 stats grid plus down/up jitter
 /// line-graphs. Visibility via Settings.ShowNetGraph.
 /// </summary>
 public partial class NetGraphOverlay : Node
 {
-	[Export] public bool ShowOnStart = true;
 	[Export] public int FontSize = 11;
 	/// <summary>Pixel offset to the top edge — should sit beneath the DebugOverlay bar.</summary>
 	[Export] public int OffsetTopPx = 32;

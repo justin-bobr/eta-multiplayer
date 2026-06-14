@@ -2,6 +2,8 @@ using Godot;
 using System.Collections.Generic;
 using System.Text;
 
+namespace Vantix.Net;
+
 /// <summary>Top-level netcode boot, loaded as an autoload so it exists before any scene. Spawns
 /// <see cref="NetServer"/> and/or <see cref="NetClient"/> per the parsed <see cref="NetCli"/>.
 /// Polls LiteNetLib every physics tick at ProcessPriority = -100 so inputs/snapshots arrive before

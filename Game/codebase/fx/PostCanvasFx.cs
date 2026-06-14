@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Canvas-stage post-process layer; FSR2-compatible counterpart to <see cref="PostProcessEffect"/>.
 /// Runs after FSR2/TAA upscaling (Canvas stage) so it doesn't corrupt FSR2's input; reads SCREEN_TEXTURE.
@@ -36,7 +38,7 @@ public partial class PostCanvasFx : CanvasLayer
 		Layer = 35;
 		ProcessMode = ProcessModeEnum.Always;
 
-		Shader shader = GD.Load<Shader>("res://maps/dust/post_canvas.gdshader");
+		Shader shader = GD.Load<Shader>("res://shaders/post_canvas.gdshader");
 		_mat = new ShaderMaterial { Shader = shader };
 
 		_rect = new ColorRect

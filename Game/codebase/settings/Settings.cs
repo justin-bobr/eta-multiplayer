@@ -1,25 +1,7 @@
 using Godot;
 using System;
 
-/// <summary>Shadow quality. Off disables all shadows globally — single biggest GPU win on dust-style maps.</summary>
-public enum ShadowQuality { Off, Low, Medium, High }
-
-/// <summary>Anti-aliasing mode. MSAA is absent — incompatible with the screen-space post-process compositor.</summary>
-public enum AntiAliasingMode { Off, Fxaa, Smaa, Taa }
-
-/// <summary>3D upscaler. Bilinear = plain stretch, Fsr1 = spatial-only, Fsr2 = temporal with built-in AA.
-/// When Fsr2 is active the separate TAA/SMAA/FXAA passes are bypassed.</summary>
-public enum UpscalingMode { Bilinear, Fsr1, Fsr2 }
-
-/// <summary>Volumetric fog quality; Low/Medium/High = 64/96/160 voxels/side (cubic cost). Off must not be used
-/// at runtime — smoke grenades render into the same fog texture, so Off makes smokes invisible.</summary>
-public enum VolumetricFogQuality { Off, Low, Medium, High }
-
-/// <summary>Overall graphics preset; Custom = individually tweaked values.</summary>
-public enum QualityPreset { Low, Medium, High, Ultra, Custom }
-
-/// <summary>Reflection-probe atlas quality (per-probe size + slot count). Read at viewport init, so changes need a level reload.</summary>
-public enum ReflectionProbeQuality { Low, Medium, High, Ultra }
+namespace Vantix.Config;
 
 /// <summary>User settings (graphics, window mode, input), persisted to user://settings.cfg. Call order:
 /// <see cref="Load"/> then <see cref="Apply"/>; <see cref="Save"/> on change.</summary>
@@ -40,12 +22,12 @@ public static class Settings
 	public static QualityPreset Preset = QualityPreset.High;
 	public static float RenderScale = 0.85f;
 	/// <summary>Weapon viewmodel SubViewport scale, independent from world RenderScale. &gt;1.0 supersamples (SSAA),
-	/// the cleanest AA for iron-sight edges. Mode stays Bilinear — the viewport is transparent_bg + own_world_3d
+	/// the cleanest AA for iron-sight edges. Mode stays Bilinear - the viewport is transparent_bg + own_world_3d
 	/// (FSR on transparent BG is a Godot hazard).</summary>
 	public static float ViewmodelRenderScale = 1.5f;
 	/// <summary>UI content-scale factor on the root Window (Window.ContentScaleFactor). Runtime-changeable; scales every Control/CanvasItem.</summary>
 	public static float UiScale = 1.0f;
-	/// <summary>UI 2D MSAA on the root Viewport — smooths Control edges, font outlines and vector shapes.</summary>
+	/// <summary>UI 2D MSAA on the root Viewport - smooths Control edges, font outlines and vector shapes.</summary>
 	public static Viewport.Msaa UiMsaa = Viewport.Msaa.Disabled;
 	public static AntiAliasingMode AntiAliasing = AntiAliasingMode.Taa;
 	public static UpscalingMode Upscaler = UpscalingMode.Fsr1;
@@ -68,12 +50,12 @@ public static class Settings
 	public static bool FilmGrain = true;
 	public static bool Vignette = true;
 	public static bool ChromaticAberration = true;
-	/// <summary>Toggle the luma-only post-process unsharp-mask pass. Auto-disabled under an FSR upscaler (FSR's RCAS already sharpens — stacking oversharpens).</summary>
+	/// <summary>Toggle the luma-only post-process unsharp-mask pass. Auto-disabled under an FSR upscaler (FSR's RCAS already sharpens - stacking oversharpens).</summary>
 	public static bool Sharpening = true;
 	/// <summary>Canvas-stage sharpen strength on the Bilinear pipeline when the frame isn't softened by TAA or a sub-native upscale.</summary>
 	private const float BaseSharpen = 0.25f;
 	/// <summary>Canvas-stage sharpen strength when the Bilinear pipeline output is soft (TAA + sub-native upscale).
-	/// Applied in PostCanvasFx after TAA/scaling — compositor sharpen runs before both and gets smeared.</summary>
+	/// Applied in PostCanvasFx after TAA/scaling - compositor sharpen runs before both and gets smeared.</summary>
 	private const float TaaSharpen = 0.6f;
 	/// <summary>Viewmodel container-shader sharpen strength. Only needed on FSR pipelines where the world gets RCAS
 	/// but the weapon viewport doesn't. Fed per-frame via <see cref="ViewmodelSharpenStrength"/>.</summary>

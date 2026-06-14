@@ -1,0 +1,15 @@
+global using Vantix;
+global using Vantix.Net;
+global using Vantix.Server;
+global using Vantix.Client;
+global using Vantix.Character;
+global using Vantix.Weapon;
+global using Vantix.Smoke;
+global using Vantix.Levels;
+global using Vantix.Fx;
+global using Vantix.UI;
+global using Vantix.Debug;
+global using Vantix.Platform;
+global using Vantix.Config;
+global using Vantix.Editor;
+global using Vantix.Utils;

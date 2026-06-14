@@ -2,6 +2,8 @@ using Godot;
 using LiteNetLib;
 using LiteNetLib.Utils;
 
+namespace Vantix.Net;
+
 /// <summary>Central packet read/write helpers. Each packet starts with a <see cref="PacketType"/> byte,
 /// then a type-specific body.
 /// Channels: Input + Snapshot are Unreliable (channel 0, drops discarded); all gameplay events and the
@@ -872,7 +874,7 @@ public static class Packets
 		{
 			var t = agent.Transforms[i];
 			w.PutVec3Quantized(t.Origin);
-			// Full basis as 3 Vec3 (36 B) INCLUDING scale. Quaternion-only was a bug: it lost the
+			// Full basis as 3 Vec3 (36 B) including scale. Quaternion-only was a bug: it lost the
 			// tps_character skeleton scale (0.01), so the client rendered at scale=1 and a 28-unit capsule
 			// radius became 28 metres instead of 28 cm.
 			w.PutVec3(t.Basis.X);

@@ -1,6 +1,9 @@
-# VANTIX
+<h1>
+  <img src="Logo/Logo%20V1.svg" alt="VANTIX logo" height="48" align="center"/>
+  &nbsp;VANTIX
+</h1>
 
-> Tactical multiplayer shooter built with Godot 4.6 and C#.
+> Tactical multiplayer shooter built with Godot 4.6 and C#. UNDER HEAVY DEVELOPMENT
 
 [![Status: In Development](https://img.shields.io/badge/status-in%20development-orange)]()
 [![Godot 4.6](https://img.shields.io/badge/Godot-4.6-blue)](https://godotengine.org/)
@@ -20,6 +23,8 @@
 **Goal:** build an open-source shooter that showcases what AAA-grade techniques look like in practice — and that's actually fun to play. 😉
 
 **Code is open source; assets are not.** See [LICENSE.md](LICENSE.md).
+
+**📖 API docs:** [Docs/README.md](https://github.com/justin-bobr/vantix/blob/main/Docs/README.md)
 
 ---
 
