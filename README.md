@@ -55,7 +55,7 @@
 - **Tick-based input** — every keypress is timestamped at 128 Hz for fairness.
 - **Fog of war** — enemies behind walls are culled before sending packets to you.
 - **Reconnect grace** — leave and rejoin without losing your character state.
-- **Kernel Based AC ** — Will be released later and is not a part of this repo (only for core devs accessable with nda closure).
+- **Kernel Based AC** — Will be released later and is not a part of this repo (only for core devs accessable with nda closure).
 
 ### Movement
 - **Walk / Sprint / Crouch** — different speeds, different sounds.
