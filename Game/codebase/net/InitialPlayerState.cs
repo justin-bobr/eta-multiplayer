@@ -2,6 +2,7 @@ using Godot;
 
 namespace Vantix.Net;
 
+/// <summary>One player's spawn state sent at join, before the first snapshot arrives.</summary>
 public struct InitialPlayerState
 {
 	public byte NetId;

@@ -10,6 +10,7 @@ namespace Vantix.Levels;
 [Tool, GlobalClass]
 public partial class BombSpot : Zone
 {
+	/// <summary>Bomb plant site this spot represents (A/B/C).</summary>
 	public enum BombSlot { A, B, C }
 
 	/// <summary>Plant slot (A/B/C) this spot represents; resolved via the <see cref="Level"/> registry.</summary>

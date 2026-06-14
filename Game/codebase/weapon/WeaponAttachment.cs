@@ -2,25 +2,7 @@ using Godot;
 
 namespace Vantix.Weapon;
 
-public enum AttachmentType
-{
-	Scope,
-	SightRear,
-	SightFront,
-	Stock,
-	Barel,
-	Grip,
-	Laser,
-	Silencer
-}
-
-public enum AttachmentVariant
-{
-	Default,
-	Extended,
-	Short
-}
-
+/// <summary>Marks a child node as a weapon attachment of a given type and variant.</summary>
 [Tool, GlobalClass]
 public partial class WeaponAttachment : Node3D
 {

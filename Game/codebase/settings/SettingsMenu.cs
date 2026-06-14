@@ -184,9 +184,6 @@ public partial class SettingsMenu : CanvasLayer
 	/// <summary>Opens the menu programmatically (used by the main menu Settings button).</summary>
 	public void Open() => SetOpen(true);
 
-	/// <summary>Closes the menu programmatically.</summary>
-	public void Close() => SetOpen(false);
-
 	/// <summary>Opens/closes the menu, managing mouse mode (snapshot+restore) and the menu/game FPS-cap swap.</summary>
 	private void SetOpen(bool open)
 	{
@@ -951,7 +948,7 @@ public partial class SettingsMenu : CanvasLayer
 		Settings.Apply(GetTree());
 	}
 
-	/// <summary>Team-glow toggle changed (GlowViewportSync polls Settings.TeamGlow per frame; no Apply needed).</summary>
+	/// <summary>Team-glow toggle changed (PuppetPlayer reads Settings.TeamGlow per update; no Apply needed).</summary>
 	private void OnTeamGlowChanged(long idx)
 	{
 		if (_suppressEvents)

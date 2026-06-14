@@ -23,8 +23,8 @@ config/icon="uid://cac5otb0sckp3"
 [autoload]
 
 NetMain="*res://codebase/net/NetMain.cs"
-ProcessPriorityBoost="*res://codebase/ProcessPriorityBoost.cs"
-WorldFadeOverlay="*res://codebase/WorldFadeOverlay.cs"
+ProcessPriorityBoost="*res://codebase/platform/ProcessPriorityBoost.cs"
+WorldFadeOverlay="*res://codebase/world/WorldFadeOverlay.cs"
 
 [debug]
 

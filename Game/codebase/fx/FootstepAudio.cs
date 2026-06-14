@@ -3,9 +3,6 @@ using System.Collections.Generic;
 
 namespace Vantix.Fx;
 
-/// <summary>Movement action that triggers a footstep sound, selecting which sample pool plays.</summary>
-public enum FootstepAction { Walk, Sprint, Jump, Land }
-
 /// <summary>
 /// Client-side, cosmetic footstep audio bank. Plays material/action-specific sounds (Walk/Sprint/
 /// Jump/Land) triggered by <see cref="FootstepController"/> and <see cref="NetworkPlayer"/>.

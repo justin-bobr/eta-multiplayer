@@ -23,6 +23,12 @@ TYPE_ALIASES = {
 USAGE = "Usage: python Scripts/gen_api_md.py <path-to-vantix.xml> <output-dir>"
 
 
+def type_path_parts(full):
+    short = full.rsplit(".", 1)[-1]
+    ns = full.rsplit(".", 1)[0] if "." in full else ""
+    return (ns.split(".") if ns else []), short
+
+
 def simplify_type(t):
     t = TYPE_ALIASES.get(t, t)
     t = t.replace("Godot.Collections.", "").replace("Godot.", "")
@@ -90,8 +96,11 @@ def main():
     xml_path, out_dir = sys.argv[1], sys.argv[2]
 
     os.makedirs(out_dir, exist_ok=True)
-    for stale in glob.glob(os.path.join(out_dir, "*.md")):
+    for stale in glob.glob(os.path.join(out_dir, "**", "*.md"), recursive=True):
         os.remove(stale)
+    for root, dirs, files in os.walk(out_dir, topdown=False):
+        if root != out_dir and not os.listdir(root):
+            os.rmdir(root)
 
     tree = ET.parse(xml_path)
     members = tree.find("members")
@@ -164,7 +173,10 @@ def main():
                 summ = summ.replace("|", "\\|").replace("\n", " ") or "—"
                 lines.append(f"| `{lbl}` | {summ} |")
             lines.append("")
-        with open(os.path.join(out_dir, full + ".md"), "w", encoding="utf-8") as f:
+        parts, short_name = type_path_parts(full)
+        type_dir = os.path.join(out_dir, *parts)
+        os.makedirs(type_dir, exist_ok=True)
+        with open(os.path.join(type_dir, short_name + ".md"), "w", encoding="utf-8") as f:
             f.write("\n".join(lines).rstrip() + "\n")
 
     idx = ["# VANTIX API Reference", "",
@@ -176,7 +188,8 @@ def main():
         for short, full in sorted(index[ns], key=lambda x: x[0].lower()):
             summ = summaries.get("T:" + full, "")
             summ = (summ[:120] + "…") if len(summ) > 120 else summ
-            link = f"[{short}]({full}.md)"
+            parts, short_name = type_path_parts(full)
+            link = f"[{short}]({'/'.join(parts + [short_name])}.md)"
             idx.append(f"- {link}{(' — ' + summ) if summ else ''}")
         idx.append("")
     with open(os.path.join(out_dir, "README.md"), "w", encoding="utf-8") as f:

@@ -64,8 +64,7 @@ public partial class VoxelPvsInstance : Node3D
 	/// <summary>Live bake status: "Idle.", "Baking: X%", or "Bake complete: ...".</summary>
 	[Export(PropertyHint.MultilineText)] public string BakeStatus = "Idle.";
 
-	/// <summary>Raycast budget per editor frame while baking. Higher = faster bake, choppier editor
-	/// (8000 ≈ ~16ms hitch; crank to 100000 for walk-away one-shot bakes).</summary>
+	/// <summary>Raycast budget per editor frame while baking. Higher = faster bake but choppier editor.</summary>
 	[Export(PropertyHint.Range, "500,200000,500")] public int BakeRaysPerFrame = 8_000;
 
 	private VoxelPvs _activeBakeBuilder;

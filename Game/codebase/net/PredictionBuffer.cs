@@ -2,13 +2,10 @@ using Godot;
 
 namespace Vantix.Client;
 
-/// <summary>Ring buffer of local prediction states, one per <see cref="NetworkPlayer.FixedTick"/> (post-step
-/// <see cref="MovementSnapshot"/> + position). On a server snapshot with <c>ackedInputTick = N</c>, the
-/// stored position at tick N is compared against the server's to compute mispredict drift.
-/// Capacity 512 ticks (≈4 s @ 128 Hz) covers high-ping spikes without the reconcile entry rolling out.
-/// Overwrites oldest in O(1); lookups binary-search since ticks are monotonic.</summary>
+/// <summary>Ring buffer of predicted states per tick, used to reconcile against server snapshots.</summary>
 public class PredictionBuffer
 {
+	/// <summary>One stored prediction tick (input, post-step state and position).</summary>
 	public struct Entry
 	{
 		public uint Tick;

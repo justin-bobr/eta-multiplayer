@@ -4,9 +4,8 @@ namespace Vantix.Utils;
 using Godot;
 
 /// <summary>Shared box-wireframe helper for the gizmo plugins. Returns the 24 endpoints of the 12
-/// edges of an AABB centred at origin with the given size — laid out as line pairs ready for
-/// <see cref="EditorNode3DGizmo.AddLines"/>. Kept centralised so Zone and BombSpot draw identical
-/// outlines.</summary>
+/// edges of an AABB centred at origin, laid out as line pairs for
+/// <see cref="EditorNode3DGizmo.AddLines"/>. Centralised so all gizmos draw identical outlines.</summary>
 internal static class GizmoBoxBuilder
 {
 	public static Vector3[] BuildLines(Vector3 size)
@@ -31,9 +30,8 @@ internal static class GizmoBoxBuilder
 		};
 	}
 
-	/// <summary>Solid <see cref="BoxMesh"/> sized to the given extents, used as the transparent
-	/// fill body for the gizmo. Pairs with <see cref="BuildLines"/> at the same size so the
-	/// outline and fill match exactly.</summary>
+	/// <summary>Solid <see cref="BoxMesh"/> for the gizmo's transparent fill body. Matches
+	/// <see cref="BuildLines"/> at the same size.</summary>
 	public static BoxMesh BuildBoxMesh(Vector3 size) => new() { Size = size };
 }
 #endif

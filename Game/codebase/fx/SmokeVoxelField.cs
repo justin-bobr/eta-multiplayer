@@ -454,32 +454,4 @@ void fog() {
 		_chanTimer = ChannelDuration;
 	}
 
-	/// <summary>True if any active cloud blocks line of sight a->b. Deterministic (samples the sim grid only).</summary>
-	public static bool AnyBlocksSight(Vector3 a, Vector3 b)
-	{
-		for (int i = 0; i < Active.Count; i++)
-			if (Active[i].BlocksSight(a, b)) return true;
-		return false;
-	}
-
-	/// <summary>Does this cloud block the line of sight a→b? Integrates density along the segment.</summary>
-	public bool BlocksSight(Vector3 a, Vector3 b)
-	{
-		if (!_built) return false;
-		const int steps = 24;
-		float od = 0f;
-		for (int s = 0; s < steps; s++)
-			od += SampleDensity(a.Lerp(b, (s + 0.5f) / steps));
-		od *= a.DistanceTo(b) / steps;
-		return 1f - Mathf.Exp(-od * DensityMul) > 0.65f;
-	}
-
-	/// <summary>Density at a world position (nearest cell, deterministic). Returns 0 outside the grid.</summary>
-	private float SampleDensity(Vector3 world)
-	{
-		Vector3 c = (world - _gridMin) / _cell;
-		int x = Mathf.RoundToInt(c.X), y = Mathf.RoundToInt(c.Y), z = Mathf.RoundToInt(c.Z);
-		if (x < 0 || x >= _nx || y < 0 || y >= _ny || z < 0 || z >= _nz) return 0f;
-		return _density[Idx(x, y, z)];
-	}
 }

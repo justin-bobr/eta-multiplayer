@@ -3,8 +3,7 @@ using System.Collections.Generic;
 
 namespace Vantix.Weapon;
 
-public enum WeaponMode { FPS, TPS }
-
+/// <summary>Per-weapon animation set and pose driver (fire/reload/grip and fire-selector blends).</summary>
 [Tool, GlobalClass]
 public partial class WeaponAnimation : Node3D
 {

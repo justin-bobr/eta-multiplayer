@@ -9,7 +9,6 @@ namespace Vantix.Debug;
 public partial class DebugOverlay : Node
 {
 	[Export] public NetworkPlayer Player;
-	[Export] public bool ShowOnStart = true;
 	[Export] public int FontSize = 12;
 	[Export] public float UpdateInterval = 0.1f;
 

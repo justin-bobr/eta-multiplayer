@@ -3,23 +3,6 @@ using System.Collections.Generic;
 
 namespace Vantix.Server;
 
-/// <summary>Which spawn pool a player uses. Enum byte values are stable wire-format — do not
-/// renumber. Display names live in <see cref="Teams"/>.</summary>
-public enum Team : byte
-{
-	/// <summary>Team 1 — lore-name "VEKTOR". Spawn-marker group "spawn_team1".</summary>
-	Team1 = 0,
-	/// <summary>Team 2 — lore-name "ATLAS-9". Spawn-marker group "spawn_team2".</summary>
-	Team2 = 1,
-	/// <summary>Deathmatch / Free-for-All — marker group "spawn_deathmatch".</summary>
-	Deathmatch = 2,
-	/// <summary>Initial state in competitive mode while the player is choosing a team. No spawn pose
-	/// is assigned, the LocalPlayer is not instantiated, and the client cycles through preview cameras.
-	/// Switches to Team1/Team2 via <see cref="PacketType.TeamSelect"/> after which the server replies
-	/// with <see cref="PacketType.SpawnAuthorize"/> carrying the real spawn pose.</summary>
-	Spectator = 3,
-}
-
 /// <summary>Display strings + visual tints per team. Single source of truth for UI code (Scoreboard,
 /// TeamSelectionMenu, KillFeed).</summary>
 public static class Teams
@@ -88,7 +71,7 @@ public class SpawnManager
 		_tRotator = 0;
 		_dmRotator = 0;
 
-		// Spawn extends Zone (Area3D) — we capture the centre + yaw as the spawn pose. Multiple
+		// Spawn extends Zone (Area3D) — centre + yaw become the spawn pose. Multiple
 		// players in the same Spawn area get de-clumped by the FreeRadius retry inside PickFromList.
 		var level = World.Level;
 		if (level != null)
@@ -155,16 +138,4 @@ public class SpawnManager
 			if (pos.DistanceSquaredTo(o) < r2) return false;
 		return true;
 	}
-}
-
-/// <summary>
-/// Active game mode — determines which spawn pool is used. A future round-manager system selects
-/// the mode per match.
-/// </summary>
-public enum GameMode : byte
-{
-	/// <summary>Round-based CT vs T. Joiners are assigned alternately.</summary>
-	Competitive = 0,
-	/// <summary>Free-for-all — everyone uses the Deathmatch pool.</summary>
-	Deathmatch = 1,
 }

@@ -12,6 +12,7 @@ public class SnapshotBaselineRing
 	private readonly Entry[] _ring = new Entry[Capacity];
 	private uint _pushCount;
 
+	/// <summary>One stored snapshot baseline (tick plus per-player state) used for delta decoding.</summary>
 	public class Entry
 	{
 		public uint Tick;

@@ -7,7 +7,7 @@ namespace Vantix.Fx;
 /// main world's probes/GI/Sky. Hosts 6 SubViewport+Camera3D pairs at the player position facing each
 /// cube direction (world cull mask only, so the gun doesn't self-reflect), refreshes one face per
 /// FaceUpdateInterval frames round-robin, and feeds each ViewportTexture to <c>viewmodel_cube_sky.gdshader</c>.
-/// Face order MUST match the shader's face_* uniforms: px, nx, py, ny, pz, nz. Cameras are repositioned
+/// Face order must match the shader's face_* uniforms: px, nx, py, ny, pz, nz. Cameras are repositioned
 /// each frame but stay axis-aligned (player turning must not rotate the cube). The Sky process_mode must be REALTIME.
 /// </summary>
 public partial class WorldCaptureRig : Node3D

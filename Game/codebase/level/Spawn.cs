@@ -10,6 +10,7 @@ namespace Vantix.Levels;
 [Tool, GlobalClass]
 public partial class Spawn : Zone
 {
+	/// <summary>Spawn pool (deathmatch / team 1 / team 2) this region belongs to.</summary>
 	public enum SpawnKind { Deathmatch, Team1, Team2 }
 
 	/// <summary>Spawn pool (Deathmatch/Team1/Team2) this region belongs to; resolved via <see cref="Level.SpawnsForKind"/>.</summary>
