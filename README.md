@@ -3,7 +3,7 @@
   &nbsp;VANTIX
 </h1>
 
-> Tactical multiplayer shooter built with Godot 4.6 and C#.
+> Tactical multiplayer shooter built with Godot 4.6 and C#. IN DEVELOPMENT
 
 [![Status: In Development](https://img.shields.io/badge/status-in%20development-orange)]()
 [![Godot 4.6](https://img.shields.io/badge/Godot-4.6-blue)](https://godotengine.org/)
