@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Server;
+
 /// <summary>Child node of a map scene that bakes a server-side Fog-of-War visibility grid. "Bake PVS" in
 /// the inspector runs the offline raycast pass and writes a <see cref="VoxelPvsData"/> .tres next to the
 /// map's .tscn; at runtime <see cref="NetServer"/> loads it for FoW from tick 1 with no build cost.

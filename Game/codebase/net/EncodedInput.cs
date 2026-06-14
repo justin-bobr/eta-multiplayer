@@ -1,3 +1,5 @@
+namespace Vantix.Net;
+
 public struct EncodedInput
 {
 	public uint TickIndex;

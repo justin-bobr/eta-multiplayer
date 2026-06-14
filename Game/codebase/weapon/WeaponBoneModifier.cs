@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Weapon;
+
 [Tool, GlobalClass]
 public partial class WeaponBoneModifier : SkeletonModifier3D
 {

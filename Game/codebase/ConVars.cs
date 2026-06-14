@@ -4,14 +4,19 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 
+namespace Vantix;
+
 /// <summary>Server-authoritative ConVars (sv_*). Gameplay-relevant, must match on server and client.</summary>
-[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)]
+[DynamicallyAccessedMembers(
+	DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields
+)]
 public class SvConVars
 {
 	public float ShiftSpeed = 1.9f;
 	public float WalkSpeed = 3.6f;
 	public float SprintSpeed = 5.1f;
 	public float CrouchSpeed = 2.1f;
+
 	/// <summary>Fraction of horizontal speed bled off on each step-up, scaled by step height. 0 = no penalty.</summary>
 	public float StepUpSpeedPenalty = 0.15f;
 
@@ -43,6 +48,7 @@ public class SvConVars
 	public int WallClingChargesPerSpawn = 1;
 	public float WallClingMinSpeed = 5.5f;
 	public float WallClingIntoWallDot = 0.45f;
+
 	/// <summary>Grace window (s) after a regular jump during which wall-cling cannot trigger.</summary>
 	public float WallClingPostJumpGrace = 0.25f;
 
@@ -114,13 +120,17 @@ public class SvConVars
 
 	/// <summary>Master toggle for all anti-cheat detection. False = no detection, no violations, no kicks.</summary>
 	public bool AntiCheatEnabled = true;
+
 	/// <summary>Auto-disconnect peers exceeding <see cref="AntiCheatKickThreshold"/> violations inside
 	/// <see cref="AntiCheatViolationWindowMs"/>. Off = violations are only logged and counted.</summary>
 	public bool AntiCheatAutoKick = false;
+
 	/// <summary>Sliding window (ms) for grouping violations; older ones age out.</summary>
 	public int AntiCheatViolationWindowMs = 10_000;
+
 	/// <summary>Violations-within-window threshold that triggers a kick.</summary>
 	public int AntiCheatKickThreshold = 5;
+
 	/// <summary>Bot combat skill (0-3, clamped). Higher = faster reaction + better aim point.
 	///   0 = ~500ms, aims at feet; 1 = ~350ms, body; 2 = ~200ms, body/head; 3 = ~80ms, head.</summary>
 	public int BotDifficulty = 1;
@@ -128,22 +138,29 @@ public class SvConVars
 	/// <summary>Per-peer cap on InputPackets processed in one server tick. 8 covers legit jitter/batch
 	/// bursts; excess is dropped and counted as a violation.</summary>
 	public int MaxClientPacketsPerServerTick = 8;
+
 	/// <summary>Max plausible yaw rate (rad/s). 250 ≈ 14000°/s — above pro flick peaks, flags snap-aim bots.</summary>
 	public float MaxClientYawRateRadPerSec = 250f;
+
 	/// <summary>Max ticks the client's <c>TickIndex</c> may run ahead of the server (≈500ms RTT at 128 Hz);
 	/// beyond this = spoof or clock-attack.</summary>
 	public int MaxClientTickAheadOfServer = 64;
+
 	/// <summary>Max plausible position-delta per server-tick (m/s); sustained motion above is a bug or bypassed clamp.</summary>
 	public float MaxClientPositionDeltaMps = 25f;
 
 	/// <summary>Broadcast hitbox transforms at 10 Hz; clients render red capsules/spheres at server hitbox positions.</summary>
 	public bool DebugHitboxes = false;
+
 	/// <summary>Clients render a red body capsule at the last server position per puppet (uses Snapshot.Pos).</summary>
 	public bool DebugCapsule = false;
+
 	/// <summary>Clients render a yellow ray from camera to the server aim endpoint (uses Snapshot.Yaw/Pitch + AimPunch).</summary>
 	public bool DebugAimRay = false;
+
 	/// <summary>Red markers (5s) at server-authoritative hit positions of own shots; compare vs client decals to find drift.</summary>
 	public bool DebugBullets = false;
+
 	/// <summary>Disables lag-comp bone rewind — casts use live hitbox positions. Isolates rewind vs handoff misses.</summary>
 	public bool NoRewind = false;
 
@@ -170,7 +187,9 @@ public class SvConVars
 }
 
 /// <summary>Client-side ConVars (cl_*). Local only, cosmetic, each player has own values.</summary>
-[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)]
+[DynamicallyAccessedMembers(
+	DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields
+)]
 public class ClConVars
 {
 	/// <summary>Toggles the <see cref="HudMiniProfiler"/> overlay — shows only samples above <see cref="ProfilerThresholdMs"/>.</summary>
@@ -180,8 +199,10 @@ public class ClConVars
 	public float ProfilerThresholdMs = 1.0f;
 
 	public float MouseSensitivity = 2.0f;
+
 	/// <summary>Per-axis yaw multiplier on raw mouse Relative.X. Source-derived 0.022 default. Tune via <c>cl_m_yaw</c>.</summary>
 	public float MYaw = 0.022f;
+
 	/// <summary>Per-axis pitch multiplier on raw mouse Relative.Y. Defaults to <see cref="MYaw"/>; lower for a slower vertical curve.</summary>
 	public float MPitch = 0.022f;
 	public float MinPitch = -89f;
@@ -190,10 +211,13 @@ public class ClConVars
 
 	/// <summary>Visual-bleed rate (1/s) for the post-reconcile offset on small drift (≤ <see cref="ReconBleedLargeThresholdM"/>). 6.5 ≈ 154ms.</summary>
 	public float ReconBleedNormal = 6.5f;
+
 	/// <summary>Visual-bleed rate (1/s) for large drifts; lower than <see cref="ReconBleedNormal"/> so big recoveries stay smooth. 3.0 ≈ 333ms.</summary>
 	public float ReconBleedLarge = 3.0f;
+
 	/// <summary>Drift (m) above which <see cref="ReconBleedLarge"/> replaces <see cref="ReconBleedNormal"/>.</summary>
 	public float ReconBleedLargeThresholdM = 0.5f;
+
 	/// <summary>Drift (m) above which the visual offset hard-snaps to zero instead of bleeding. Set high to disable.</summary>
 	public float ReconSnapThresholdM = 5.0f;
 
@@ -201,8 +225,10 @@ public class ClConVars
 	/// [<see cref="InterpMinTicks"/>, <see cref="InterpMaxTicks"/>]. &gt;0 = lock to this tick count;
 	/// competitive play wants <c>cl_interp_lock 6</c> to match the server's 6-tick lag-comp rewind.</summary>
 	public int InterpLockTicks = 0;
+
 	/// <summary>Lower bound for adaptive interp delay (ticks). 3 ≈ 23ms at 128Hz.</summary>
 	public int InterpMinTicks = 3;
+
 	/// <summary>Upper bound for adaptive interp delay (ticks). 12 ≈ 94ms at 128Hz; past this the puppet feels delayed.</summary>
 	public int InterpMaxTicks = 12;
 
@@ -210,14 +236,19 @@ public class ClConVars
 	public float FovBoost = 10.0f;
 	public float CameraSwayMul = 0.15f;
 	public float FovBlendSpeed = 6.0f;
+
 	/// <summary>Blend speed for the peripheral sprint-blur fade (separate from FovBlendSpeed). Lower = gentler.</summary>
 	public float SprintBlurBlendSpeed = 3.0f;
+
 	/// <summary>Shift-walk locomotion bob magnitude (0..1).</summary>
 	public float LocoShiftBobScale = 0.3f;
+
 	/// <summary>Normal-walk locomotion bob magnitude (0..1); 1 = full baked bob.</summary>
 	public float LocoWalkBobScale = 0.85f;
+
 	/// <summary>Sprint head-bob scale (0..1); 1 = full baked sprint bob.</summary>
 	public float LocoSprintBobScale = 0.85f;
+
 	/// <summary>Locomotion bob multiplier while ADS (0..1).</summary>
 	public float LocoAdsBobScale = 0.6f;
 
@@ -313,15 +344,19 @@ public class ClConVars
 	public float LandImpactMaxScale = 1.5f;
 	public float JumpKickAdsMul = 0.25f;
 	public bool JumpKickEnabled = true;
+
 	/// <summary>Local jump/fall detection: an air cycle counts only on a jump press or a fall past this height (m).
 	/// Height, not speed, separates descending stairs from a genuine drop.</summary>
 	public float JumpMinFallHeight = 0.8f;
+
 	/// <summary>Impact-speed gate for the puppet land sound (only impact is broadcast, not fall height).</summary>
 	public float JumpMinFallSpeed = 4.5f;
+
 	/// <summary>Cosmetic local-only camera step-smoothing; rate = catch-up speed.</summary>
 	public bool StepSmoothEnabled = true;
 	public float StepSmoothRate = 15f;
 	public float StepSmoothMaxOffset = 0.22f;
+
 	/// <summary>Low-pass rate for the speed driving the pose blend (lower = smoother). Cosmetic; real velocity unaffected.</summary>
 	public float LocoSpeedSmoothRate = 6f;
 
@@ -453,11 +488,19 @@ public static class ConVars
 	}
 
 	/// <summary>Type-explicit set helper; the DynamicallyAccessedMembers attribute keeps field metadata under AOT.</summary>
-	private static bool TrySetOn<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] T>(T instance, string fieldName, string value)
+	private static bool TrySetOn<
+		[DynamicallyAccessedMembers(
+			DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields
+		)]
+			T
+	>(T instance, string fieldName, string value)
 	{
 		if (instance == null)
 			return false;
-		var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+		var field = typeof(T).GetField(
+			fieldName,
+			BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase
+		);
 		if (field == null)
 			return false;
 		try
@@ -468,7 +511,10 @@ public static class ConVars
 			field.SetValue(instance, parsed);
 			return true;
 		}
-		catch { return false; }
+		catch
+		{
+			return false;
+		}
 	}
 
 	/// <summary>Gets a ConVar value as string, or null if not found. AOT-safe via the same dispatch as TrySet.</summary>
@@ -485,11 +531,19 @@ public static class ConVars
 	}
 
 	/// <summary>Type-explicit get helper.</summary>
-	private static string GetOn<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] T>(T instance, string fieldName)
+	private static string GetOn<
+		[DynamicallyAccessedMembers(
+			DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields
+		)]
+			T
+	>(T instance, string fieldName)
 	{
 		if (instance == null)
 			return null;
-		var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+		var field = typeof(T).GetField(
+			fieldName,
+			BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase
+		);
 		return field?.GetValue(instance)?.ToString();
 	}
 
@@ -534,9 +588,17 @@ public static class ConVars
 	}
 
 	/// <summary>Type-explicit field-type lookup.</summary>
-	private static Type GetFieldTypeOn<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] T>(string fieldName)
+	private static Type GetFieldTypeOn<
+		[DynamicallyAccessedMembers(
+			DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields
+		)]
+			T
+	>(string fieldName)
 	{
-		var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+		var field = typeof(T).GetField(
+			fieldName,
+			BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase
+		);
 		return field?.FieldType;
 	}
 
@@ -553,7 +615,10 @@ public static class ConVars
 			object parsed = ParseValue(value, type);
 			return (parsed != null, typeName);
 		}
-		catch { return (false, typeName); }
+		catch
+		{
+			return (false, typeName);
+		}
 	}
 
 	/// <summary>Friendly name for UI/errors: float/int/bool/string instead of Single/Int32/Boolean/String.</summary>

@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Net;
+
 public struct SnapshotPlayer
 {
 	public byte NetId;

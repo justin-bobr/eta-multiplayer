@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Utils;
+
 /// <summary>
 /// Central constants for the Godot InputMap actions the character reads. Change action names in
 /// Project Settings → Input Map.

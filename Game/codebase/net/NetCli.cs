@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Net;
+
 /// <summary>Mode the game instance runs in — set from the command line (see <see cref="NetCli.Parse"/>).</summary>
 public enum NetMode
 {

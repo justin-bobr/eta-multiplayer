@@ -1,7 +1,7 @@
 using Godot;
 using Godot.Collections;
 
-namespace Game.Fx;
+namespace Vantix.Fx;
 
 /// <summary>
 /// Converts a 2D horizontal LUT strip into an ImageTexture3D and assigns it

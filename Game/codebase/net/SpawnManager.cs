@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Server;
+
 /// <summary>Which spawn pool a player uses. Enum byte values are stable wire-format — do not
 /// renumber. Display names live in <see cref="Teams"/>.</summary>
 public enum Team : byte

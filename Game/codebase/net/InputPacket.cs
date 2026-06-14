@@ -1,3 +1,5 @@
+namespace Vantix.Net;
+
 public struct InputPacket
 {
 	public uint TickIndex;

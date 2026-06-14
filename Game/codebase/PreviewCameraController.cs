@@ -1,5 +1,7 @@
-using Godot;
 using System.Collections.Generic;
+using Godot;
+
+namespace Vantix;
 
 /// <summary>Cycles through the map's preview <see cref="Camera3D"/>s (<see cref="Level.PreviewCams"/>) while the
 /// LocalPlayer hasn't spawned. Each is shown for <see cref="DwellSec"/>, then cross-fades to the next: a frozen
@@ -8,8 +10,11 @@ using System.Collections.Generic;
 /// camera becomes current.</summary>
 public partial class PreviewCameraController : Node
 {
-	[Export] public float DwellSec = 10.0f;
-	[Export] public float CutFadeSec = 1.20f;
+	[Export]
+	public float DwellSec = 10.0f;
+
+	[Export]
+	public float CutFadeSec = 1.20f;
 
 	private readonly List<Camera3D> _cams = new();
 	private int _index;
@@ -38,7 +43,8 @@ public partial class PreviewCameraController : Node
 
 	public override void _Process(double delta)
 	{
-		if (_retired) return;
+		if (_retired)
+			return;
 		// Auto-retire as soon as the LocalPlayer's camera takes over.
 		Camera3D active = GetViewport()?.GetCamera3D();
 		if (active != null && !_cams.Contains(active))
@@ -53,7 +59,8 @@ public partial class PreviewCameraController : Node
 		{
 			_fadeRemaining -= (float)delta;
 			float alpha = Mathf.Clamp(_fadeRemaining / CutFadeSec, 0f, 1f);
-			if (_crossfadeRect != null) _crossfadeRect.Modulate = new Color(1f, 1f, 1f, alpha);
+			if (_crossfadeRect != null)
+				_crossfadeRect.Modulate = new Color(1f, 1f, 1f, alpha);
 			if (_fadeRemaining <= 0f)
 			{
 				CleanupCrossfade();
@@ -125,14 +132,17 @@ public partial class PreviewCameraController : Node
 	{
 		_cams.Clear();
 		var level = World.Level;
-		if (level == null) return;
+		if (level == null)
+			return;
 		foreach (Camera3D c in level.PreviewCams)
-			if (GodotObject.IsInstanceValid(c)) _cams.Add(c);
+			if (GodotObject.IsInstanceValid(c))
+				_cams.Add(c);
 	}
 
 	private void ActivateCam(int idx)
 	{
-		if (_cams.Count == 0) return;
+		if (_cams.Count == 0)
+			return;
 		_index = idx;
 		for (int i = 0; i < _cams.Count; i++)
 			_cams[i].Current = i == idx;

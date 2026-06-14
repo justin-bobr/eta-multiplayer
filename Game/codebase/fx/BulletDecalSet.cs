@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Decal texture bundle for one material type (.tres resource): Albedo, Normal, ORM, Emission.
 /// ORM is either pre-packed or auto-packed (and cached) on first access from separate O/R/M inputs.

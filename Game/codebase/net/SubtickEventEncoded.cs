@@ -1,3 +1,5 @@
+namespace Vantix.Net;
+
 public struct SubtickEventEncoded
 {
 	public byte TQ;

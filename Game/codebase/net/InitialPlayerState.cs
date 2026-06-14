@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Net;
+
 public struct InitialPlayerState
 {
 	public byte NetId;

@@ -1,6 +1,8 @@
 using System;
 using Godot;
 
+namespace Vantix.Weapon;
+
 /// <summary>Immutable gameplay + visual stats for one weapon; one instance per weapon in <see cref="ConVars.Weapons"/>.</summary>
 public record WeaponStats
 {

@@ -2,6 +2,8 @@ using System;
 using System.Text;
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Drives the viewmodel DirectionalLight to match world lighting in real time by mixing three raycast
 /// samples: a sun check (open sky adds <see cref="SunInfluence"/>, geometry = in shadow), an upward sky

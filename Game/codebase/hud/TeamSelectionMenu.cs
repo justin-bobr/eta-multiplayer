@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Team-select overlay shown while in <see cref="Team.Spectator"/> during the competitive handshake:
 /// Team1/Team2 buttons plus live rosters from <see cref="NetClient.RemotePlayers"/>, over a blurred

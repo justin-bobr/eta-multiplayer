@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Center-right hitmarker showing "-X HP" when the local player lands a hit; headshot gold,
 /// body white, stacked oldest-to-newest, fades after <see cref="HoldSec"/>. Driven by

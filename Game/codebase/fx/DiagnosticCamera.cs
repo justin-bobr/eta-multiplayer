@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Fixed-position diagnostic camera for isolating the world-render pipeline from viewmodel and
 /// WorldEnvironment influence, to bisect the source of a render artefact. While <see cref="DiagEnabled"/>

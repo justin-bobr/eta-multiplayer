@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
+namespace Vantix.Utils;
+
 /// <summary>
 /// Thread-safe per-method timing profiler with three layers: _current (per-frame aggregate),
 /// _last (last <see cref="FlushFrame"/> snapshot for the HUD), and _window (cumulative, dumped by

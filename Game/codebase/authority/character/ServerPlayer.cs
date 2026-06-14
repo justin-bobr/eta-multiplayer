@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// Server-authoritative character (real peer or bot). Runs the sim from replicated net input, resolves
 /// hitscan with lag compensation, and poses the TPS skeleton for hitboxes. No FX/audio; a non-headless

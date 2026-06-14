@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// Per-bone hitbox rig. Scans the <see cref="Skeleton"/> for <see cref="Hitbox"/> children and registers
 /// their RIDs for self-exclude and damage-hitscan. Authored hitboxes (BoneAttachment3D → Hitbox →

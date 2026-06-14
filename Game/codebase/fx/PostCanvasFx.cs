@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Canvas-stage post-process layer; FSR2-compatible counterpart to <see cref="PostProcessEffect"/>.
 /// Runs after FSR2/TAA upscaling (Canvas stage) so it doesn't corrupt FSR2's input; reads SCREEN_TEXTURE.

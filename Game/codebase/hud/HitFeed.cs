@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Top-center hit feed listing server-confirmed hits involving the local player as shooter or victim
 /// ("Shooter -> (PART) -> Victim (-DMG -> HP)"). The server sends <see cref="Packets.WriteHit"/> only

@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// Per-tick bone pose history per <see cref="NetworkPlayer"/>, storing hitbox-node GlobalTransforms.
 /// Lag-comp rewinds animated bone positions too, so headshots land when server/client animation

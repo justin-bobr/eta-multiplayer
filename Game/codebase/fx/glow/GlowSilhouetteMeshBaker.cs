@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Editor tool + runtime asset. As a child of the puppet's Skeleton3D, the inspector <see cref="Bake"/>
 /// trigger merges every visible skinned body MeshInstance3D's silhouette into this node's own

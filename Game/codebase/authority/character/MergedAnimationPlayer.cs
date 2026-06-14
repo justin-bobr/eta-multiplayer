@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Vantix.Character;
+
 [Tool, GlobalClass]
 public partial class MergedAnimationPlayer : AnimationPlayer
 {

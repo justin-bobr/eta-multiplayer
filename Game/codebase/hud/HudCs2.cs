@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Competitive-shooter HUD: vitals, money, score/round, compass, loadout, bomb banner.
 /// Values exposed as properties for wiring real data. Creates its own CanvasLayer and layout.

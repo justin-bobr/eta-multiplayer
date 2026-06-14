@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Debug;
+
 /// <summary>
 /// Renders the server's hitbox transforms (from <see cref="PacketType.DebugHitboxes"/> at ~10 Hz) as
 /// what <see cref="ServerPlayer.RunAuthoritativeHitscan"/> actually casts: shape, size, position,

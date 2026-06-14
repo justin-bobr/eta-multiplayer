@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 
+namespace Vantix.Platform;
+
 /// <summary>Linux equivalent of <see cref="Win32Display"/> — uses the <c>xrandr</c> CLI to programme the X11
 /// monitor scanout mode. Wayland disallows app-level mode-change, so <c>IsSupported</c> is false there and the
 /// caller falls back to Godot's ExclusiveFullscreen. Unlike Win32's CDS_FULLSCREEN, X11 does not auto-restore

@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Drives the local player's team-glow SubViewport pipeline. Each frame it keeps the body/text glow
 /// cameras locked to the FPS camera (transform + FOV/near/far) and matches the SubViewport size to the

@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Debug;
+
 /// <summary>
 /// Horizontal debug bar at the top of the screen. Visibility controlled via Settings.ShowDebugBar
 /// (default F3). Required: assign <see cref="Player"/> in the Inspector.

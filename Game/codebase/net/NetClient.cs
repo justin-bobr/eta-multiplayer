@@ -2,6 +2,8 @@ using Godot;
 using LiteNetLib;
 using System.Collections.Generic;
 
+namespace Vantix.Client;
+
 /// <summary>Client side of the netcode stack. Handles the handshake, sends ConnectRequest, receives
 /// SpawnAck, and dispatches player joined/left events.</summary>
 public class NetClient

@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Bottom-left vitals strip (no background): health number, armor icon + number, then a health bar
 /// and a thinner stamina bar. Rendered via <see cref="_Draw"/>.

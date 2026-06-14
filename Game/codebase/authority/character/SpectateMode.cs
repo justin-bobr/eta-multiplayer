@@ -1,3 +1,5 @@
+namespace Vantix.Character;
+
 /// <summary>Spectator camera mode for a <see cref="PuppetPlayer"/>: no camera, third-person follow, or
 /// first-person through the puppet's eyes.</summary>
 public enum SpectateMode

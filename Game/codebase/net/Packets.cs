@@ -2,6 +2,8 @@ using Godot;
 using LiteNetLib;
 using LiteNetLib.Utils;
 
+namespace Vantix.Net;
+
 /// <summary>Central packet read/write helpers. Each packet starts with a <see cref="PacketType"/> byte,
 /// then a type-specific body.
 /// Channels: Input + Snapshot are Unreliable (channel 0, drops discarded); all gameplay events and the

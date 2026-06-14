@@ -1,3 +1,5 @@
+namespace Vantix.Net;
+
 /// <summary>Disconnect reason for <see cref="PacketType.PlayerLeft"/>.</summary>
 public enum LeaveReason : byte
 {

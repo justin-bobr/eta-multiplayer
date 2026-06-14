@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Top-right killfeed, one row per death: "Attacker (Weapon) → Victim [HS]". Suicide/world
 /// damage (attacker 0 or == victim) shows "✕ Victim" without attacker; own kills highlighted yellow.

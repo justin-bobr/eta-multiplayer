@@ -1,3 +1,5 @@
+namespace Vantix.Utils;
+
 #if TOOLS
 using Godot;
 

@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Weapon;
+
 public enum AttachmentType
 {
 	Scope,

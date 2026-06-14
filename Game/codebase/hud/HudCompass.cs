@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Floating compass strip (no background box). HUD feeds <see cref="HeadingDegrees"/> each frame;
 /// ticks every 5°, numeric labels every 15°, cardinals every 45°, red center marker.

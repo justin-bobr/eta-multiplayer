@@ -1,3 +1,5 @@
+namespace Vantix.Net;
+
 /// <summary>Wire identifier per packet type. Keep values stable; bump <see cref="Packets.ProtocolVersion"/>
 /// on any incompatible wire change.</summary>
 public enum PacketType : byte

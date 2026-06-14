@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Quake-style dev console (toggle hotkey default ^). Routes "sv_*" to server ConVars (via ConVarSync
 /// packet), "cl_*" to client ConVars, plus built-ins (echo/help/clear/quit/history); else ConVars.TrySet.

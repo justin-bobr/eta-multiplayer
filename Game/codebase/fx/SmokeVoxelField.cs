@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Voxel smoke with a grid advection sim. A one-time flood fill (BFS + raycasts) marks which cell
 /// faces walls block; each physics tick runs emission + buoyancy/wind advection + diffusion + dissipation,

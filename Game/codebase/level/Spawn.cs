@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Levels;
+
 /// <summary>
 /// A respawn region extending <see cref="Zone"/>; players land at the area centre (or a sampled cell
 /// when several spawn together). The <see cref="Kind"/> tag selects the mode/team pool, resolved by

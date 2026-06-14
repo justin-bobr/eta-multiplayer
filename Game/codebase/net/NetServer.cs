@@ -3,6 +3,8 @@ using LiteNetLib;
 using LiteNetLib.Utils;
 using System.Collections.Generic;
 
+namespace Vantix.Server;
+
 /// <summary>Server side of the netcode stack. Listens, accepts peers, runs the ConnectRequest handshake,
 /// allocates NetIds, broadcasts SpawnAck/PlayerJoined, runs the sim, and emits snapshots.</summary>
 public class NetServer
