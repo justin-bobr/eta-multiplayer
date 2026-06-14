@@ -13,10 +13,12 @@ config_version=5
 config/name="VANTIX"
 config/version="0.0.1"
 run/main_scene="uid://cui7t1hv14rgl"
+config/quit_on_go_back=false
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
-boot_splash/bg_color=Color(0.7529412, 0.007843138, 0.003921569, 1)
-boot_splash/image="uid://c1erobi2viv60"
-config/icon="uid://c1erobi2viv60"
+boot_splash/bg_color=Color(0, 0, 0, 1)
+boot_splash/stretch_mode=0
+boot_splash/image="uid://d1jshvl3xx067"
+config/icon="uid://cac5otb0sckp3"
 
 [autoload]
 
