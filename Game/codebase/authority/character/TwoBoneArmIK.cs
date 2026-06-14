@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Character;
+
 // Analytic two-bone IK (law of cosines) for one arm, replacing Godot's FABRIK3D/CCDIK3D which leave
 // the wrist a hand-segment short of the target. Reads the grip target straight from a skeleton bone
 // (ik_hand_l/r), so it picks up the WeaponBoneModifier's ADS/recoil offset on ik_hand_gun. Runs as a

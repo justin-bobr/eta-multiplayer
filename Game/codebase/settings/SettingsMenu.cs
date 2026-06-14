@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Godot;
 
+namespace Vantix.Config;
+
 /// <summary>Settings menu, opened via <see cref="ToggleKey"/> (ESC by default). Code-driven UI; live-applies on
 /// change plus an explicit Save. A quality preset sets every individual value; tweaking one switches the preset to Custom.</summary>
 public partial class SettingsMenu : CanvasLayer

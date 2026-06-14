@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// Editor tool that generates and sizes per-bone hitbox capsules from a skeleton. Assign
 /// <see cref="Skeleton"/> (optionally a <see cref="HitboxContainer"/> and per-slot bone overrides), then

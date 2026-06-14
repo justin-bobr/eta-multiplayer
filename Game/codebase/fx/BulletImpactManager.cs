@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Spawns a bullet-hole Decal3D and spark/dust GPUParticles3D at each hit point.
 /// Surface material comes from the collider's Godot group (e.g. "metal"); decal is skipped when no texture is configured.

@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Net;
+
 /// <summary>Global netcode stats. Written by <see cref="NetClient"/>/<see cref="NetServer"/>, read by
 /// <see cref="DebugOverlay"/>; static to avoid per-node wiring. Server mode populates only server fields,
 /// Client only client fields, Listen both.</summary>

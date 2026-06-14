@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// Self-contained Node3D mount for the TPS Foot IK (child of the player scene, no NetworkPlayer hook).
 /// Per tick, reads the parent CharacterBody3D's velocity/position/basis and feeds the <see cref="TpsFootIk"/>

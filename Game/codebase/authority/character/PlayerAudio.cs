@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// Aggregates the FootstepAudio + WeaponAudio banks and exposes a wrapper API so callers don't touch the
 /// audio nodes directly. Server scenes lack these nodes (null banks); all PlayX methods are null-safe.

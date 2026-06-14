@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Deterministic smoke grenade using <see cref="GrenadeTrajectory"/>; spawns a <see cref="SmokeVoxelField"/> on impact.
 /// Owner mode runs physics and broadcasts ProjectileState/Despawn; puppet mode lerps from snapshots and deploys on Despawn.

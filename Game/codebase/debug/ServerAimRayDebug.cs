@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Debug;
+
 /// <summary>
 /// Draws a yellow ray (ImmediateMesh) from the server eye in the server's believed aim direction,
 /// from <see cref="NetClient.LastSelfSnap"/> (eye = Snap.Pos + StandEyeHeight). Active only when

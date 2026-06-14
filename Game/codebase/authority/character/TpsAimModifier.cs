@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// <see cref="SkeletonModifier3D"/> for TPS body aim rotation. Runs after the AnimationMixer but before the
 /// skeleton render flush. Applies pitch (around body-right) and twist (around world-up) in world space so

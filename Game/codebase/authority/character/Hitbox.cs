@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// Scene-node hitbox (capsule/box/sphere), dropped under a BoneAttachment3D in the skeleton.
 /// <see cref="HitboxRig"/> scans the skeleton in _Ready and configures the layer / self-exclude RIDs.

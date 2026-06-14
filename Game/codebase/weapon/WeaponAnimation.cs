@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Weapon;
+
 public enum WeaponMode { FPS, TPS }
 
 [Tool, GlobalClass]

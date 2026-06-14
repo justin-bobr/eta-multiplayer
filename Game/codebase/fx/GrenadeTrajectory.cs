@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Deterministic projectile simulation for thrown grenades, shared by <see cref="SmokeGrenade"/> and
 /// the aim guide (<see cref="GrenadeAimGuide"/>) so the preview matches the real throw.

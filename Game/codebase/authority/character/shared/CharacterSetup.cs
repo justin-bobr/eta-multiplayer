@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Utils;
+
 /// <summary>
 /// Stateless body-setup helpers shared by the simulating drivers (LocalPlayer / ServerPlayer) for identical
 /// capsule/crouch behaviour without a common base class. Each driver owns the resulting objects and passes

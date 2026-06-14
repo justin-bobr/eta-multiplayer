@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Utils;
+
 /// <summary>Central input gate. <see cref="Blocked"/> is true when the player should receive no game input:
 /// settings menu open, window unfocused (Alt-Tab), mouse capture off, or LocalPlayer dead. Input-read sites
 /// should consult this first so keystrokes don't leak through.</summary>
@@ -17,13 +19,17 @@ public static class InputGate
 	{
 		get
 		{
-			if (LocalPlayerFrozen) return true;
-			if (SettingsMenu.IsAnyOpen) return true;
-			if (ConsoleHud.IsAnyOpen) return true;
+			if (LocalPlayerFrozen)
+				return true;
+			if (SettingsMenu.IsAnyOpen)
+				return true;
+			if (ConsoleHud.IsAnyOpen)
+				return true;
 			if (!_headless && !DisplayServer.WindowIsFocused(0))
 				return true;
 			var selfSnap = NetMain.Instance?.Client?.LastSelfSnap;
-			if (selfSnap.HasValue && selfSnap.Value.Hp == 0) return true;
+			if (selfSnap.HasValue && selfSnap.Value.Hp == 0)
+				return true;
 			return false;
 		}
 	}

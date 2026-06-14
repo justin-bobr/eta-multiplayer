@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// MultiMesh shell-ejection pool: all cartridge cases render in one draw call. Per-shell physics is
 /// velocity + gravity + tumble with a down-raycast floor bounce that settles at low impact speed;

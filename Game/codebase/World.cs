@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix;
+
 /// <summary>Root script of world.tscn. Owns the active map's single <see cref="global::Level"/> registry and
 /// exposes it statically (via <see cref="Instance"/>) to the HUD, bot AI, spawn system, and preview-camera
 /// cycler. <see cref="LevelPath"/> points at the instanced map node; if unset, <see cref="ResolveLevel"/> falls
@@ -14,7 +16,8 @@ public partial class World : Node3D
 	public static Level Level => Instance?.ResolveLevel();
 
 	/// <summary>Path to the instanced map root (the node carrying the <see cref="global::Level"/> script). Unset = auto-discover.</summary>
-	[Export] public NodePath LevelPath { get; set; }
+	[Export]
+	public NodePath LevelPath { get; set; }
 
 	private Level _level;
 
@@ -22,7 +25,8 @@ public partial class World : Node3D
 
 	public override void _ExitTree()
 	{
-		if (Instance == this) Instance = null;
+		if (Instance == this)
+			Instance = null;
 		_level = null;
 	}
 
@@ -48,9 +52,11 @@ public partial class World : Node3D
 	{
 		foreach (var child in node.GetChildren())
 		{
-			if (child is Level l) return l;
+			if (child is Level l)
+				return l;
 			var nested = FindFirstLevel(child);
-			if (nested != null) return nested;
+			if (nested != null)
+				return nested;
 		}
 		return null;
 	}

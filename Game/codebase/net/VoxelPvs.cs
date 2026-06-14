@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Server;
+
 /// <summary>
 /// Server-side line-of-sight precomputation. Voxelises the map into a coarse 3D grid and bakes
 /// pairwise voxel visibility via center-to-center raycasts; <see cref="CanSee"/> is then an O(1)

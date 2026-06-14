@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Debug;
+
 /// <summary>
 /// Red transparent capsule at the server-reported local player position (from <see cref="NetClient.LastSelfSnap"/>),
 /// for spotting drift between server-authority and predicted client body. Height derives from CrouchBlend

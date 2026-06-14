@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix;
+
 /// <summary>Client-startup main menu: enter a server address, tune settings, or quit. Bypassed (swaps straight
 /// to the loading scene) when <see cref="NetCli.AutoConnect"/> is set or the run mode is Listen/Server.</summary>
 public partial class MainMenu : Control

@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Live position-aware reflection cubemap for the own_world_3d weapon viewmodel, which can't see the
 /// main world's probes/GI/Sky. Hosts 6 SubViewport+Camera3D pairs at the player position facing each

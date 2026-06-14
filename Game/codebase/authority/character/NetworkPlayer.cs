@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Character;
+
 [Tool, GlobalClass]
 public partial class NetworkPlayer : CharacterBody3D
 {

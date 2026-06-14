@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Character;
+
 /// <summary>Local-player cosmetic view (per-frame): viewmodel render, cameras, procedural sway,
 /// locomotion tree, ADS crosshair, editor preview. Only the local player runs this chain; puppets/server
 /// use the shared posing (UpdateTpsBodyAim).</summary>

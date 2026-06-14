@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Weapon;
+
 [Tool, GlobalClass]
 public partial class AnimatedMagazin : RigidBody3D
 {

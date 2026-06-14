@@ -1,3 +1,5 @@
+namespace Vantix.Editor;
+
 #if TOOLS
 using Godot;
 

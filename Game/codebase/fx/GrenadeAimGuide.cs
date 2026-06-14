@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Draws the predicted grenade trajectory as a camera-facing <see cref="ImmediateMesh"/> ribbon plus
 /// a <see cref="TorusMesh"/> landing ring, from <see cref="GrenadeTrajectory.Predict"/> path points.

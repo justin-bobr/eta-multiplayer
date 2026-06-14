@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Client;
+
 /// <summary>Ring buffer of local prediction states, one per <see cref="NetworkPlayer.FixedTick"/> (post-step
 /// <see cref="MovementSnapshot"/> + position). On a server snapshot with <c>ackedInputTick = N</c>, the
 /// stored position at tick N is compared against the server's to compute mispredict drift.

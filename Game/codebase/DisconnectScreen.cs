@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix;
+
 /// <summary>Fullscreen overlay shown after a disconnect — displays the reason plus reconnect and quit buttons.
 /// Code-driven UI; instantiated by <see cref="NetMain.HandleDisconnect"/>.</summary>
 public partial class DisconnectScreen : Control
@@ -26,11 +28,7 @@ public partial class DisconnectScreen : Control
 		col.AddThemeConstantOverride("separation", 18);
 		center.AddChild(col);
 
-		var title = new Label
-		{
-			Text = "DISCONNECTED",
-			HorizontalAlignment = HorizontalAlignment.Center,
-		};
+		var title = new Label { Text = "DISCONNECTED", HorizontalAlignment = HorizontalAlignment.Center };
 		title.AddThemeColorOverride("font_color", Colors.White);
 		title.AddThemeFontSizeOverride("font_size", 32);
 		col.AddChild(title);

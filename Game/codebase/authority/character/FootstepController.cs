@@ -1,15 +1,6 @@
 using Godot;
 
-public struct FootstepInput
-{
-	public float Dt;
-	public float HorizontalSpeed;
-	public bool OnFloor;
-	public bool ShiftHeld;
-	public bool CrouchHeld;
-	public bool IsSprinting;
-	public bool IsSliding;
-}
+namespace Vantix.Character;
 
 /// <summary>
 /// Deterministic distance-based footstep cadence. Pure logic (no Node3D/Physics/Random), so it is

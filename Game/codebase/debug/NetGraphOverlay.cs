@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Debug;
+
 /// <summary>
 /// Compact net_graph box top-right under the DebugOverlay bar: a 3x3 stats grid plus down/up jitter
 /// line-graphs. Visibility via Settings.ShowNetGraph.

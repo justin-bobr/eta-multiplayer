@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Client;
+
 /// <summary>Owned by <see cref="NetMain"/> in client modes (Listen + Client). Instantiates a
 /// <see cref="PuppetPlayer"/> per remote NetId, feeds it snapshot state, and removes it on PlayerLeft.</summary>
 public class PuppetManager

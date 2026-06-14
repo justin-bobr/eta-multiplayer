@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Server;
+
 /// <summary>Per-agent history ring of the server-authoritative position per tick, filled every tick by
 /// <see cref="NetServer"/>. Server-side <see cref="Hitscan"/> rewinds other agents to
 /// <c>shooterTick - RTT/2 - interpDelay</c> for fair lag compensation.

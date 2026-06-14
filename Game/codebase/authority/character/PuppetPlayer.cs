@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// Remote-player driver. Interpolates GlobalPosition/Rotation from a ring buffer of snapshots at render
 /// time = serverTickEstimate - interpDelay (~6 ticks); brackets the surrounding pair and lerps, extrapolating

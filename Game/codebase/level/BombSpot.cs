@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Levels;
+
 /// <summary>
 /// A named bomb plant region (A/B/C), extending <see cref="Zone"/> and adding a <see cref="Slot"/> tag.
 /// Used for HUD compass markers (via <see cref="Level.BombSpotForSlot"/>) and as bot navigation targets.

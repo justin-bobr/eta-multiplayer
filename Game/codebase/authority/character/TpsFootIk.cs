@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// TPS Foot IK: Godot <c>TwoBoneIK3D</c> per leg plus a ground-snap raycast. Ground adaptation only, no
 /// procedural stepping — foot targets are snapped each frame to the ground under the hip, so animated legs

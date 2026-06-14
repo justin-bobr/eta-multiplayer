@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Dynamic ConVar-driven crosshair. Expands with player speed and per-shot fire kicks (decaying),
 /// optionally hides during ADS. Creates its own CanvasLayer and drawer; assign <see cref="Player"/>.

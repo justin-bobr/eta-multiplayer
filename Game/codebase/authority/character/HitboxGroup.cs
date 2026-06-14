@@ -1,3 +1,5 @@
+namespace Vantix.Character;
+
 /// <summary>
 /// Hitbox zone enum for damage routing; keys <see cref="WeaponStats.Damages"/> and serialised as a byte
 /// in HitEvent packets (see <see cref="Packets.WriteHit"/>).

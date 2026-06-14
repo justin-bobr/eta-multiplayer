@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// MultiMesh bullet tracer pool: all tracers render in one draw call. Fixed-size ring buffer with
 /// swap-and-pop expiry, per-instance Transform3D + Color (alpha fade via VertexColorUseAsAlbedo).

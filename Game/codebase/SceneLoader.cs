@@ -1,11 +1,14 @@
 using Godot;
 
+namespace Vantix;
+
 /// <summary>Loading screen and startup scene. Loads world.tscn in the background (threaded ResourceLoader) with a
 /// progress bar, then switches the tree once ready. Code-driven UI; the .tscn only holds the root node.</summary>
 public partial class SceneLoader : Control
 {
 	private const string TargetScene = "res://world.tscn";
 	private const float BarFollowSpeed = 1.6f;
+
 	// 30s: a freshly-launched server can take this long to finish its world load before accepting spawn requests.
 	private const float ConnectTimeoutSec = 30f;
 
@@ -16,6 +19,7 @@ public partial class SceneLoader : Control
 	private ProgressBar _bar;
 	private Label _percent;
 	private Label _statusLabel;
+
 	private enum LoadPhase
 	{
 		Connecting,
@@ -197,8 +201,10 @@ public partial class SceneLoader : Control
 					_switched = true;
 					var mode = NetMain.Instance?.Cli?.Mode ?? NetMode.Listen;
 					float secs = (Time.GetTicksMsec() - _worldLoadStartMs) / 1000f;
-					GD.Print($"[SceneLoader] ({mode}) Map loaded in {secs:0.0}s → switching scene"
-						+ (mode != NetMode.Client ? "  —  SERVER READY, accepting players" : ""));
+					GD.Print(
+						$"[SceneLoader] ({mode}) Map loaded in {secs:0.0}s → switching scene"
+							+ (mode != NetMode.Client ? "  —  SERVER READY, accepting players" : "")
+					);
 					// Snap the overlay to opaque black before switching to mask the first-frame render burst;
 					// NetworkPlayer._Ready later calls RequestFadeOut() once preloads + spawn are done.
 					WorldFadeOverlay.Instance?.ShowOpaque();
@@ -260,9 +266,11 @@ public partial class SceneLoader : Control
 		return groups;
 	}
 
-	private static void WalkScene(PackedScene scene,
+	private static void WalkScene(
+		PackedScene scene,
 		System.Collections.Generic.HashSet<string> groups,
-		System.Collections.Generic.HashSet<ulong> visited)
+		System.Collections.Generic.HashSet<ulong> visited
+	)
 	{
 		if (scene == null)
 			return;
@@ -291,9 +299,11 @@ public partial class SceneLoader : Control
 		for (int i = 0; i < _audioPaths.Count; i++)
 		{
 			var s = ResourceLoader.LoadThreadedGetStatus(_audioPaths[i]);
-			if (s == ResourceLoader.ThreadLoadStatus.Loaded
+			if (
+				s == ResourceLoader.ThreadLoadStatus.Loaded
 				|| s == ResourceLoader.ThreadLoadStatus.Failed
-				|| s == ResourceLoader.ThreadLoadStatus.InvalidResource)
+				|| s == ResourceLoader.ThreadLoadStatus.InvalidResource
+			)
 				finalized++;
 		}
 		_audioFinalizedCount = finalized;

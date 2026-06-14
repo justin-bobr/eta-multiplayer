@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// A fixed-length cylindrical streak that travels at bullet speed from muzzle to impact.
 /// Spawn with <see cref="Spawn"/>; auto-frees once its front passes the endpoint.

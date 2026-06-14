@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Post-transparency CompositorEffect combining chromatic aberration, sharpening, vignette, film grain
 /// and motion blur into one compute pass. Hooked via the WorldEnvironment compositor (compositor.tres).

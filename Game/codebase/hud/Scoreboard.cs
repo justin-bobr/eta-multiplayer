@@ -1,6 +1,8 @@
 using Godot;
 using System.Collections.Generic;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Tab-activated scoreboard: header plus per-team sections (badge with score/name/alive +
 /// player rows); single-list layout for Deathmatch. Data from <see cref="NetClient.LastSelfSnap"/> and

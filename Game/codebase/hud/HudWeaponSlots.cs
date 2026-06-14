@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Bottom-right loadout strip (no background): weapon silhouette, ammo, and two equipment slots.
 /// Active slot is brighter with a red accent underscore. Rendered via <see cref="_Draw"/>.

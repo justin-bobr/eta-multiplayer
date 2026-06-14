@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 /// <summary>
 /// Ground cloud-shadow overlay driving <c>cloud_shadows.gdshader</c> via the material_override
 /// on this <see cref="MeshInstance3D"/>. Sun direction is auto-derived from <see cref="SunLightPath"/>.

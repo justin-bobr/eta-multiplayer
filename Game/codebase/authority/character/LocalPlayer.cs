@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Character;
+
 /// <summary>
 /// The local player's character (the one this client controls). Drives its own sim, prediction, input
 /// and viewmodel. Spawned from <c>local_player.tscn</c>.

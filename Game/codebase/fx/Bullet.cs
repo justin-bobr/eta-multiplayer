@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Fx;
+
 [GlobalClass]
 public partial class Bullet : RigidBody3D
 {

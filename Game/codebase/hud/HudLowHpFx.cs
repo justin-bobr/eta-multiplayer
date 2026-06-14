@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// Low-HP red vignette pulse when HP (from LastSelfSnap) drops below <see cref="WarnHpThreshold"/>.
 /// Pulse intensifies toward 0 HP and fades once HP recovers above the threshold.

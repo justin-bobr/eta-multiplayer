@@ -2,6 +2,8 @@ using Godot;
 using System.Collections.Generic;
 using System.Text;
 
+namespace Vantix.Hud;
+
 /// <summary>
 /// HUD overlay for <see cref="MiniProfiler"/>. Lists samples sorted by 5-second peak descending; values
 /// over <see cref="ConVars.Cl"/>.ProfilerThresholdMs shown red. Toggle via <c>cl_profiler 1</c>.

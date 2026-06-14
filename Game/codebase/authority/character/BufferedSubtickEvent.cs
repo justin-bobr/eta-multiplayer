@@ -1,4 +1,4 @@
-public struct WeaponButtons { public bool Fire, Reload, Inspect, Ads; }
+namespace Vantix.Character;
 
 public struct BufferedSubtickEvent
 {

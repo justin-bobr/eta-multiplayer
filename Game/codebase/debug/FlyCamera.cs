@@ -1,5 +1,7 @@
 using Godot;
 
+namespace Vantix.Debug;
+
 // Free-look debug camera for flying through a scene at runtime.
 // Hold right mouse button to look around; WASD to move, Q/E (or Ctrl/Space) for down/up,
 // Shift to boost, and the mouse wheel to scale the movement speed.
