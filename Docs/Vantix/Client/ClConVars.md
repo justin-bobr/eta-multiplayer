@@ -1,6 +1,6 @@
 # ClConVars
 
-`Vantix.ClConVars`
+`Vantix.Client.ClConVars`
 
 Client-side ConVars (cl_*). Local only, cosmetic, each player has own values.
 

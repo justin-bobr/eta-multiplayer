@@ -1,6 +1,6 @@
 # DisconnectScreen
 
-`Vantix.DisconnectScreen`
+`Vantix.UI.DisconnectScreen`
 
 Fullscreen overlay shown after a disconnect — displays the reason plus reconnect and quit buttons. Code-driven UI; instantiated by `HandleDisconnect`.
 
