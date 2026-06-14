@@ -38,7 +38,7 @@ public partial class PostCanvasFx : CanvasLayer
 		Layer = 35;
 		ProcessMode = ProcessModeEnum.Always;
 
-		Shader shader = GD.Load<Shader>("res://maps/dust/post_canvas.gdshader");
+		Shader shader = GD.Load<Shader>("res://shaders/post_canvas.gdshader");
 		_mat = new ShaderMaterial { Shader = shader };
 
 		_rect = new ColorRect

@@ -495,7 +495,7 @@ public partial class LocalPlayer
 	{
 		if (_sprintBlurLayer != null || Engine.IsEditorHint())
 			return;
-		var shader = GD.Load<Shader>("res://maps/dust/sprint_blur.gdshader");
+		var shader = GD.Load<Shader>("res://shaders/sprint_blur.gdshader");
 		if (shader == null)
 			return;
 		_sprintBlurMat = new ShaderMaterial { Shader = shader };

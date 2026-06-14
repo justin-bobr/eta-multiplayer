@@ -94,7 +94,7 @@ public partial class TeamSelectionMenu : CanvasLayer
 		// Background: gaussian blur of the back buffer + dark tint. Defocuses the preview-camera view.
 		var blur = new ColorRect { MouseFilter = Control.MouseFilterEnum.Ignore };
 		blur.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		var shader = GD.Load<Shader>("res://codebase/hud/team_select_blur.gdshader");
+		var shader = GD.Load<Shader>("res://shaders/team_select_blur.gdshader");
 		if (shader != null)
 		{
 			var mat = new ShaderMaterial { Shader = shader };
