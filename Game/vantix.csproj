@@ -13,7 +13,6 @@
     <InvariantGlobalization Condition="'$(Configuration)' == 'ExportRelease'">true</InvariantGlobalization>
     <IlcOptimizationPreference Condition="'$(Configuration)' == 'ExportRelease'">Speed</IlcOptimizationPreference>
     <IlcInstructionSet Condition="'$(Configuration)' == 'ExportRelease'">native</IlcInstructionSet>
-
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <RetainVMGarbageCollection>true</RetainVMGarbageCollection>
@@ -22,7 +21,6 @@
     <PackageReference Include="LiteNetLib" Version="2.1.4" />
   </ItemGroup>
   <ItemGroup>
-
     <RuntimeHostConfigurationOption Include="System.GC.Server" Value="true" />
     <RuntimeHostConfigurationOption Include="System.GC.Concurrent" Value="true" />
     <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="true" />
