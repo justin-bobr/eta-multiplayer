@@ -9,7 +9,9 @@ public partial class SceneLoader : Control
 	// 30s: a freshly-launched server can take this long to finish its world load before accepting spawn requests.
 	private const float ConnectTimeoutSec = 30f;
 
-	private static readonly Color EtaRed = new(0.7529412f, 0.007843138f, 0.003921569f);
+	private const string LogoPath = "res://logo.svg";
+	private const float LogoSize = 96f;
+	private const float LogoMargin = 32f;
 
 	private ProgressBar _bar;
 	private Label _percent;
@@ -319,15 +321,30 @@ public partial class SceneLoader : Control
 		}
 	}
 
-	/// <summary>Builds the red loading screen with a centered white bar (code-driven UI).</summary>
+	/// <summary>Builds the black loading screen with the logo top-right and a centered white bar (code-driven UI).</summary>
 	private void BuildUi()
 	{
 		SetAnchorsPreset(LayoutPreset.FullRect);
 		MouseFilter = MouseFilterEnum.Ignore;
 
-		var bg = new ColorRect { Color = EtaRed, MouseFilter = MouseFilterEnum.Ignore };
+		var bg = new ColorRect { Color = Colors.Black, MouseFilter = MouseFilterEnum.Ignore };
 		bg.SetAnchorsPreset(LayoutPreset.FullRect);
 		AddChild(bg);
+
+		var logo = new TextureRect
+		{
+			Texture = GD.Load<Texture2D>(LogoPath),
+			ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+			StretchMode = TextureRect.StretchModeEnum.KeepAspect,
+			CustomMinimumSize = new Vector2(LogoSize, LogoSize),
+			MouseFilter = MouseFilterEnum.Ignore,
+		};
+		logo.SetAnchorsPreset(LayoutPreset.TopRight);
+		logo.OffsetLeft = -LogoSize - LogoMargin;
+		logo.OffsetTop = LogoMargin;
+		logo.OffsetRight = -LogoMargin;
+		logo.OffsetBottom = LogoMargin + LogoSize;
+		AddChild(logo);
 
 		var center = new CenterContainer { MouseFilter = MouseFilterEnum.Ignore };
 		center.SetAnchorsPreset(LayoutPreset.FullRect);

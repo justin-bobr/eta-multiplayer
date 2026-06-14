@@ -1,4 +1,7 @@
-# VANTIX
+<h1>
+  <img src="Logo/Logo%20V1.svg" alt="VANTIX logo" height="48" align="center"/>
+  &nbsp;VANTIX
+</h1>
 
 > Tactical multiplayer shooter built with Godot 4.6 and C#.
 
