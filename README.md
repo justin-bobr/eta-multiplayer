@@ -24,6 +24,8 @@
 
 **Code is open source; assets are not.** See [LICENSE.md](LICENSE.md).
 
+**📖 API docs:** [Docs/README.md](https://github.com/justin-bobr/vantix/blob/main/Docs/README.md)
+
 ---
 
 ## Requirements
