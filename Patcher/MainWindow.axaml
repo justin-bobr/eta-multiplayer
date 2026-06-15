@@ -3,6 +3,7 @@
         xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
         x:Class="Vantix.Patcher.MainWindow"
         Title="VANTIX Launcher"
+        Icon="/Assets/logo.png"
         Width="780" Height="560"
         MinWidth="560" MinHeight="420"
         WindowStartupLocation="CenterScreen"

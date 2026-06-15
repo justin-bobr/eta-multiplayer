@@ -73,7 +73,6 @@ jobs:
           - os: windows-latest
             preset: "Windows"
             export_subdir: "Windows"
-            rid: win-x64
             launcher_exe: VantixLauncher.exe
             installer_glob: "Releases/*Setup.exe"
             artifact: installer-windows
@@ -82,7 +81,6 @@ jobs:
           - os: ubuntu-latest
             preset: "Linux"
             export_subdir: "Linux"
-            rid: linux-x64
             launcher_exe: VantixLauncher
             installer_glob: "Releases/*.AppImage"
             artifact: installer-linux
@@ -113,9 +111,15 @@ jobs:
           echo "Downloading engine from build-engine run $RUN_ID"
           gh run download "$RUN_ID" -n "${{ matrix.engine_artifact }}" -D Engine
 
-      - name: Make editor executable (Linux)
+      - name: Download patcher
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh release download patcher-latest -p "${{ matrix.launcher_exe }}" -D publish/app
+
+      - name: Make binaries executable (Linux)
         if: runner.os == 'Linux'
-        run: chmod +x Engine/Editor.x86_64 Engine/Templates/linux_release.x86_64
+        run: chmod +x Engine/Editor.x86_64 Engine/Templates/linux_release.x86_64 "publish/app/${{ matrix.launcher_exe }}"
 
       - name: Build C# (ExportRelease)
         shell: bash
@@ -137,9 +141,6 @@ jobs:
         run: |
           mkdir -p "../Export/${{ matrix.export_subdir }}"
           "$EDITOR" --headless --path . --export-release "${{ matrix.preset }}"
-
-      - name: Publish launcher
-        run: dotnet publish Patcher/Patcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/app
 
       - name: Stage package
         shell: bash

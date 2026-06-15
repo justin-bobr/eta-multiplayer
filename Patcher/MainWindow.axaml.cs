@@ -1,5 +1,5 @@
 using System;
-using System.IO;
+using System.Net.Http;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
@@ -10,6 +10,9 @@ namespace Vantix.Patcher;
 
 public partial class MainWindow : Window
 {
+    private const string ChangelogUrl = "https://raw.githubusercontent.com/justin-bobr/vantix/main/CHANGELOG.md";
+    private static readonly HttpClient Http = new();
+
     private readonly Updater _updater = new();
 
     public MainWindow()
@@ -34,12 +37,16 @@ public partial class MainWindow : Window
         }
     }
 
-    private void LoadChangelog()
+    private async void LoadChangelog()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "CHANGELOG.md");
-        Changelog.Markdown = File.Exists(path)
-            ? File.ReadAllText(path)
-            : "No changelog available.";
+        try
+        {
+            Changelog.Markdown = await Http.GetStringAsync(ChangelogUrl);
+        }
+        catch
+        {
+            Changelog.Markdown = "No changelog available.";
+        }
     }
 
     private async void OnOpened(object? sender, EventArgs e)
