@@ -17,7 +17,6 @@ permissions:
   contents: read
 
 env:
-  GODOT_VERSION: "4.6.0"
   PACK_ID: "Vantix"
 
 jobs:
@@ -64,6 +63,9 @@ jobs:
 
   build:
     needs: setup
+    permissions:
+      contents: read
+      actions: read
     strategy:
       fail-fast: false
       matrix:
@@ -75,6 +77,8 @@ jobs:
             launcher_exe: VantixLauncher.exe
             installer_glob: "Releases/*Setup.exe"
             artifact: installer-windows
+            engine_artifact: engine-windows
+            editor_rel: "../Engine/Editor_console.exe"
           - os: ubuntu-latest
             preset: "Linux"
             export_subdir: "Linux"
@@ -82,29 +86,57 @@ jobs:
             launcher_exe: VantixLauncher
             installer_glob: "Releases/*.AppImage"
             artifact: installer-linux
+            engine_artifact: engine-linux
+            editor_rel: "../Engine/Editor.x86_64"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
         with:
           lfs: true
 
-      - name: Setup Godot (.NET)
-        uses: chickensoft-games/setup-godot@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          version: ${{ env.GODOT_VERSION }}
-          use-dotnet: true
+          dotnet-version: '8.0.x'
+
+      - name: Download custom engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          RUN_ID=$(gh run list --workflow build-engine.yml --status success \
+            --branch main --limit 1 --json databaseId -q '.[0].databaseId')
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::No successful 'Build Engine' run found. Run that workflow first."
+            exit 1
+          fi
+          echo "Downloading engine from build-engine run $RUN_ID"
+          gh run download "$RUN_ID" -n "${{ matrix.engine_artifact }}" -D Engine
+
+      - name: Make editor executable (Linux)
+        if: runner.os == 'Linux'
+        run: chmod +x Engine/Editor.x86_64 Engine/Templates/linux_release.x86_64
+
+      - name: Build C# (ExportRelease)
+        shell: bash
+        run: dotnet build Game/vantix.csproj -c ExportRelease -nologo
 
       - name: Godot import pass
         working-directory: Game
         shell: bash
-        run: godot --headless --import --quit || exit 0
+        env:
+          EDITOR: ${{ matrix.editor_rel }}
+        run: |
+          "$EDITOR" --headless --path . --import --quit || true
 
       - name: Export game (${{ matrix.preset }})
         working-directory: Game
         shell: bash
+        env:
+          EDITOR: ${{ matrix.editor_rel }}
         run: |
           mkdir -p "../Export/${{ matrix.export_subdir }}"
-          godot --headless --export-release "${{ matrix.preset }}"
+          "$EDITOR" --headless --path . --export-release "${{ matrix.preset }}"
 
       - name: Publish launcher
         run: dotnet publish Patcher/Patcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/app

@@ -1,0 +1,122 @@
+name: Build Engine
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Source/patches/**'
+      - 'build-engine.cmd'
+      - 'build-engine.sh'
+      - '.github/workflows/build-engine.yml'
+
+permissions:
+  contents: read
+
+env:
+  GODOT_REF: "4.6.3-stable"
+
+jobs:
+  engine:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            id: windows
+            artifact: engine-windows
+          - os: ubuntu-latest
+            id: linux
+            artifact: engine-linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Restore engine cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: Engine
+          key: engine-${{ matrix.id }}-${{ env.GODOT_REF }}-${{ hashFiles('Source/patches/**') }}
+
+      - name: Setup .NET
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Python
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup MSVC (Windows)
+        if: matrix.id == 'windows' && steps.cache.outputs.cache-hit != 'true'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install SCons
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: python -m pip install scons
+
+      - name: Clone Godot source @ ${{ env.GODOT_REF }}
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: git clone --depth 1 --branch "$GODOT_REF" https://github.com/godotengine/godot.git Source/godot
+
+      - name: Bootstrap stock editor (Windows)
+        if: matrix.id == 'windows' && steps.cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ref = $env:GODOT_REF
+          New-Item -ItemType Directory -Force Engine | Out-Null
+          $base = "https://github.com/godotengine/godot-builds/releases/download/$ref"
+          $zip  = Join-Path $env:RUNNER_TEMP 'stock.zip'
+          $ex   = Join-Path $env:RUNNER_TEMP 'stock'
+          Invoke-WebRequest "$base/Godot_v${ref}_mono_win64.zip" -OutFile $zip
+          Expand-Archive $zip -DestinationPath $ex -Force
+          $main = Get-ChildItem $ex -Recurse -Filter '*mono_win64.exe' | Where-Object { $_.Name -notmatch 'console' } | Select-Object -First 1
+          $con  = Get-ChildItem $ex -Recurse -Filter '*mono_win64_console.exe' | Select-Object -First 1
+          $gs   = Get-ChildItem $ex -Recurse -Directory -Filter 'GodotSharp' | Select-Object -First 1
+          Copy-Item $main.FullName Engine/Editor.exe -Force
+          Copy-Item $con.FullName  Engine/Editor_console.exe -Force
+          Copy-Item $gs.FullName   Engine/GodotSharp -Recurse -Force
+
+      - name: Bootstrap stock editor (Linux)
+        if: matrix.id == 'linux' && steps.cache.outputs.cache-hit != 'true'
+        run: |
+          ref="$GODOT_REF"
+          mkdir -p Engine
+          base="https://github.com/godotengine/godot-builds/releases/download/$ref"
+          curl -fL "$base/Godot_v${ref}_mono_linux_x86_64.zip" -o /tmp/stock.zip
+          unzip -q /tmp/stock.zip -d /tmp/stock
+          ed=$(find /tmp/stock -maxdepth 2 -type f -name 'Godot_v*.x86_64' | head -1)
+          gs=$(find /tmp/stock -maxdepth 2 -type d -name 'GodotSharp' | head -1)
+          cp "$ed" Engine/Editor.x86_64
+          chmod +x Engine/Editor.x86_64
+          rm -rf Engine/GodotSharp
+          cp -rf "$gs" Engine/GodotSharp
+
+      - name: Build engine (Windows)
+        if: matrix.id == 'windows' && steps.cache.outputs.cache-hit != 'true'
+        shell: cmd
+        run: build-engine.cmd
+
+      - name: Build engine (Linux)
+        if: matrix.id == 'linux' && steps.cache.outputs.cache-hit != 'true'
+        run: bash build-engine.sh
+
+      - name: Save engine cache
+        if: steps.cache.outputs.cache-hit != 'true' && success()
+        uses: actions/cache/save@v4
+        with:
+          path: Engine
+          key: engine-${{ matrix.id }}-${{ env.GODOT_REF }}-${{ hashFiles('Source/patches/**') }}
+
+      - name: Upload engine artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: Engine
+          retention-days: 90
+          if-no-files-found: error
