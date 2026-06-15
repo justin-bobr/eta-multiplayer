@@ -1,2 +1,3 @@
 [lfs]
-	url = 'https://17ad3f7e295cecdee30b80690cb9e5fc:a648378b317833dfb7b9072b8fb87c123c409c8340c46d0a835d0ebc37225d09@git-lfs-s3-proxy.info-e93.workers.dev/0e931d3c667153c3c42cb269f0a6cd08.r2.cloudflarestorage.com/vantix'
+	url = https://17ad3f7e295cecdee30b80690cb9e5fc:a648378b317833dfb7b9072b8fb87c123c409c8340c46d0a835d0ebc37225d09@git-lfs-s3-proxy.info-e93.workers.dev/0e931d3c667153c3c42cb269f0a6cd08.r2.cloudflarestorage.com/vantix
+	locksverify = false
