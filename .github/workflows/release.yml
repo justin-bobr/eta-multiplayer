@@ -1,0 +1,181 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without the leading v (e.g. 0.2.0)'
+        required: true
+      dry_run:
+        description: 'Build + pack only, skip R2 upload and GitHub release (for testing on dev)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.6.0"
+  PACK_ID: "Vantix"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      launcher_changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ github.event.inputs.version }}"
+          fi
+          [ -z "$V" ] && { echo "::error::no version"; exit 1; }
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Releasing version $V"
+
+      - name: Detect launcher changes
+        id: diff
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            PREV=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || echo "")
+            echo "Previous tag: ${PREV:-none}"
+            if [ -z "$PREV" ] || git diff --name-only "$PREV" "${GITHUB_REF_NAME}" -- Patcher/ | grep -q .; then
+              CHANGED=true
+            else
+              CHANGED=false
+            fi
+          else
+            CHANGED=true
+          fi
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "launcher_changed=$CHANGED"
+
+  build:
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            preset: "Windows"
+            export_subdir: "Windows"
+            rid: win-x64
+            launcher_exe: VantixLauncher.exe
+            installer_glob: "Releases/*Setup.exe"
+            artifact: installer-windows
+          - os: ubuntu-latest
+            preset: "Linux"
+            export_subdir: "Linux"
+            rid: linux-x64
+            launcher_exe: VantixLauncher
+            installer_glob: "Releases/*.AppImage"
+            artifact: installer-linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Godot (.NET)
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: true
+
+      - name: Godot import pass
+        working-directory: Game
+        shell: bash
+        run: godot --headless --import --quit || exit 0
+
+      - name: Export game (${{ matrix.preset }})
+        working-directory: Game
+        shell: bash
+        run: |
+          mkdir -p "../Export/${{ matrix.export_subdir }}"
+          godot --headless --export-release "${{ matrix.preset }}"
+
+      - name: Publish launcher
+        run: dotnet publish Patcher/Patcher.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/app
+
+      - name: Stage package
+        shell: bash
+        run: |
+          mkdir -p publish/app/game
+          cp -r "Export/${{ matrix.export_subdir }}/." publish/app/game/
+          test -f "publish/app/${{ matrix.launcher_exe }}" || { echo "::error::launcher missing"; ls -la publish/app; exit 1; }
+
+      - name: Install Velopack CLI
+        shell: bash
+        run: |
+          dotnet tool install -g vpk
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Download previous release (for delta)
+        continue-on-error: true
+        shell: bash
+        run: |
+          vpk download s3 \
+            --endpoint "${{ secrets.R2_ENDPOINT }}" \
+            --bucket "${{ secrets.R2_BUCKET }}" \
+            --keyId "${{ secrets.R2_ACCESS_KEY_ID }}" \
+            --secret "${{ secrets.R2_SECRET_ACCESS_KEY }}" \
+            --region auto
+
+      - name: Pack
+        shell: bash
+        run: |
+          vpk pack \
+            --packId "${{ env.PACK_ID }}" \
+            --packVersion "${{ needs.setup.outputs.version }}" \
+            --packDir publish/app \
+            --mainExe "${{ matrix.launcher_exe }}" \
+            --packTitle "Vantix" \
+            --packAuthors "Red Ninjas"
+
+      - name: Upload to R2
+        if: github.event.inputs.dry_run != 'true'
+        shell: bash
+        run: |
+          vpk upload s3 \
+            --endpoint "${{ secrets.R2_ENDPOINT }}" \
+            --bucket "${{ secrets.R2_BUCKET }}" \
+            --keyId "${{ secrets.R2_ACCESS_KEY_ID }}" \
+            --secret "${{ secrets.R2_SECRET_ACCESS_KEY }}" \
+            --region auto
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.installer_glob }}
+          if-no-files-found: error
+
+  release:
+    needs: [setup, build]
+    if: needs.setup.outputs.launcher_changed == 'true' && github.event.inputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.setup.outputs.version }}
+          name: Vantix v${{ needs.setup.outputs.version }}
+          files: dist/**/*
+          generate_release_notes: true

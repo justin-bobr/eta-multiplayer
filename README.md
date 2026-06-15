@@ -8,6 +8,7 @@
 [![Status: In Development](https://img.shields.io/badge/status-in%20development-orange)]()
 [![Godot 4.6](https://img.shields.io/badge/Godot-4.6-blue)](https://godotengine.org/)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
+[![Discord](https://img.shields.io/discord/1515903361503989882?label=Discord&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/Fhzrjk8yJb)
 
 <p align="center">
   <video src="https://github.com/justin-bobr/eta-multiplayer/raw/master/Screenshots/trailer.mp4" controls muted width="98%"></video>
