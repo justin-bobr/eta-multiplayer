@@ -2,14 +2,14 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version without the leading v (e.g. 0.2.0)'
+        description: "Version without the leading v (e.g. 0.2.0)"
         required: true
       dry_run:
-        description: 'Build + pack only, skip R2 upload and GitHub release (for testing on dev)'
+        description: "Build + pack only"
         type: boolean
         default: true
 
@@ -97,7 +97,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: "8.0.x"
 
       - name: Download custom engine
         env:
@@ -117,7 +117,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: gh release download patcher-latest -p "${{ matrix.launcher_exe }}" -D publish/app
+        run: |
+          TAG=$(gh release list --limit 100 --json tagName,isDraft,createdAt \
+            -q '[.[] | select(.isDraft==false) | select(.tagName|startswith("patcher-"))] | sort_by(.createdAt) | last | .tagName')
+          if [ -z "$TAG" ]; then
+            exit 1
+          fi
+          echo "Using patcher release $TAG"
+          gh release download "$TAG" -p "${{ matrix.launcher_exe }}" -D publish/app
 
       - name: Make binaries executable (Linux)
         if: runner.os == 'Linux'
@@ -209,10 +216,17 @@ jobs:
         with:
           path: dist
 
-      - name: Create GitHub Release
+      - name: Create draft release with installers
+        id: rel
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.setup.outputs.version }}
           name: Vantix v${{ needs.setup.outputs.version }}
           files: dist/**/*
           generate_release_notes: true
+          draft: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PATCH repos/${{ github.repository }}/releases/${{ steps.rel.outputs.id }} -F draft=false
