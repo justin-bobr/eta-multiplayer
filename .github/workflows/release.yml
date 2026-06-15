@@ -27,7 +27,7 @@ jobs:
       version: ${{ steps.ver.outputs.version }}
       launcher_changed: ${{ steps.diff.outputs.changed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -84,7 +84,9 @@ jobs:
             artifact: installer-linux
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          lfs: true
 
       - name: Setup Godot (.NET)
         uses: chickensoft-games/setup-godot@v2

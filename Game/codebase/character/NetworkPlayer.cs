@@ -239,85 +239,85 @@ public partial class NetworkPlayer : CharacterBody3D
 
 	[ExportSubgroup("TPS/Locomotion")]
 	[Export]
-	public string TpsIdleLoop = "locomotion/A_TFA_TP_AR_Idle_Loop_Unreal Take";
+	public string TpsIdleLoop = "locomotion/A_TFA_TP_AR_Idle_Loop";
 
 	[ExportSubgroup("TPS/Combat")]
 	[Export]
-	public string TpsFire = "combat/A_TFA_TP_AR_Fire_Unreal Take";
+	public string TpsFire = "combat/A_TFA_TP_AR_Fire";
 	[Export]
-	public string TpsFireEmpty = "combat/A_TFA_TP_AR_Fire_Empty_Unreal Take";
+	public string TpsFireEmpty = "combat/A_TFA_TP_AR_Fire_Empty";
 	[Export]
-	public string TpsReload = "combat/A_TFA_TP_AR_Reload_Unreal Take";
+	public string TpsReload = "combat/A_TFA_TP_AR_Reload";
 	[Export]
-	public string TpsReloadEmpty = "combat/A_TFA_TP_AR_Reload_Empty_Unreal Take";
+	public string TpsReloadEmpty = "combat/A_TFA_TP_AR_Reload_Empty";
 	[Export]
-	public string TpsReloadAimed = "combat/A_TFA_TP_AR_Reload_Aimed_Unreal Take";
+	public string TpsReloadAimed = "combat/A_TFA_TP_AR_Reload_Aimed";
 	[Export]
-	public string TpsReloadEmptyAimed = "combat/A_TFA_TP_AR_Reload_Empty_Aimed_Unreal Take";
+	public string TpsReloadEmptyAimed = "combat/A_TFA_TP_AR_Reload_Empty_Aimed";
 	[Export]
-	public string TpsReloadQuick = "combat/A_TFA_TP_AR_Reload_Quick_Unreal Take";
+	public string TpsReloadQuick = "combat/A_TFA_TP_AR_Reload_Quick";
 	[Export]
-	public string TpsReloadQuickAimed = "combat/A_TFA_TP_AR_Reload_Quick_Aimed_Unreal Take";
+	public string TpsReloadQuickAimed = "combat/A_TFA_TP_AR_Reload_Quick_Aimed";
 	[Export]
-	public string TpsMagCheck = "combat/A_TFA_TP_AR_MagCheck_Unreal Take";
+	public string TpsMagCheck = "combat/A_TFA_TP_AR_MagCheck";
 	[Export]
-	public string TpsMagCheckAimed = "combat/A_TFA_TP_AR_MagCheck_Aimed_Unreal Take";
+	public string TpsMagCheckAimed = "combat/A_TFA_TP_AR_MagCheck_Aimed";
 	[Export]
-	public string TpsFireModeSwitch = "combat/A_TFA_TP_AR_FireModeSwitch_Unreal Take";
+	public string TpsFireModeSwitch = "combat/A_TFA_TP_AR_FireModeSwitch";
 	[Export]
-	public string TpsMeleeBashForward = "combat/A_TFA_TP_AR_Melee_Bash_F_Unreal Take";
+	public string TpsMeleeBashForward = "combat/A_TFA_TP_AR_Melee_Bash_F";
 	[Export]
-	public string TpsMeleeSwingLeft = "combat/A_TFA_TP_AR_Melee_Swing_L_Unreal Take";
+	public string TpsMeleeSwingLeft = "combat/A_TFA_TP_AR_Melee_Swing_L";
 	[Export]
-	public string TpsMeleeSwingRight = "combat/A_TFA_TP_AR_Melee_Swing_R_Unreal Take";
+	public string TpsMeleeSwingRight = "combat/A_TFA_TP_AR_Melee_Swing_R";
 	[Export]
-	public string TpsClearJamMagSwipe = "combat/A_TFA_TP_AR_ClearJam_MagSwipe_Unreal Take";
+	public string TpsClearJamMagSwipe = "combat/A_TFA_TP_AR_ClearJam_MagSwipe";
 	[Export]
-	public string TpsClearJamRack = "combat/A_TFA_TP_AR_ClearJam_Rack_Unreal Take";
+	public string TpsClearJamRack = "combat/A_TFA_TP_AR_ClearJam_Rack";
 	[Export]
-	public string TpsGrenadeThrowQuick = "combat/A_TFA_TP_AR_Grenade_Throw_Quick_Unreal Take";
+	public string TpsGrenadeThrowQuick = "combat/A_TFA_TP_AR_Grenade_Throw_Quick";
 
 	[ExportSubgroup("TPS/Interactions")]
 	[Export]
-	public string TpsInspect = "interactions/A_TFA_TP_AR_Inspect_Unreal Take";
+	public string TpsInspect = "interactions/A_TFA_TP_AR_Inspect";
 	[Export]
-	public string TpsInspectEmpty = "interactions/A_TFA_TP_AR_Inspect_Empty_Unreal Take";
+	public string TpsInspectEmpty = "interactions/A_TFA_TP_AR_Inspect_Empty";
 	[Export]
-	public string TpsHealSyringe = "interactions/A_TFA_TP_AR_Heal_Syringe_Unreal Take";
+	public string TpsHealSyringe = "interactions/A_TFA_TP_AR_Heal_Syringe";
 	[Export]
-	public string TpsInteractGrab = "interactions/A_TFA_TP_AR_Interact_Grab_Unreal Take";
+	public string TpsInteractGrab = "interactions/A_TFA_TP_AR_Interact_Grab";
 	[Export]
-	public string TpsInteractPush = "interactions/A_TFA_TP_AR_Interact_Push_Unreal Take";
+	public string TpsInteractPush = "interactions/A_TFA_TP_AR_Interact_Push";
 	[Export]
-	public string TpsInteractPunch = "interactions/A_TFA_TP_AR_Interact_Punch_Unreal Take";
+	public string TpsInteractPunch = "interactions/A_TFA_TP_AR_Interact_Punch";
 
 	[ExportSubgroup("TPS/Transitions")]
 	[Export]
-	public string TpsEquip = "transitions/A_TFA_TP_AR_Equip_Unreal Take";
+	public string TpsEquip = "transitions/A_TFA_TP_AR_Equip";
 	[Export]
-	public string TpsEquipQuick = "transitions/A_TFA_TP_AR_Equip_Quick_Unreal Take";
+	public string TpsEquipQuick = "transitions/A_TFA_TP_AR_Equip_Quick";
 	[Export]
-	public string TpsHolster = "transitions/A_TFA_TP_AR_Holster_Unreal Take";
+	public string TpsHolster = "transitions/A_TFA_TP_AR_Holster";
 	[Export]
-	public string TpsTransitionAimStart = "transitions/A_TFA_TP_AR_Transition_Aim_Start_Unreal Take";
+	public string TpsTransitionAimStart = "transitions/A_TFA_TP_AR_Transition_Aim_Start";
 	[Export]
-	public string TpsTransitionAimEnd = "transitions/A_TFA_TP_AR_Transition_Aim_End_Unreal Take";
+	public string TpsTransitionAimEnd = "transitions/A_TFA_TP_AR_Transition_Aim_End";
 
 	[ExportSubgroup("TPS/Poses")]
 	[Export]
-	public string TpsAimPose = "poses/A_TFA_TP_AR_Aim_Pose_Unreal Take";
+	public string TpsAimPose = "poses/A_TFA_TP_AR_Aim_Pose";
 	[Export]
-	public string TpsAimPoseCanted = "poses/A_TFA_TP_AR_Aim_Pose_Canted_Unreal Take";
+	public string TpsAimPoseCanted = "poses/A_TFA_TP_AR_Aim_Pose_Canted";
 	[Export]
-	public string TpsAimPoseGripAngled = "poses/A_TFA_TP_AR_Aim_Pose_Grip_Angled_Unreal Take";
+	public string TpsAimPoseGripAngled = "poses/A_TFA_TP_AR_Aim_Pose_Grip_Angled";
 	[Export]
-	public string TpsAimPoseGripVertical = "poses/A_TFA_TP_AR_Aim_Pose_Grip_Vertical_Unreal Take";
+	public string TpsAimPoseGripVertical = "poses/A_TFA_TP_AR_Aim_Pose_Grip_Vertical";
 	[Export]
-	public string TpsIdlePose = "poses/A_TFA_TP_AR_Idle_Pose_Unreal Take";
+	public string TpsIdlePose = "poses/A_TFA_TP_AR_Idle_Pose";
 	[Export]
-	public string TpsIdlePoseGripAngled = "poses/A_TFA_TP_AR_Idle_Pose_Grip_Angled_Unreal Take";
+	public string TpsIdlePoseGripAngled = "poses/A_TFA_TP_AR_Idle_Pose_Grip_Angled";
 	[Export]
-	public string TpsIdlePoseGripVertical = "poses/A_TFA_TP_AR_Idle_Pose_Grip_Vertical_Unreal Take";
+	public string TpsIdlePoseGripVertical = "poses/A_TFA_TP_AR_Idle_Pose_Grip_Vertical";
 
 	[ExportGroup("Grip")]
 	/// <summary>Hip-fire FOV = the live user setting (<see cref="ConVars.Cl.Fov"/>). AimFov is blended in on ADS.</summary>

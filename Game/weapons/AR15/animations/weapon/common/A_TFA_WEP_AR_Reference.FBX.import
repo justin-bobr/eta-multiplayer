@@ -41,7 +41,7 @@ _subresources={
 "animations": {
 "Unreal Take": {
 "save_to_file/enabled": true,
-"save_to_file/fallback_path": "res://weapons/AR15/animations/weapon/common/A_TFA_WEP_AR_Reference_Unreal Take.tres",
+"save_to_file/fallback_path": "res://weapons/AR15/animations/weapon/common/A_TFA_WEP_AR_Reference.tres",
 "save_to_file/keep_custom_tracks": "",
 "save_to_file/path": "uid://bcoo18i3hodu3",
 "settings/loop_mode": 1,
