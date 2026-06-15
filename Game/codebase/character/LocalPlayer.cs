@@ -77,7 +77,7 @@ public partial class LocalPlayer : NetworkPlayer
 			if (Movement.UnlimitedAmmo)
 				Movement.CurrentMag = ConVars.Weapons.AR15.MagazineSize;
 		}
-		else if (k.Keycode == Key.F7)
+		else if (@event.IsActionPressed(InputActions.CameraSwitch))
 		{ ViewMode = ViewMode == ViewMode.Tps ? ViewMode.Fps : ViewMode.Tps; ApplyModeVisibility(); }
 		else if (k.Keycode == Key.Escape)
 			Input.MouseMode = Input.MouseMode == Input.MouseModeEnum.Captured

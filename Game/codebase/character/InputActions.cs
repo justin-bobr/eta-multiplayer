@@ -24,4 +24,5 @@ public static class InputActions
 	public static readonly StringName SlotWeapon = "slot_1";
 	public static readonly StringName SlotGrenade = "slot_2";
 	public static readonly StringName Console = "console";
+	public static readonly StringName CameraSwitch = "camera_switch";
 }
